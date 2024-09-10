@@ -1,0 +1,9 @@
+.SignUp {
+    display: flex;
+    flex-direction: column;
+    max-width: 300px;
+}
+
+.SignUp>* {
+    margin: 1% 0;
+}
