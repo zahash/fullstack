@@ -31,14 +31,13 @@ const SignUp: Component = () => {
     let [passwordHasDigit, set_passwordHasDigit] = createSignal(false);
     let [passwordHasLowercase, set_passwordHasLowercase] = createSignal(false);
     let [passwordHasUppercase, set_passwordHasUppercase] = createSignal(false);
-    let [canSubmit, set_canSubmit] = createSignal(false);
 
-    createEffect(() => set_canSubmit(
+    let canSubmit = () =>
         usernameAvailable() === true &&
         passwordHasSpecial() &&
         passwordHasDigit() &&
         passwordHasLowercase() &&
-        passwordHasUppercase()));
+        passwordHasUppercase();
 
     const debounced_checkUsernameAvailability = debounce(() => {
         const username = usernameRef.value;
