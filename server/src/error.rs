@@ -18,6 +18,9 @@ pub enum AppError {
 pub enum PublicError {
     #[error("AuthError: {0}")]
     Auth(#[from] AuthError),
+
+    #[error("CookieError: {0}")]
+    Cookie(#[from] CookieError),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -30,6 +33,15 @@ pub enum AuthError {
 
     #[error("username '{0}' is already taken")]
     UsernameTaken(String),
+
+    #[error("invalid session")]
+    InvalidSession,
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum CookieError {
+    #[error("cookie not found: '{0}'")]
+    CookieNotFound(&'static str),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -45,6 +57,12 @@ pub enum InternalError {
 
     #[error("IOError: {0:?}")]
     IO(#[from] std::io::Error),
+
+    #[error("ParseIntError: {0:?}")]
+    ParseInt(#[from] std::num::ParseIntError),
+
+    #[error("ExtensionError: {0:?}")]
+    Extension(&'static str),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -59,17 +77,28 @@ pub enum EnvError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         match self {
-            AppError::Public(e) => match e {
-                PublicError::Auth(e) => {
-                    tracing::info!("{}", e);
-                    let status_code = match e {
-                        AuthError::UserNotFound(_) => StatusCode::NOT_FOUND,
-                        AuthError::InvalidCredentials => StatusCode::UNAUTHORIZED,
-                        AuthError::UsernameTaken(_) => StatusCode::CONFLICT,
-                    };
-                    (status_code, Json(json!({ "message": e.to_string() }))).into_response()
-                }
-            },
+            AppError::Public(e) => {
+                tracing::info!("{}", e);
+
+                let status_code = match &e {
+                    PublicError::Auth(e) => {
+                        use AuthError::*;
+                        match e {
+                            UserNotFound(_) => StatusCode::NOT_FOUND,
+                            InvalidCredentials | InvalidSession => StatusCode::UNAUTHORIZED,
+                            UsernameTaken(_) => StatusCode::CONFLICT,
+                        }
+                    }
+                    PublicError::Cookie(e) => {
+                        use CookieError::*;
+                        match e {
+                            CookieNotFound(_) => StatusCode::BAD_REQUEST,
+                        }
+                    }
+                };
+
+                (status_code, Json(json!({ "message": e.to_string() }))).into_response()
+            }
             AppError::Internal(e) => {
                 tracing::error!("{}", e);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
@@ -81,6 +110,12 @@ impl IntoResponse for AppError {
 impl From<AuthError> for AppError {
     fn from(err: AuthError) -> Self {
         AppError::Public(PublicError::Auth(err))
+    }
+}
+
+impl From<CookieError> for AppError {
+    fn from(err: CookieError) -> Self {
+        AppError::Public(PublicError::Cookie(err))
     }
 }
 
@@ -111,5 +146,11 @@ impl From<dotenv::Error> for AppError {
 impl From<std::env::VarError> for AppError {
     fn from(err: std::env::VarError) -> Self {
         AppError::Internal(InternalError::Env(EnvError::Var(err)))
+    }
+}
+
+impl From<std::num::ParseIntError> for AppError {
+    fn from(err: std::num::ParseIntError) -> Self {
+        AppError::Internal(InternalError::ParseInt(err))
     }
 }

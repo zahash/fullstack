@@ -1,4 +1,4 @@
-import { Component, createEffect, createSignal, onMount } from 'solid-js';
+import { Component, createSignal } from 'solid-js';
 
 import styles from './Signup.module.css';
 

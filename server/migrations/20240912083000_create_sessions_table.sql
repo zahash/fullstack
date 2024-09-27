@@ -1,6 +1,6 @@
 CREATE TABLE sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    token TEXT NOT NULL UNIQUE,
+    session_id TEXT NOT NULL UNIQUE,
     user_id INTEGER NOT NULL,
     created_at DATETIME NOT NULL,
     expires_at DATETIME,

@@ -42,24 +42,21 @@ pub async fn login(
         r#"SELECT id as "id!", password_hash FROM users WHERE username = ?"#,
         login.username
     )
-    .fetch_one(&pool)
-    .await
-    .map_err(|e| match e {
-        sqlx::Error::RowNotFound => AuthError::UserNotFound(login.username.clone()).into(),
-        _ => <sqlx::Error as Into<AppError>>::into(e),
-    })?;
+    .fetch_optional(&pool)
+    .await?
+    .ok_or(AuthError::UserNotFound(login.username.clone()))?;
 
     match verify(login.password, &user.password_hash)? {
         false => Err(AuthError::InvalidCredentials.into()),
         true => {
-            let session_token = Uuid::new_v4().to_string();
+            let session_id = Uuid::new_v4().to_string();
             let created_at = OffsetDateTime::now_utc();
             let expires_at = login.remember.then_some(created_at + DURATION_30_DAYS);
             let user_agent = headers.get(USER_AGENT).and_then(|val| val.to_str().ok());
 
             sqlx::query!(
-                "INSERT INTO sessions (token, user_id, created_at, expires_at, user_agent) VALUES (?, ?, ?, ?, ?)",
-                session_token,
+                "INSERT INTO sessions (session_id, user_id, created_at, expires_at, user_agent) VALUES (?, ?, ?, ?, ?)",
+                session_id,
                 user.id,
                 created_at,
                 expires_at,
@@ -68,11 +65,12 @@ pub async fn login(
             .execute(&pool)
             .await?;
 
-            let session_cookie = Cookie::build(("session_token", session_token))
+            let session_cookie = Cookie::build(("session_id", session_id))
                 .path("/")
-                .http_only(true)
                 .same_site(SameSite::Strict)
-                .expires(expires_at);
+                .expires(expires_at)
+                .http_only(true)
+                .secure(true);
             let jar = jar.add(session_cookie);
 
             Ok((jar, StatusCode::OK))
