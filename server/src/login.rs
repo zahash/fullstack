@@ -20,7 +20,7 @@ use crate::error::{AppError, AuthError};
 
 const DURATION_30_DAYS: Duration = Duration::from_secs(3600 * 24 * 30);
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct Login {
     pub username: String,
     pub password: String,
@@ -28,6 +28,7 @@ pub struct Login {
 }
 
 #[debug_handler]
+#[tracing::instrument(fields(username = login.username, password = "***", remember = login.remember), skip_all)]
 pub async fn login(
     Extension(pool): Extension<SqlitePool>,
     headers: HeaderMap,
@@ -49,6 +50,8 @@ pub async fn login(
     .context("username -> User { id, password_hash }")?
     .ok_or(AuthError::UserNotFound(login.username.clone()))?;
 
+    tracing::info!(user_id = %user.id);
+
     match verify(login.password, &user.password_hash).context("verify password hash")? {
         false => Err(AuthError::InvalidCredentials.into()),
         true => {
@@ -67,6 +70,14 @@ pub async fn login(
             )
             .execute(&pool)
             .await.context("insert session")?;
+
+            tracing::info!(
+                session_id = "***",
+                created_at = %created_at,
+                expires_at = %expires_at.map(|t| t.to_string()).unwrap_or("None".into()),
+                user_agent = %user_agent.unwrap_or("None"),
+                "session_id created"
+            );
 
             let session_cookie = Cookie::build(("session_id", session_id))
                 .path("/")

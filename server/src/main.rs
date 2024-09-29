@@ -1,6 +1,7 @@
 mod error;
-mod extractors;
+mod extractor;
 mod login;
+mod middleware;
 mod private;
 mod signup;
 mod types;
@@ -17,6 +18,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use middleware::trace_middleware;
 use sqlx::SqlitePool;
 use tokio::net::TcpListener;
 
@@ -55,7 +57,8 @@ async fn main() -> Result<(), AppError> {
         .route("/login", post(login))
         .route("/private", get(private))
         .layer(Extension(pool))
-        .layer(cors);
+        .layer(cors)
+        .layer(axum::middleware::from_fn(trace_middleware));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = TcpListener::bind(addr)
