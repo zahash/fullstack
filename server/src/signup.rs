@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Context};
 use axum::{http::StatusCode, Extension, Form};
 use axum_macros::debug_handler;
 use serde::Deserialize;
@@ -16,7 +17,8 @@ pub async fn signup(
     Extension(pool): Extension<SqlitePool>,
     Form(signup): Form<SignUp>,
 ) -> Result<StatusCode, AppError> {
-    let password_hash = bcrypt::hash(signup.password, bcrypt::DEFAULT_COST)?;
+    let password_hash =
+        bcrypt::hash(signup.password, bcrypt::DEFAULT_COST).context("hash password")?;
 
     sqlx::query!(
         "INSERT INTO users (username, password_hash) VALUES (?, ?)",
@@ -29,7 +31,7 @@ pub async fn signup(
         sqlx::Error::Database(e) if e.is_unique_violation() => {
             AuthError::UsernameTaken(signup.username).into()
         }
-        _ => <sqlx::Error as Into<AppError>>::into(e),
+        e => AppError::Internal(anyhow!(e).context("insert user")),
     })?;
 
     Ok(StatusCode::CREATED)

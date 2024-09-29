@@ -1,9 +1,10 @@
+use anyhow::Context;
 use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
 use axum_extra::extract::CookieJar;
 use sqlx::SqlitePool;
 
 use crate::{
-    error::{AppError, AuthError, CookieError, InternalError},
+    error::{AppError, AuthError, CookieError},
     types::UserId,
 };
 
@@ -15,7 +16,7 @@ impl<S> FromRequestParts<S> for UserId {
         let pool = parts
             .extensions
             .get::<SqlitePool>()
-            .ok_or(InternalError::Extension("SqlitePool extension not found"))?;
+            .context("SqlitePool extension not found")?;
 
         let jar = CookieJar::from_headers(&parts.headers);
 
@@ -29,7 +30,7 @@ impl<S> FromRequestParts<S> for UserId {
                 session_id
             )
             .fetch_optional(pool)
-            .await?
+            .await.context("extractor: session_id -> UserId")?
         .ok_or(AuthError::InvalidSession)?;
 
         Ok(UserId(session.user_id))

@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1"
 axum = "0.7"
 axum-extra = { version = "0.9", features = ["cookie"] }
 axum-macros = "0.4"
@@ -18,7 +19,8 @@ sqlx = { version = "0.8", features = [
     "time",
 ] }
 thiserror = "1"
-tokio = { version = "1", features = ["full"] }
+time = "0.3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tower-http = { version = "0.6", features = ["cors"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3" }
@@ -31,4 +33,4 @@ sqlx = { version = "0.8", features = [
     "runtime-tokio-native-tls",
     "migrate",
 ] }
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

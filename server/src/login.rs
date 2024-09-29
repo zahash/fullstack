@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use anyhow::Context;
 use axum::{
     http::{header::USER_AGENT, HeaderMap, StatusCode},
     Extension, Form,
@@ -11,7 +12,8 @@ use axum_extra::extract::{
 use axum_macros::debug_handler;
 use bcrypt::verify;
 use serde::Deserialize;
-use sqlx::{types::time::OffsetDateTime, SqlitePool};
+use sqlx::SqlitePool;
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::error::{AppError, AuthError};
@@ -43,10 +45,11 @@ pub async fn login(
         login.username
     )
     .fetch_optional(&pool)
-    .await?
+    .await
+    .context("username -> User { id, password_hash }")?
     .ok_or(AuthError::UserNotFound(login.username.clone()))?;
 
-    match verify(login.password, &user.password_hash)? {
+    match verify(login.password, &user.password_hash).context("verify password hash")? {
         false => Err(AuthError::InvalidCredentials.into()),
         true => {
             let session_id = Uuid::new_v4().to_string();
@@ -63,7 +66,7 @@ pub async fn login(
                 user_agent
             )
             .execute(&pool)
-            .await?;
+            .await.context("insert session")?;
 
             let session_cookie = Cookie::build(("session_id", session_id))
                 .path("/")
