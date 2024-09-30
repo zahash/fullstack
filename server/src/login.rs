@@ -16,22 +16,19 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-use crate::{
-    error::{AppError, AuthError},
-    redacted::Redacted,
-};
+use crate::error::{AppError, AuthError};
 
 const DURATION_30_DAYS: Duration = Duration::from_secs(3600 * 24 * 30);
 
 #[derive(Deserialize, Debug)]
 pub struct Login {
     pub username: String,
-    pub password: Redacted<String>,
+    pub password: String,
     pub remember: bool,
 }
 
 #[debug_handler]
-#[tracing::instrument(fields(username = login.username, password = login.password.to_string(), remember = login.remember), skip_all)]
+#[tracing::instrument(fields(username = login.username, remember = login.remember), skip_all)]
 pub async fn login(
     Extension(pool): Extension<SqlitePool>,
     headers: HeaderMap,
@@ -55,12 +52,10 @@ pub async fn login(
 
     tracing::info!(user_id = %user.id);
 
-    match verify(login.password.reveal_ref(), &user.password_hash)
-        .context("verify password hash")?
-    {
+    match verify(login.password, &user.password_hash).context("verify password hash")? {
         false => Err(AuthError::InvalidCredentials.into()),
         true => {
-            let session_id = Redacted::from(Uuid::new_v4().to_string());
+            let session_id = Uuid::new_v4().to_string();
             let created_at = OffsetDateTime::now_utc();
             let expires_at = login.remember.then_some(created_at + DURATION_30_DAYS);
             let user_agent = headers.get(USER_AGENT).and_then(|val| val.to_str().ok());
@@ -84,7 +79,7 @@ pub async fn login(
                 "session created"
             );
 
-            let session_cookie = Cookie::build(("session_id", session_id.reveal()))
+            let session_cookie = Cookie::build(("session_id", session_id))
                 .path("/")
                 .same_site(SameSite::Strict)
                 .expires(expires_at)

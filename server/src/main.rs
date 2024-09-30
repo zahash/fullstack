@@ -2,7 +2,6 @@ mod error;
 mod extractor;
 mod login;
 mod private;
-mod redacted;
 mod signup;
 mod types;
 

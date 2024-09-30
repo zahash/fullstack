@@ -4,26 +4,22 @@ use axum_macros::debug_handler;
 use serde::Deserialize;
 use sqlx::SqlitePool;
 
-use crate::{
-    error::{AppError, AuthError},
-    redacted::Redacted,
-};
+use crate::error::{AppError, AuthError};
 
 #[derive(Deserialize)]
 pub struct SignUp {
     pub username: String,
-    pub password: Redacted<String>,
+    pub password: String,
 }
 
 #[debug_handler]
+#[tracing::instrument(fields(username = signup.username), skip_all, ret)]
 pub async fn signup(
     Extension(pool): Extension<SqlitePool>,
     Form(signup): Form<SignUp>,
 ) -> Result<StatusCode, AppError> {
-    let password_hash = Redacted::from(
-        bcrypt::hash(signup.password.reveal_ref(), bcrypt::DEFAULT_COST)
-            .context("hash password")?,
-    );
+    let password_hash =
+        bcrypt::hash(signup.password, bcrypt::DEFAULT_COST).context("hash password")?;
 
     sqlx::query!(
         "INSERT INTO users (username, password_hash) VALUES (?, ?)",
