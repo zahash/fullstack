@@ -46,8 +46,8 @@ pub enum CookieError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        let span = tracing::Span::current();
-        let _guard = span.enter();
+        // let span = tracing::Span::current();
+        // let _guard = span.enter();
 
         match self {
             AppError::Public(e) => {

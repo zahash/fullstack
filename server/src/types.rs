@@ -4,17 +4,13 @@ use uuid::Uuid;
 
 pub struct UserId(pub i64);
 
-#[derive(Debug, Clone)]
-pub struct TraceId(pub String);
+#[derive(Debug)]
+pub struct TraceId(String);
 
 impl TraceId {
     pub fn new() -> Self {
         TraceId(Uuid::new_v4().to_string())
     }
-
-    // pub fn as_str(&self) -> &str {
-    //     &self.0
-    // }
 }
 
 impl Display for TraceId {

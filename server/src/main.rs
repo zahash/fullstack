@@ -1,8 +1,8 @@
 mod error;
 mod extractor;
 mod login;
-mod middleware;
 mod private;
+mod redacted;
 mod signup;
 mod types;
 
@@ -13,12 +13,11 @@ use axum::{
     extract::Extension,
     http::{
         header::{CONTENT_TYPE, COOKIE},
-        HeaderValue, Method,
+        HeaderValue, Method, Request,
     },
     routing::{get, post},
     Router,
 };
-use middleware::trace_middleware;
 use sqlx::SqlitePool;
 use tokio::net::TcpListener;
 
@@ -26,7 +25,8 @@ use error::AppError;
 use login::login;
 use private::private;
 use signup::signup;
-use tower_http::cors::CorsLayer;
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
+use types::TraceId;
 
 const FRONTEND_ORIGIN: HeaderValue = HeaderValue::from_static("http://127.0.0.1:3000");
 
@@ -58,7 +58,17 @@ async fn main() -> Result<(), AppError> {
         .route("/private", get(private))
         .layer(Extension(pool))
         .layer(cors)
-        .layer(axum::middleware::from_fn(trace_middleware));
+        .layer(
+            TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
+                let trace_id = TraceId::new();
+                tracing::info_span!(
+                    "request",
+                    trace_id = %trace_id,
+                    method = %request.method(),
+                    uri = %request.uri(),
+                )
+            }),
+        );
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = TcpListener::bind(addr)

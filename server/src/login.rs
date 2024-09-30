@@ -16,19 +16,22 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-use crate::error::{AppError, AuthError};
+use crate::{
+    error::{AppError, AuthError},
+    redacted::Redacted,
+};
 
 const DURATION_30_DAYS: Duration = Duration::from_secs(3600 * 24 * 30);
 
 #[derive(Deserialize, Debug)]
 pub struct Login {
     pub username: String,
-    pub password: String,
+    pub password: Redacted<String>,
     pub remember: bool,
 }
 
 #[debug_handler]
-#[tracing::instrument(fields(username = login.username, password = "***", remember = login.remember), skip_all)]
+#[tracing::instrument(fields(username = login.username, password = login.password.to_string(), remember = login.remember), skip_all)]
 pub async fn login(
     Extension(pool): Extension<SqlitePool>,
     headers: HeaderMap,
@@ -52,34 +55,36 @@ pub async fn login(
 
     tracing::info!(user_id = %user.id);
 
-    match verify(login.password, &user.password_hash).context("verify password hash")? {
+    match verify(login.password.reveal_ref(), &user.password_hash)
+        .context("verify password hash")?
+    {
         false => Err(AuthError::InvalidCredentials.into()),
         true => {
-            let session_id = Uuid::new_v4().to_string();
+            let session_id = Redacted::from(Uuid::new_v4().to_string());
             let created_at = OffsetDateTime::now_utc();
             let expires_at = login.remember.then_some(created_at + DURATION_30_DAYS);
             let user_agent = headers.get(USER_AGENT).and_then(|val| val.to_str().ok());
 
             sqlx::query!(
-                "INSERT INTO sessions (session_id, user_id, created_at, expires_at, user_agent) VALUES (?, ?, ?, ?, ?)",
-                session_id,
-                user.id,
-                created_at,
-                expires_at,
-                user_agent
-            )
-            .execute(&pool)
-            .await.context("insert session")?;
+                    "INSERT INTO sessions (session_id, user_id, created_at, expires_at, user_agent) VALUES (?, ?, ?, ?, ?)",
+                    session_id,
+                    user.id,
+                    created_at,
+                    expires_at,
+                    user_agent
+                )
+                .execute(&pool)
+                .await.context("insert session")?;
 
             tracing::info!(
-                session_id = "***",
+                session_id = %session_id,
                 created_at = %created_at,
                 expires_at = %expires_at.map(|t| t.to_string()).unwrap_or("None".into()),
                 user_agent = %user_agent.unwrap_or("None"),
-                "session_id created"
+                "session created"
             );
 
-            let session_cookie = Cookie::build(("session_id", session_id))
+            let session_cookie = Cookie::build(("session_id", session_id.reveal()))
                 .path("/")
                 .same_site(SameSite::Strict)
                 .expires(expires_at)
