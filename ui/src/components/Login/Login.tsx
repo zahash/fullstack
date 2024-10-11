@@ -2,8 +2,6 @@ import { Component } from "solid-js";
 
 import styles from './Login.module.css';
 
-const loginUrl = `${import.meta.env.VITE_API_BASE_URL}/login`;
-
 const Login: Component = () => {
     let usernameRef: HTMLInputElement;
     let passwordRef: HTMLInputElement;
@@ -12,7 +10,7 @@ const Login: Component = () => {
     const onsubmit = async (e: SubmitEvent) => {
         e.preventDefault();
 
-        const response = await fetch(loginUrl, {
+        const response = await fetch("/login", {
           method: "POST",
           credentials: "include",
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

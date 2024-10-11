@@ -10,10 +10,7 @@ use std::net::SocketAddr;
 use anyhow::Context;
 use axum::{
     extract::Extension,
-    http::{
-        header::{CONTENT_TYPE, COOKIE},
-        HeaderValue, Method, Request,
-    },
+    http::{Request, StatusCode},
     routing::{get, post},
     Router,
 };
@@ -24,39 +21,33 @@ use error::AppError;
 use login::login;
 use private::private;
 use signup::signup;
-use tower_http::{cors::CorsLayer, trace::TraceLayer};
+use tower_http::{services::ServeDir, trace::TraceLayer};
 use types::TraceId;
-
-const FRONTEND_ORIGIN: HeaderValue = HeaderValue::from_static("http://127.0.0.1:3000");
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
     tracing_subscriber::fmt().init();
 
-    dotenv::from_filename(".env").context("load .env")?;
     let database_url = std::env::var("DATABASE_URL").context("DATABASE_URL")?;
+    tracing::info!(DATABASE_URL = %database_url);
     let port: u16 = std::env::var("PORT")
         .context("PORT")?
         .parse()
         .context("parse PORT")?;
-
-    let cors = CorsLayer::new()
-        .allow_origin(FRONTEND_ORIGIN)
-        .allow_credentials(true) // Allow cookies/sessions
-        .allow_methods([Method::GET, Method::POST])
-        .allow_headers([CONTENT_TYPE, COOKIE]);
+    let ui = std::env::var("UI").context("UI")?;
+    tracing::info!(UI = %ui);
 
     let pool = SqlitePool::connect(&database_url)
         .await
         .context(format!("connect database :: {}", database_url))?;
 
     let app = Router::new()
-        .route("/", get(hello))
+        .nest_service("/", ServeDir::new(ui))
+        .route("/health", get(health))
         .route("/signup", post(signup))
         .route("/login", post(login))
         .route("/private", get(private))
         .layer(Extension(pool))
-        .layer(cors)
         .layer(
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 let trace_id = TraceId::new();
@@ -81,6 +72,6 @@ async fn main() -> Result<(), AppError> {
     Ok(())
 }
 
-async fn hello() -> &'static str {
-    "hello world"
+async fn health() -> StatusCode {
+    StatusCode::OK
 }

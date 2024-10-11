@@ -9,7 +9,6 @@ axum = "0.7"
 axum-extra = { version = "0.9", features = ["cookie"] }
 axum-macros = "0.4"
 bcrypt = "0.15"
-dotenv = "0.15"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sqlx = { version = "0.8", features = [
@@ -21,16 +20,11 @@ sqlx = { version = "0.8", features = [
 thiserror = "1"
 time = "0.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
-tower-http = { version = "0.6", features = ["cors", "trace"] }
+tower-http = { version = "0.6", features = ["fs", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3" }
 uuid = { version = "1.2", features = ["v4"] }
 
-[build-dependencies]
-dotenv = "0.15"
-sqlx = { version = "0.8", features = [
-    "sqlite",
-    "runtime-tokio-native-tls",
-    "migrate",
-] }
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+[profile.release]
+codegen-units = 1 # Forces the compiler to use a single code generation unit to improve optimizations
+lto = true        # Enable Link Time Optimization (LTO)
