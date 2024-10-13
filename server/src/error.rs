@@ -4,37 +4,18 @@ use axum::{
     Json,
 };
 use serde_json::json;
-use time::OffsetDateTime;
+use time::{format_description::well_known::Iso8601, OffsetDateTime};
 
 use crate::types::RequestId;
 
 #[derive(Debug)]
 pub struct HandlerError {
-    request_id: RequestId,
-    kind: ErrorKind,
-}
-
-pub trait RequestIdCtx<T>
-where
-    Self: Sized,
-{
-    fn request_id(self, request_id: RequestId) -> Result<T, HandlerError>;
-}
-
-impl<T, E> RequestIdCtx<T> for Result<T, E>
-where
-    E: Into<ErrorKind>,
-{
-    fn request_id(self, request_id: RequestId) -> Result<T, HandlerError> {
-        self.map_err(|e| HandlerError {
-            request_id,
-            kind: e.into(),
-        })
-    }
+    pub request_id: RequestId,
+    pub kind: HandlerErrorKind,
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum ErrorKind {
+pub enum HandlerErrorKind {
     #[error("{0}")]
     Public(#[from] PublicError),
 
@@ -78,7 +59,7 @@ pub enum CookieError {
 impl IntoResponse for HandlerError {
     fn into_response(self) -> Response {
         match self.kind {
-            ErrorKind::Public(e) => {
+            HandlerErrorKind::Public(e) => {
                 tracing::info!("{:?}", e);
 
                 let status_code = match &e {
@@ -102,18 +83,24 @@ impl IntoResponse for HandlerError {
                     }
                 };
 
+                let now = OffsetDateTime::now_utc()
+                    .format(&Iso8601::DATE_TIME_OFFSET)
+                    .inspect_err(|e| {
+                        tracing::warn!("unable to format OffsetDateTime::now_utc() :: {:?}", e)
+                    })
+                    .ok();
+
                 (
                     status_code,
-                    Json(json!(
-                    {
+                    Json(json!({
                         "message": e.to_string(),
-                        "datetime": OffsetDateTime::now_utc(),
+                        "datetime": now,
                         "request_id": self.request_id
                     })),
                 )
                     .into_response()
             }
-            ErrorKind::Internal(e) => {
+            HandlerErrorKind::Internal(e) => {
                 tracing::error!("{:?}", e);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
@@ -121,14 +108,14 @@ impl IntoResponse for HandlerError {
     }
 }
 
-impl From<AuthError> for ErrorKind {
+impl From<AuthError> for HandlerErrorKind {
     fn from(err: AuthError) -> Self {
-        ErrorKind::Public(PublicError::Auth(err))
+        HandlerErrorKind::Public(PublicError::Auth(err))
     }
 }
 
-impl From<CookieError> for ErrorKind {
+impl From<CookieError> for HandlerErrorKind {
     fn from(err: CookieError) -> Self {
-        ErrorKind::Public(PublicError::Cookie(err))
+        HandlerErrorKind::Public(PublicError::Cookie(err))
     }
 }

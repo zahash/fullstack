@@ -44,7 +44,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let app = Router::new()
         .nest_service("/", ServeDir::new(ui))
-        .route("/health", get(|| async { StatusCode::OK }))
+        .route("/health", get(health))
         .route(
             "/check-username-availability",
             post(check_username_availability),
@@ -87,4 +87,9 @@ async fn main() -> Result<(), anyhow::Error> {
     );
     axum::serve(listener, app).await.context("axum::serve")?;
     Ok(())
+}
+
+#[tracing::instrument(ret)]
+async fn health() -> StatusCode {
+    StatusCode::OK
 }
