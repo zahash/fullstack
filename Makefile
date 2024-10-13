@@ -13,8 +13,11 @@ server-dbg:
 	mkdir -p ./dist
 	cp ./server/target/debug/server ./dist/server
 
+prepare:
+	export $$(grep -v '^#' ./dist/.env | xargs) && cd ./server && cargo sqlx prepare
+
 migrations:
-	export $$(grep -v '^#' ./dist/.env | xargs) && cd ./server && sqlx migrate run && cargo sqlx prepare
+	export $$(grep -v '^#' ./dist/.env | xargs) && cd ./server && sqlx migrate run
 
 ui:
 	cd ./ui && npm install && npm run build
@@ -22,11 +25,11 @@ ui:
 	cp -r ./ui/dist/* ./dist/ui/
 
 db:
+	mkdir -p /tmp/data
 	export $$(grep -v '^#' ./dist/.env | xargs) && cargo sqlx database create
 
 env:
 	mkdir -p ./dist
-	mkdir -p /tmp/data
 	{ \
 		echo "DATABASE_URL=sqlite:///tmp/data/data.db"; \
 		echo "PORT=8080"; \

@@ -4,9 +4,37 @@ use axum::{
     Json,
 };
 use serde_json::json;
+use time::OffsetDateTime;
+
+use crate::types::RequestId;
+
+#[derive(Debug)]
+pub struct HandlerError {
+    request_id: RequestId,
+    kind: ErrorKind,
+}
+
+pub trait RequestIdCtx<T>
+where
+    Self: Sized,
+{
+    fn request_id(self, request_id: RequestId) -> Result<T, HandlerError>;
+}
+
+impl<T, E> RequestIdCtx<T> for Result<T, E>
+where
+    E: Into<ErrorKind>,
+{
+    fn request_id(self, request_id: RequestId) -> Result<T, HandlerError> {
+        self.map_err(|e| HandlerError {
+            request_id,
+            kind: e.into(),
+        })
+    }
+}
 
 #[derive(thiserror::Error, Debug)]
-pub enum AppError {
+pub enum ErrorKind {
     #[error("{0}")]
     Public(#[from] PublicError),
 
@@ -34,6 +62,9 @@ pub enum AuthError {
     #[error("username '{0}' is already taken")]
     UsernameTaken(String),
 
+    #[error("invalid username '{username}'. reason: {reason}")]
+    InvalidUsername { username: String, reason: String },
+
     #[error("invalid session")]
     InvalidSession,
 }
@@ -44,10 +75,10 @@ pub enum CookieError {
     CookieNotFound(&'static str),
 }
 
-impl IntoResponse for AppError {
+impl IntoResponse for HandlerError {
     fn into_response(self) -> Response {
-        match self {
-            AppError::Public(e) => {
+        match self.kind {
+            ErrorKind::Public(e) => {
                 tracing::info!("{:?}", e);
 
                 let status_code = match &e {
@@ -57,6 +88,10 @@ impl IntoResponse for AppError {
                             UserNotFound(_) => StatusCode::NOT_FOUND,
                             InvalidCredentials | InvalidSession => StatusCode::UNAUTHORIZED,
                             UsernameTaken(_) => StatusCode::CONFLICT,
+                            InvalidUsername {
+                                username: _,
+                                reason: _,
+                            } => StatusCode::BAD_REQUEST,
                         }
                     }
                     PublicError::Cookie(e) => {
@@ -72,11 +107,13 @@ impl IntoResponse for AppError {
                     Json(json!(
                     {
                         "message": e.to_string(),
+                        "datetime": OffsetDateTime::now_utc(),
+                        "request_id": self.request_id
                     })),
                 )
                     .into_response()
             }
-            AppError::Internal(e) => {
+            ErrorKind::Internal(e) => {
                 tracing::error!("{:?}", e);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
@@ -84,14 +121,14 @@ impl IntoResponse for AppError {
     }
 }
 
-impl From<AuthError> for AppError {
+impl From<AuthError> for ErrorKind {
     fn from(err: AuthError) -> Self {
-        AppError::Public(PublicError::Auth(err))
+        ErrorKind::Public(PublicError::Auth(err))
     }
 }
 
-impl From<CookieError> for AppError {
+impl From<CookieError> for ErrorKind {
     fn from(err: CookieError) -> Self {
-        AppError::Public(PublicError::Cookie(err))
+        ErrorKind::Public(PublicError::Cookie(err))
     }
 }

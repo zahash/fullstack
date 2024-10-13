@@ -9,6 +9,7 @@ axum = "0.7"
 axum-extra = { version = "0.9", features = ["cookie"] }
 axum-macros = "0.4"
 bcrypt = "0.15"
+regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sqlx = { version = "0.8", features = [
@@ -18,7 +19,7 @@ sqlx = { version = "0.8", features = [
     "time",
 ] }
 thiserror = "1"
-time = "0.3"
+time = { version = "0.3", features = ["serde"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tower-http = { version = "0.6", features = ["fs", "trace"] }
 tracing = "0.1"

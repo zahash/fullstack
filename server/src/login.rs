@@ -16,12 +16,15 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-use crate::error::{AppError, AuthError};
+use crate::{
+    error::{HandlerError, AuthError, ErrorKind, RequestIdCtx},
+    types::RequestId,
+};
 
 const DURATION_30_DAYS: Duration = Duration::from_secs(3600 * 24 * 30);
 
 #[derive(Deserialize, Debug)]
-pub struct Login {
+pub struct LoginReq {
     pub username: String,
     pub password: String,
     pub remember: bool,
@@ -30,11 +33,12 @@ pub struct Login {
 #[debug_handler]
 #[tracing::instrument(fields(username = login.username, remember = login.remember), skip_all)]
 pub async fn login(
+    Extension(request_id): Extension<RequestId>,
     Extension(pool): Extension<SqlitePool>,
     headers: HeaderMap,
     jar: CookieJar,
-    Form(login): Form<Login>,
-) -> Result<(CookieJar, StatusCode), AppError> {
+    Form(login): Form<LoginReq>,
+) -> Result<(CookieJar, StatusCode), HandlerError> {
     struct User {
         id: i64,
         password_hash: String,
@@ -47,13 +51,15 @@ pub async fn login(
     )
     .fetch_optional(&pool)
     .await
-    .context("username -> User { id, password_hash }")?
-    .ok_or(AuthError::UserNotFound(login.username.clone()))?;
+    .context("username -> User { id, password_hash }")
+    .request_id(request_id.clone())?
+    .ok_or(AuthError::UserNotFound(login.username.clone()))
+    .request_id(request_id.clone())?;
 
     tracing::info!(user_id = %user.id);
 
-    match verify(login.password, &user.password_hash).context("verify password hash")? {
-        false => Err(AuthError::InvalidCredentials.into()),
+    match verify(login.password, &user.password_hash).context("verify password hash").request_id(request_id.clone())? {
+        false => Err(<AuthError as Into<ErrorKind>>::into(AuthError::InvalidCredentials)),
         true => {
             let session_id = Uuid::new_v4().to_string();
             let created_at = OffsetDateTime::now_utc();
@@ -69,7 +75,7 @@ pub async fn login(
                     user_agent
                 )
                 .execute(&pool)
-                .await.context("insert session")?;
+                .await.context("insert session").request_id(request_id.clone())?;
 
             tracing::info!(
                 session_id = %session_id,
@@ -89,5 +95,5 @@ pub async fn login(
 
             Ok((jar, StatusCode::OK))
         }
-    }
+    }.request_id(request_id)
 }
