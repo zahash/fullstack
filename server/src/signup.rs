@@ -97,8 +97,11 @@ pub async fn check_username_availability(
     })
 }
 
-const RE_USERNAME: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"^[A-Za-z0-9_]{2,30}$"#).unwrap());
+const RE_USERNAME: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"^[A-Za-z0-9_]{2,30}$"#)
+        .inspect_err(|e| tracing::error!("unable to compile RE_USERNAME :: {:?}", e))
+        .expect("unable to compile RE_USERNAME")
+});
 
 #[inline]
 fn validate_username(username: String) -> Result<String, AuthError> {
