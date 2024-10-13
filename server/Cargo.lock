@@ -272,6 +272,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "compiletime-regex"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2fc8cf3fbdecb6f5663e1f8958bf9b30e398d1aafe1e427770ef6780ff06e7f"
+dependencies = [
+ "quote",
+ "regex",
+ "syn",
+]
+
+[[package]]
 name = "concurrent-queue"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1423,6 +1434,7 @@ dependencies = [
  "axum-extra",
  "axum-macros",
  "bcrypt",
+ "compiletime-regex",
  "regex",
  "serde",
  "serde_json",

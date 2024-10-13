@@ -9,6 +9,7 @@ axum = "0.7"
 axum-extra = { version = "0.9", features = ["cookie"] }
 axum-macros = "0.4"
 bcrypt = "0.15"
+compiletime-regex = "1"
 regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

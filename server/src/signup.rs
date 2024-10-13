@@ -3,6 +3,7 @@ use std::sync::LazyLock;
 use anyhow::{anyhow, Context};
 use axum::{http::StatusCode, Extension, Form};
 use axum_macros::debug_handler;
+use compiletime_regex::regex;
 use regex::Regex;
 use serde::Deserialize;
 use sqlx::SqlitePool;
@@ -97,13 +98,8 @@ pub async fn check_username_availability(
     })
 }
 
-const RE_USERNAME: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"^[A-Za-z0-9_]{2,30}$"#)
-        .inspect_err(|e| tracing::error!("unable to compile RE_USERNAME :: {:?}", e))
-        .expect("unable to compile RE_USERNAME")
-});
+const RE_USERNAME: LazyLock<Regex> = LazyLock::new(|| regex!(r#"^[A-Za-z0-9_]{2,30}$"#));
 
-#[inline]
 fn validate_username(username: String) -> Result<String, AuthError> {
     match RE_USERNAME.is_match(&username) {
         true => Ok(username),
