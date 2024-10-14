@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use anyhow::Context;
 use axum::{
+    extract::State,
     http::{header::USER_AGENT, HeaderMap, StatusCode},
     Extension, Form,
 };
@@ -18,7 +19,8 @@ use uuid::Uuid;
 
 use crate::{
     error::{AuthError, HandlerError, HandlerErrorKind},
-    types::RequestId,
+    request_id::RequestId,
+    AppState,
 };
 
 const DURATION_30_DAYS: Duration = Duration::from_secs(3600 * 24 * 30);
@@ -33,14 +35,14 @@ pub struct Login {
 #[debug_handler]
 #[tracing::instrument(fields(username = login.username, remember = login.remember), skip_all)]
 pub async fn login(
+    State(state): State<AppState>,
     Extension(request_id): Extension<RequestId>,
-    Extension(pool): Extension<SqlitePool>,
     headers: HeaderMap,
     jar: CookieJar,
     Form(login): Form<Login>,
 ) -> Result<(CookieJar, StatusCode), HandlerError> {
     async fn inner(
-        pool: SqlitePool,
+        pool: &SqlitePool,
         headers: HeaderMap,
         jar: CookieJar,
         login: Login,
@@ -55,7 +57,7 @@ pub async fn login(
             r#"SELECT id as "id!", password_hash FROM users WHERE username = ?"#,
             login.username
         )
-        .fetch_optional(&pool)
+        .fetch_optional(pool)
         .await
         .context("username -> User { id, password_hash }")?
         .ok_or(AuthError::UserNotFound(login.username.clone()))?;
@@ -78,7 +80,7 @@ pub async fn login(
                     expires_at,
                     user_agent
                 )
-                .execute(&pool)
+                .execute(pool)
                 .await.context("insert session")?;
 
                 tracing::info!(
@@ -102,7 +104,7 @@ pub async fn login(
         }
     }
 
-    inner(pool, headers, jar, login)
+    inner(&state.pool, headers, jar, login)
         .await
         .map_err(|e| HandlerError {
             request_id,

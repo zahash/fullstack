@@ -6,7 +6,7 @@ use axum::{
 use serde_json::json;
 use time::{format_description::well_known::Iso8601, OffsetDateTime};
 
-use crate::types::RequestId;
+use crate::request_id::RequestId;
 
 #[derive(Debug)]
 pub struct HandlerError {

@@ -3,8 +3,6 @@ use std::fmt::Display;
 use serde::Serialize;
 use uuid::Uuid;
 
-pub struct UserId(pub i64);
-
 #[derive(Debug, Clone, Serialize)]
 pub struct RequestId(String);
 

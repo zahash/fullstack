@@ -1,7 +1,7 @@
 use std::sync::LazyLock;
 
 use anyhow::{anyhow, Context};
-use axum::{http::StatusCode, Extension, Form};
+use axum::{extract::State, http::StatusCode, Extension, Form};
 use axum_macros::debug_handler;
 use compiletime_regex::regex;
 use regex::Regex;
@@ -10,7 +10,8 @@ use sqlx::SqlitePool;
 
 use crate::{
     error::{AuthError, HandlerError, HandlerErrorKind},
-    types::RequestId,
+    request_id::RequestId,
+    AppState,
 };
 
 #[derive(Deserialize)]
@@ -22,12 +23,12 @@ pub struct SignUp {
 #[debug_handler]
 #[tracing::instrument(fields(username = signup.username), skip_all, ret)]
 pub async fn signup(
+    State(state): State<AppState>,
     Extension(request_id): Extension<RequestId>,
-    Extension(pool): Extension<SqlitePool>,
     Form(signup): Form<SignUp>,
 ) -> Result<StatusCode, HandlerError> {
     async fn inner(
-        pool: SqlitePool,
+        pool: &SqlitePool,
         SignUp { username, password }: SignUp,
     ) -> Result<StatusCode, HandlerErrorKind> {
         let password_hash =
@@ -38,7 +39,7 @@ pub async fn signup(
             username,
             password_hash,
         )
-        .execute(&pool)
+        .execute(pool)
         .await
         .map_err(|e| match e {
             sqlx::Error::Database(e) if e.is_unique_violation() => {
@@ -50,7 +51,7 @@ pub async fn signup(
         Ok(StatusCode::CREATED)
     }
 
-    inner(pool, signup).await.map_err(|e| HandlerError {
+    inner(&state.pool, signup).await.map_err(|e| HandlerError {
         request_id,
         kind: e.into(),
     })
@@ -64,18 +65,18 @@ pub struct CheckUsernameAvailability {
 #[debug_handler]
 #[tracing::instrument(fields(username = username), skip_all, ret)]
 pub async fn check_username_availability(
+    State(state): State<AppState>,
     Extension(request_id): Extension<RequestId>,
-    Extension(pool): Extension<SqlitePool>,
     Form(CheckUsernameAvailability { username }): Form<CheckUsernameAvailability>,
 ) -> Result<StatusCode, HandlerError> {
-    async fn inner(pool: SqlitePool, username: String) -> Result<StatusCode, HandlerErrorKind> {
+    async fn inner(pool: &SqlitePool, username: String) -> Result<StatusCode, HandlerErrorKind> {
         let username = validate_username(username)?;
 
         let username_exists = match sqlx::query!(
             "SELECT EXISTS(SELECT 1 FROM users WHERE username = ? LIMIT 1) as username_exists",
             username
         )
-        .fetch_one(&pool)
+        .fetch_one(pool)
         .await
         .context("check_username_availability")?
         .username_exists
@@ -92,10 +93,12 @@ pub async fn check_username_availability(
         }
     }
 
-    inner(pool, username).await.map_err(|e| HandlerError {
-        request_id,
-        kind: e.into(),
-    })
+    inner(&state.pool, username)
+        .await
+        .map_err(|e| HandlerError {
+            request_id,
+            kind: e.into(),
+        })
 }
 
 const RE_USERNAME: LazyLock<Regex> = LazyLock::new(|| regex!(r#"^[A-Za-z0-9_]{2,30}$"#));

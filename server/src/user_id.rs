@@ -5,20 +5,21 @@ use sqlx::SqlitePool;
 
 use crate::{
     error::{AuthError, CookieError, HandlerError, HandlerErrorKind},
-    types::{RequestId, UserId},
+    request_id::RequestId,
+    AppState,
 };
 
+pub struct UserId(pub i64);
+
 #[async_trait]
-impl<S> FromRequestParts<S> for UserId {
+impl FromRequestParts<AppState> for UserId {
     type Rejection = HandlerError;
 
-    async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        async fn inner(parts: &mut Parts) -> Result<UserId, HandlerErrorKind> {
-            let pool = parts
-                .extensions
-                .get::<SqlitePool>()
-                .context("SqlitePool extension not found")?;
-
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
+        async fn inner(parts: &mut Parts, pool: &SqlitePool) -> Result<UserId, HandlerErrorKind> {
             let jar = CookieJar::from_headers(&parts.headers);
 
             let session_id = jar
@@ -46,7 +47,7 @@ impl<S> FromRequestParts<S> for UserId {
                 RequestId::unknown()
             });
 
-        inner(parts).await.map_err(|e| HandlerError {
+        inner(parts, &state.pool).await.map_err(|e| HandlerError {
             request_id,
             kind: e.into(),
         })
