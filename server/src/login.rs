@@ -17,7 +17,7 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::{
-    error::{AuthError, HandlerErrorKind, HandlerError},
+    error::{AuthError, HandlerError, HandlerErrorKind},
     types::RequestId,
 };
 
@@ -82,7 +82,7 @@ pub async fn login(
                 .await.context("insert session")?;
 
                 tracing::info!(
-                    session_id = %session_id,
+                    session_id = "***",
                     created_at = %created_at,
                     expires_at = %expires_at.map(|t| t.to_string()).unwrap_or("None".into()),
                     user_agent = %user_agent.unwrap_or("None"),

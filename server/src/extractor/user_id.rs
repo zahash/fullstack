@@ -4,7 +4,7 @@ use axum_extra::extract::CookieJar;
 use sqlx::SqlitePool;
 
 use crate::{
-    error::{AuthError, CookieError, HandlerErrorKind, HandlerError},
+    error::{AuthError, CookieError, HandlerError, HandlerErrorKind},
     types::{RequestId, UserId},
 };
 
@@ -41,7 +41,10 @@ impl<S> FromRequestParts<S> for UserId {
             .extensions
             .get::<RequestId>()
             .cloned()
-            .unwrap_or_else(|| RequestId::unknown());
+            .unwrap_or_else(|| {
+                tracing::warn!("unable to get RequestId extension when extracting UserId");
+                RequestId::unknown()
+            });
 
         inner(parts).await.map_err(|e| HandlerError {
             request_id,

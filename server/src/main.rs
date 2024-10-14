@@ -57,9 +57,12 @@ async fn main() -> Result<(), anyhow::Error> {
             TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
                 let request_id = request
                     .extensions()
-                    .get::<RequestId>() // this will always return Some(...)
+                    .get::<RequestId>()
                     .cloned()
-                    .unwrap_or_else(|| RequestId::unknown());
+                    .unwrap_or_else(|| {
+                        tracing::warn!("unable to get RequestId extension when making span");
+                        RequestId::unknown()
+                    });
 
                 tracing::info_span!(
                     "request",
