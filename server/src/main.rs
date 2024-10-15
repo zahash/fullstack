@@ -95,11 +95,12 @@ async fn main() -> Result<(), anyhow::Error> {
                         // Log and capture the error details without exposing them to the client
                         // Avoid leaking sensitive internal information in the response body for 5xx errors
                         match to_bytes(response.into_body(), usize::MAX).await {
-                            Ok(content) => tracing::error!("{:?}", content),
+                            Ok(content) if !content.is_empty() => tracing::error!("{:?}", content),
                             Err(e) => tracing::error!(
                                 "unable to convert INTERNAL_SERVER_ERROR response body to bytes :: {:?}",
                                 e
                             ),
+                            _ => {}
                         }
                         status.into_response()
                     }
