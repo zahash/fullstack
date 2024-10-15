@@ -45,7 +45,7 @@ pub async fn signup(
             sqlx::Error::Database(e) if e.is_unique_violation() => {
                 AuthError::UsernameTaken(username).into()
             }
-            e => HandlerErrorKind::Internal(anyhow!(e).context("insert user")),
+            e => <anyhow::Error as Into<HandlerErrorKind>>::into(anyhow!(e).context("insert user")),
         })?;
 
         Ok(StatusCode::CREATED)

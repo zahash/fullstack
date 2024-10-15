@@ -2,6 +2,7 @@ mod error;
 mod login;
 mod private;
 mod request_id;
+mod session_id;
 mod signup;
 mod user_id;
 

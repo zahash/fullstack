@@ -8,11 +8,14 @@ anyhow = "1"
 axum = "0.7"
 axum-extra = { version = "0.9", features = ["cookie"] }
 axum-macros = "0.4"
+base64 = "0.22"
 bcrypt = "0.15"
 compiletime-regex = "1"
+rand = "0.8"
 regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+sha2 = "0.10"
 sqlx = { version = "0.8", features = [
     "migrate",
     "runtime-tokio-native-tls",

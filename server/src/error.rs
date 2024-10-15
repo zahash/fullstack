@@ -20,7 +20,7 @@ pub enum HandlerErrorKind {
     Public(#[from] PublicError),
 
     #[error("{0:?}")]
-    Internal(#[from] anyhow::Error),
+    Internal(InternalError),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -55,6 +55,10 @@ pub enum CookieError {
     #[error("cookie not found: '{0}'")]
     CookieNotFound(&'static str),
 }
+
+#[derive(thiserror::Error, Debug)]
+#[error("{0:?}")]
+pub struct InternalError(#[from] pub anyhow::Error);
 
 impl IntoResponse for HandlerError {
     fn into_response(self) -> Response {
@@ -114,8 +118,8 @@ impl From<AuthError> for HandlerErrorKind {
     }
 }
 
-impl From<CookieError> for HandlerErrorKind {
-    fn from(err: CookieError) -> Self {
-        HandlerErrorKind::Public(PublicError::Cookie(err))
+impl From<anyhow::Error> for HandlerErrorKind {
+    fn from(err: anyhow::Error) -> Self {
+        HandlerErrorKind::Internal(InternalError(err))
     }
 }

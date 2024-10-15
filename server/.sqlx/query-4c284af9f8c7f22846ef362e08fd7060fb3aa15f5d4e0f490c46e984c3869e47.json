@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT user_id FROM sessions WHERE session_id = ? AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)",
+  "query": "SELECT user_id FROM sessions WHERE session_id_hash = ? AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       false
     ]
   },
-  "hash": "83e9e7188be8ae1e36ea1ccfa30ffd0a8bf0bd25b3dfce1a0613f8d926970128"
+  "hash": "4c284af9f8c7f22846ef362e08fd7060fb3aa15f5d4e0f490c46e984c3869e47"
 }

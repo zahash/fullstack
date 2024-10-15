@@ -15,11 +15,12 @@ use bcrypt::verify;
 use serde::Deserialize;
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
-use uuid::Uuid;
 
 use crate::{
-    error::{AuthError, HandlerError, HandlerErrorKind},
+    error::{AuthError, HandlerErrorKind, HandlerError},
     request_id::RequestId,
+    session_id::SessionId,
+    user_id::UserId,
     AppState,
 };
 
@@ -48,7 +49,7 @@ pub async fn login(
         login: Login,
     ) -> Result<(CookieJar, StatusCode), HandlerErrorKind> {
         struct User {
-            id: i64,
+            id: UserId,
             password_hash: String,
         }
 
@@ -67,14 +68,15 @@ pub async fn login(
         match verify(login.password, &user.password_hash).context("verify password hash")? {
             false => Err(AuthError::InvalidCredentials.into()),
             true => {
-                let session_id = Uuid::new_v4().to_string();
+                let session_id = SessionId::new();
+                let session_id_hash = session_id.hash();
                 let created_at = OffsetDateTime::now_utc();
                 let expires_at = login.remember.then_some(created_at + DURATION_30_DAYS);
                 let user_agent = headers.get(USER_AGENT).and_then(|val| val.to_str().ok());
 
                 sqlx::query!(
-                    "INSERT INTO sessions (session_id, user_id, created_at, expires_at, user_agent) VALUES (?, ?, ?, ?, ?)",
-                    session_id,
+                    "INSERT INTO sessions (session_id_hash, user_id, created_at, expires_at, user_agent) VALUES (?, ?, ?, ?, ?)",
+                    session_id_hash,
                     user.id,
                     created_at,
                     expires_at,
@@ -84,14 +86,12 @@ pub async fn login(
                 .await.context("insert session")?;
 
                 tracing::info!(
-                    session_id = "***",
-                    created_at = %created_at,
                     expires_at = %expires_at.map(|t| t.to_string()).unwrap_or("None".into()),
                     user_agent = %user_agent.unwrap_or("None"),
                     "session created"
                 );
 
-                let session_cookie = Cookie::build(("session_id", session_id))
+                let session_cookie = Cookie::build(("session_id", session_id.base64encoded()))
                     .path("/")
                     .same_site(SameSite::Strict)
                     .expires(expires_at)
