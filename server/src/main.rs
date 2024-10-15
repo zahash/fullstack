@@ -15,10 +15,12 @@ use axum::{
     middleware::Next,
     response::IntoResponse,
     routing::{get, post},
-    Router,
+    Json, Router,
 };
+use axum_macros::debug_handler;
 use request_id::RequestId;
 use sqlx::SqlitePool;
+use sysinfo::{CpuRefreshKind, MemoryRefreshKind, ProcessRefreshKind, RefreshKind, System};
 use tokio::net::TcpListener;
 
 use login::login;
@@ -121,7 +123,16 @@ async fn main() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
+#[debug_handler]
 #[tracing::instrument(ret)]
-async fn health() -> StatusCode {
-    StatusCode::OK
+async fn health() -> (StatusCode, Json<System>) {
+    (
+        StatusCode::OK,
+        Json(System::new_with_specifics(
+            RefreshKind::new()
+                .with_cpu(CpuRefreshKind::everything())
+                .with_memory(MemoryRefreshKind::everything())
+                .with_processes(ProcessRefreshKind::everything()),
+        )),
+    )
 }
