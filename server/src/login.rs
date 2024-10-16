@@ -17,7 +17,7 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use crate::{
-    error::{AuthError, HandlerErrorKind, HandlerError},
+    error::{AuthError, HandlerError, HandlerErrorKind},
     request_id::RequestId,
     session_id::SessionId,
     user_id::UserId,
@@ -34,7 +34,7 @@ pub struct Login {
 }
 
 #[debug_handler]
-#[tracing::instrument(fields(username = %login.username, remember = %login.remember), skip_all)]
+#[tracing::instrument(fields(?login), skip_all)]
 pub async fn login(
     State(state): State<AppState>,
     Extension(request_id): Extension<RequestId>,
@@ -63,7 +63,7 @@ pub async fn login(
         .context("username -> User { id, password_hash }")?
         .ok_or(AuthError::UserNotFound(login.username.clone()))?;
 
-        tracing::info!(user_id = %user.id);
+        tracing::info!("{:?}", user.id);
 
         match verify(login.password, &user.password_hash).context("verify password hash")? {
             false => Err(AuthError::InvalidCredentials.into()),
@@ -85,11 +85,7 @@ pub async fn login(
                 .execute(pool)
                 .await.context("insert session")?;
 
-                tracing::info!(
-                    expires_at = %expires_at.map(|t| t.to_string()).unwrap_or("None".into()),
-                    user_agent = %user_agent.unwrap_or("None"),
-                    "session created"
-                );
+                tracing::info!(?expires_at, ?user_agent, "session created");
 
                 let session_cookie = Cookie::build(("session_id", session_id.base64encoded()))
                     .path("/")

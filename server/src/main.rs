@@ -74,9 +74,10 @@ async fn main() -> Result<(), anyhow::Error> {
 
                 tracing::info_span!(
                     "request",
-                    request_id = %request_id,
-                    method = %request.method(),
-                    uri = %request.uri(),
+                    "{} {} {}",
+                    request_id,
+                    request.method(),
+                    request.uri(),
                 )
             }),
         )

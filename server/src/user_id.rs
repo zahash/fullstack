@@ -1,17 +1,16 @@
-use std::fmt::Display;
-
 use anyhow::Context;
 use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
 use axum_extra::extract::CookieJar;
 use sqlx::{Sqlite, SqlitePool, Type};
 
 use crate::{
-    error::{AuthError, HandlerErrorKind, HandlerError},
+    error::{AuthError, HandlerError, HandlerErrorKind},
     request_id::RequestId,
     session_id::SessionId,
     AppState,
 };
 
+#[derive(Debug)]
 pub struct UserId(i64);
 
 #[async_trait]
@@ -72,11 +71,5 @@ impl sqlx::Encode<'_, Sqlite> for UserId {
 impl From<i64> for UserId {
     fn from(value: i64) -> Self {
         UserId(value)
-    }
-}
-
-impl Display for UserId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "UserId({})", self.0)
     }
 }
