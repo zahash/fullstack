@@ -26,7 +26,7 @@ use crate::{
 
 const DURATION_30_DAYS: Duration = Duration::from_secs(3600 * 24 * 30);
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 pub struct Login {
     pub username: String,
     pub password: String,
@@ -43,7 +43,7 @@ pub async fn login(
     Form(login): Form<Login>,
 ) -> Result<(CookieJar, StatusCode), HandlerError> {
     async fn inner(
-        pool: &SqlitePool,
+        pool: SqlitePool,
         headers: HeaderMap,
         jar: CookieJar,
         login: Login,
@@ -58,7 +58,7 @@ pub async fn login(
             r#"SELECT id as "id!", password_hash FROM users WHERE username = ?"#,
             login.username
         )
-        .fetch_optional(pool)
+        .fetch_optional(&pool)
         .await
         .context("username -> User { id, password_hash }")?
         .ok_or(AuthError::UserNotFound(login.username.clone()))?;
@@ -82,7 +82,7 @@ pub async fn login(
                     expires_at,
                     user_agent
                 )
-                .execute(pool)
+                .execute(&pool)
                 .await.context("insert session")?;
 
                 tracing::info!(?expires_at, ?user_agent, "session created");
@@ -100,7 +100,7 @@ pub async fn login(
         }
     }
 
-    inner(&state.pool, headers, jar, login)
+    inner(state.pool, headers, jar, login)
         .await
         .map_err(|e| HandlerError {
             request_id,

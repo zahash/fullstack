@@ -123,3 +123,9 @@ impl From<anyhow::Error> for HandlerErrorKind {
         HandlerErrorKind::Internal(InternalError(err))
     }
 }
+
+impl From<InternalError> for HandlerErrorKind {
+    fn from(err: InternalError) -> Self {
+        HandlerErrorKind::Internal(err)
+    }
+}

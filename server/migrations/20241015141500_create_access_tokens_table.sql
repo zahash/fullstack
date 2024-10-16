@@ -1,6 +1,6 @@
-CREATE TABLE tokens (
+CREATE TABLE access_tokens (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    token_hash BLOB NOT NULL UNIQUE,
+    access_token_hash BLOB NOT NULL UNIQUE,
     user_id INTEGER NOT NULL,
     created_at DATETIME NOT NULL,
     expires_at DATETIME,

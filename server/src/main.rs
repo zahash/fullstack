@@ -1,9 +1,11 @@
+mod access_token;
 mod error;
 mod login;
 mod private;
 mod request_id;
 mod session_id;
 mod signup;
+mod token;
 mod user_id;
 
 use std::{net::SocketAddr, usize};
@@ -59,6 +61,7 @@ async fn main() -> Result<(), anyhow::Error> {
         )
         .route("/signup", post(signup))
         .route("/login", post(login))
+        .route("/access-token", post(access_token::generate))
         .route("/private", get(private))
         .with_state(AppState { pool })
         .layer(

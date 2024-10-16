@@ -14,7 +14,7 @@ use crate::{
     AppState,
 };
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 pub struct SignUp {
     pub username: String,
     pub password: String,
@@ -28,7 +28,7 @@ pub async fn signup(
     Form(signup): Form<SignUp>,
 ) -> Result<StatusCode, HandlerError> {
     async fn inner(
-        pool: &SqlitePool,
+        pool: SqlitePool,
         SignUp { username, password }: SignUp,
     ) -> Result<StatusCode, HandlerErrorKind> {
         let password_hash =
@@ -39,7 +39,7 @@ pub async fn signup(
             username,
             password_hash,
         )
-        .execute(pool)
+        .execute(&pool)
         .await
         .map_err(|e| match e {
             sqlx::Error::Database(e) if e.is_unique_violation() => {
@@ -51,7 +51,7 @@ pub async fn signup(
         Ok(StatusCode::CREATED)
     }
 
-    inner(&state.pool, signup).await.map_err(|e| HandlerError {
+    inner(state.pool, signup).await.map_err(|e| HandlerError {
         request_id,
         kind: e.into(),
     })
@@ -69,14 +69,14 @@ pub async fn check_username_availability(
     Extension(request_id): Extension<RequestId>,
     Form(CheckUsernameAvailability { username }): Form<CheckUsernameAvailability>,
 ) -> Result<StatusCode, HandlerError> {
-    async fn inner(pool: &SqlitePool, username: String) -> Result<StatusCode, HandlerErrorKind> {
+    async fn inner(pool: SqlitePool, username: String) -> Result<StatusCode, HandlerErrorKind> {
         let username = validate_username(username)?;
 
         let username_exists = match sqlx::query!(
             "SELECT EXISTS(SELECT 1 FROM users WHERE username = ? LIMIT 1) as username_exists",
             username
         )
-        .fetch_one(pool)
+        .fetch_one(&pool)
         .await
         .context("check_username_availability")?
         .username_exists
@@ -93,7 +93,7 @@ pub async fn check_username_availability(
         }
     }
 
-    inner(&state.pool, username)
+    inner(state.pool, username)
         .await
         .map_err(|e| HandlerError {
             request_id,
