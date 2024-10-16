@@ -10,18 +10,19 @@ use sqlx::SqlitePool;
 
 use crate::{
     error::{AuthError, HandlerError, HandlerErrorKind},
+    redacted::{Redacted, RedactedMap},
     request_id::RequestId,
     AppState,
 };
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct SignUp {
     pub username: String,
-    pub password: String,
+    pub password: Redacted<String>,
 }
 
 #[debug_handler]
-#[tracing::instrument(fields(username = ?signup.username), skip_all, ret)]
+#[tracing::instrument(fields(?signup), skip_all, ret)]
 pub async fn signup(
     State(state): State<AppState>,
     Extension(request_id): Extension<RequestId>,
@@ -31,8 +32,8 @@ pub async fn signup(
         pool: &SqlitePool,
         SignUp { username, password }: SignUp,
     ) -> Result<StatusCode, HandlerErrorKind> {
-        let password_hash =
-            bcrypt::hash(password, bcrypt::DEFAULT_COST).context("hash password")?;
+        let password_hash = password
+            .map(|pass| bcrypt::hash(pass, bcrypt::DEFAULT_COST).context("hash password"))?;
 
         sqlx::query!(
             "INSERT INTO users (username, password_hash) VALUES (?, ?)",

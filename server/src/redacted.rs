@@ -1,17 +1,19 @@
-use std::fmt::{Debug, Display};
+use std::{
+    convert::Infallible,
+    fmt::{Debug, Display},
+    ops::{ControlFlow, FromResidual, Try},
+};
 
 use serde::Deserialize;
 use sqlx::{Sqlite, Type};
 
 pub struct Redacted<T>(T);
 
-impl<T: Clone> Redacted<T> {
-    pub fn reveal(&self) -> T {
-        self.0.clone()
-    }
-}
-
 impl<T> Redacted<T> {
+    pub fn reveal(self) -> T {
+        self.0
+    }
+
     pub fn reveal_ref(&self) -> &T {
         &self.0
     }
@@ -70,4 +72,43 @@ impl<T: Type<Sqlite>> Type<Sqlite> for Redacted<T> {
 
 fn redacted<T>() -> String {
     format!("<REDACTED {}>", std::any::type_name::<T>())
+}
+
+pub trait RedactedMap<T> {
+    fn map<U>(self, f: impl FnOnce(T) -> U) -> Redacted<U>;
+}
+
+impl<'a, T> RedactedMap<&'a T> for &'a Redacted<T> {
+    fn map<U>(self, f: impl FnOnce(&'a T) -> U) -> Redacted<U> {
+        Redacted::from(f(self.reveal_ref()))
+    }
+}
+
+impl<'a, T0, T1> RedactedMap<(&'a T0, &'a T1)> for (&'a Redacted<T0>, &'a Redacted<T1>) {
+    fn map<U>(self, f: impl FnOnce((&'a T0, &'a T1)) -> U) -> Redacted<U> {
+        let (r1, r2) = self;
+        Redacted::from(f((r1.reveal_ref(), r2.reveal_ref())))
+    }
+}
+
+impl<T, E> Try for Redacted<Result<T, E>> {
+    type Output = Redacted<T>;
+    type Residual = Result<Infallible, E>;
+
+    fn from_output(output: Self::Output) -> Self {
+        Redacted(Ok(output.0))
+    }
+
+    fn branch(self) -> std::ops::ControlFlow<Self::Residual, Self::Output> {
+        match self.0 {
+            Ok(value) => ControlFlow::Continue(Redacted(value)),
+            Err(err) => ControlFlow::Break(Err(err)),
+        }
+    }
+}
+
+impl<T, E> FromResidual<Result<Infallible, E>> for Redacted<Result<T, E>> {
+    fn from_residual(residual: Result<Infallible, E>) -> Self {
+        Redacted(residual.map(|v| match v {}))
+    }
 }

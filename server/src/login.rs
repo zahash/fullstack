@@ -18,6 +18,7 @@ use time::OffsetDateTime;
 
 use crate::{
     error::{AuthError, HandlerError, HandlerErrorKind},
+    redacted::{Redacted, RedactedMap},
     request_id::RequestId,
     session_id::SessionId,
     user_id::UserId,
@@ -29,7 +30,7 @@ const DURATION_30_DAYS: Duration = Duration::from_secs(3600 * 24 * 30);
 #[derive(Deserialize, Debug)]
 pub struct Login {
     pub username: String,
-    pub password: String,
+    pub password: Redacted<String>,
     pub remember: bool,
 }
 
@@ -48,9 +49,10 @@ pub async fn login(
         jar: CookieJar,
         login: Login,
     ) -> Result<(CookieJar, StatusCode), HandlerErrorKind> {
+        #[derive(Debug)]
         struct User {
             id: UserId,
-            password_hash: String,
+            password_hash: Redacted<String>,
         }
 
         let user = sqlx::query_as!(
@@ -63,13 +65,16 @@ pub async fn login(
         .context("username -> User { id, password_hash }")?
         .ok_or(AuthError::UserNotFound(login.username.clone()))?;
 
-        tracing::info!("{:?}", user.id);
+        tracing::info!(?user);
 
-        match verify(login.password, &user.password_hash).context("verify password hash")? {
+        match (&login.password, &user.password_hash)
+            .map(|(pass, hash)| verify(pass, hash).context("verify password hash"))?
+            .reveal()
+        {
             false => Err(AuthError::InvalidCredentials.into()),
             true => {
-                let session_id = SessionId::new();
-                let session_id_hash = session_id.hash();
+                let session_id = Redacted::from(SessionId::new());
+                let session_id_hash = session_id.map(|session_id| session_id.hash());
                 let created_at = OffsetDateTime::now_utc();
                 let expires_at = login.remember.then_some(created_at + DURATION_30_DAYS);
                 let user_agent = headers.get(USER_AGENT).and_then(|val| val.to_str().ok());
@@ -87,12 +92,13 @@ pub async fn login(
 
                 tracing::info!(?expires_at, ?user_agent, "session created");
 
-                let session_cookie = Cookie::build(("session_id", session_id.base64encoded()))
-                    .path("/")
-                    .same_site(SameSite::Strict)
-                    .expires(expires_at)
-                    .http_only(true)
-                    .secure(true);
+                let session_cookie =
+                    Cookie::build(("session_id", session_id.reveal().base64encoded()))
+                        .path("/")
+                        .same_site(SameSite::Strict)
+                        .expires(expires_at)
+                        .http_only(true)
+                        .secure(true);
                 let jar = jar.add(session_cookie);
 
                 Ok((jar, StatusCode::OK))
