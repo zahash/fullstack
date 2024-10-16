@@ -21,7 +21,7 @@ pub struct SignUp {
 }
 
 #[debug_handler]
-#[tracing::instrument(fields(username = signup.username), skip_all, ret)]
+#[tracing::instrument(fields(username = %signup.username), skip_all, ret)]
 pub async fn signup(
     State(state): State<AppState>,
     Extension(request_id): Extension<RequestId>,
@@ -63,7 +63,7 @@ pub struct CheckUsernameAvailability {
 }
 
 #[debug_handler]
-#[tracing::instrument(fields(username = username), skip_all, ret)]
+#[tracing::instrument(fields(%username), skip_all, ret)]
 pub async fn check_username_availability(
     State(state): State<AppState>,
     Extension(request_id): Extension<RequestId>,

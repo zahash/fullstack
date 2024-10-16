@@ -34,7 +34,7 @@ pub struct Login {
 }
 
 #[debug_handler]
-#[tracing::instrument(fields(username = login.username, remember = login.remember), skip_all)]
+#[tracing::instrument(fields(username = %login.username, remember = %login.remember), skip_all)]
 pub async fn login(
     State(state): State<AppState>,
     Extension(request_id): Extension<RequestId>,
