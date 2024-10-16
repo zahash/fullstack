@@ -29,7 +29,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tower-http = { version = "0.6", features = ["fs", "trace"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
-uuid = { version = "1.2", features = ["v4"] }
+uuid = { version = "1", features = ["serde", "v4"] }
 
 [profile.release]
 codegen-units = 1 # Forces the compiler to use a single code generation unit to improve optimizations

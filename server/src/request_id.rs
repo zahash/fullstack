@@ -4,20 +4,23 @@ use serde::Serialize;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize)]
-pub struct RequestId(String);
+pub struct RequestId(Option<Uuid>);
 
 impl RequestId {
     pub fn new() -> Self {
-        Self(Uuid::new_v4().to_string())
+        Self(Some(Uuid::new_v4()))
     }
 
     pub fn unknown() -> Self {
-        Self("<unknown>".into())
+        Self(None)
     }
 }
 
 impl Display for RequestId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        match self.0 {
+            Some(request_id) => write!(f, "{}", request_id),
+            None => write!(f, "<unknown>"),
+        }
     }
 }
