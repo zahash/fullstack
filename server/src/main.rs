@@ -1,6 +1,7 @@
 mod error;
 mod login;
 mod private;
+mod redacted;
 mod request_id;
 mod session_id;
 mod signup;
