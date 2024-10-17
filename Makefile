@@ -36,5 +36,18 @@ env:
 		echo "UI=./dist/ui"; \
 	} > ./dist/.env
 
+test-env:
+	mkdir -p ./dist
+	{ \
+		echo "DATABASE_URL=sqlite:///tmp/data/data.db"; \
+		echo "PORT=8080"; \
+		echo "UI=./dist/ui"; \
+	} > ./dist/.test.env
+
+test-server:
+	mkdir -p /tmp/data
+	export DATABASE_URL="sqlite:///tmp/data/test.db" && cargo sqlx database create && \
+	cd ./server && sqlx migrate run && cargo test -- --nocapture
+
 clean:
 	rm -rf ./dist/
