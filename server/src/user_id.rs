@@ -69,43 +69,18 @@ impl UserId {
         pool: &SqlitePool,
         parts: &Parts,
     ) -> Result<Self, HandlerErrorKind> {
-        use AccessTokenError::*;
-        use SessionError::*;
+        let session_id = SessionId::try_from(parts);
+        let access_token = AccessToken::try_from(parts);
 
-        match (SessionId::try_from(parts), AccessToken::try_from(parts)) {
-            (Err(SessionCookieNotFound), Err(AccessTokenNotFound)) => {
-                Err(AuthError::NoCredentialsProvided.into())
+        match (session_id, access_token) {
+            (Ok(session_id), Ok(access_token)) => Err(AuthError::MultipleCredentialsProvided {
+                session_id,
+                access_token,
             }
-            (Err(MalformedSessionToken), Err(MalformedAccessToken)) => {
-                // if both malformed then session token takes precedence
-                Err(MalformedSessionToken.into())
-            }
-            (Err(InvalidSessionToken), Err(InvalidAccessToken)) => {
-                // if both invalid then session token takes precedence
-                Err(InvalidSessionToken.into())
-            }
-            (Err(InvalidSessionToken), Err(AccessTokenNotFound)) => Err(InvalidSessionToken.into()),
-            (Err(SessionCookieNotFound), Err(InvalidAccessToken)) => Err(InvalidAccessToken.into()),
-            (Ok(session_id), Ok(access_token)) => {
-                let (user_id_from_session_id, user_id_from_access_token) = tokio::try_join!(
-                    Self::from_session_id(pool, &session_id),
-                    Self::from_access_token(pool, &access_token)
-                )?;
-                match user_id_from_session_id == user_id_from_access_token {
-                    true => Ok(user_id_from_session_id),
-                    false => Err(AuthError::UserIdMismatch.into()),
-                }
-            }
-            (Ok(session_id), Err(AccessTokenNotFound)) => {
-                Self::from_session_id(pool, &session_id).await
-            }
-            (Err(SessionCookieNotFound), Ok(access_token)) => {
-                Self::from_access_token(pool, &access_token).await
-            }
-            (Ok(_), Err(e)) => Err(e.into()),
-            (Err(e), Ok(_)) => Err(e.into()),
-            (Err(MalformedSessionToken), Err(_)) => Err(MalformedSessionToken.into()),
-            (Err(_), Err(MalformedAccessToken)) => Err(MalformedAccessToken.into()),
+            .into()),
+            (Ok(session_id), _) => Self::from_session_id(pool, &session_id).await,
+            (_, Ok(access_token)) => Self::from_access_token(pool, &access_token).await,
+            _ => Err(AuthError::NoCredentialsProvided.into()),
         }
     }
 }

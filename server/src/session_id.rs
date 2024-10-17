@@ -9,6 +9,7 @@ use crate::{
     token::Token,
 };
 
+#[derive(Debug)]
 pub struct SessionId(Token<32>);
 
 impl SessionId {

@@ -6,7 +6,7 @@ use axum::{
 use serde_json::json;
 use time::{format_description::well_known::Iso8601, OffsetDateTime};
 
-use crate::request_id::RequestId;
+use crate::{access_token::AccessToken, request_id::RequestId, session_id::SessionId};
 
 #[derive(Debug)]
 pub struct HandlerError {
@@ -52,11 +52,14 @@ pub enum AuthError {
     #[error("{0}")]
     AccessToken(AccessTokenError),
 
-    #[error("user IDs from session id and access token do not match")]
-    UserIdMismatch,
-
     #[error("no credentials provided")]
     NoCredentialsProvided,
+
+    #[error("multiple credentials provided")]
+    MultipleCredentialsProvided {
+        session_id: SessionId,
+        access_token: AccessToken,
+    },
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -105,77 +108,61 @@ pub enum Severity {
 
 impl HandlerErrorKind {
     pub fn severity(&self) -> Severity {
-        use HandlerErrorKind::*;
-
         match self {
-            Public(e) => e.severity(),
-            Internal(e) => e.severity(),
+            HandlerErrorKind::Public(e) => e.severity(),
+            HandlerErrorKind::Internal(e) => e.severity(),
         }
     }
 }
 
 impl PublicError {
     pub fn severity(&self) -> Severity {
-        use PublicError::*;
-
         match self {
-            Auth(e) => e.severity(),
-            Cookie(e) => e.severity(),
+            PublicError::Auth(e) => e.severity(),
+            PublicError::Cookie(e) => e.severity(),
         }
     }
 }
 
 impl AuthError {
     pub fn severity(&self) -> Severity {
-        use AuthError::*;
-        use Severity::*;
-
         match self {
-            UserNotFound(_) => Low,
-            PasswordMismatch => High,
-            UsernameTaken(_) => Low,
-            InvalidUsername { .. } => Low,
-            Session(e) => e.severity(),
-            AccessToken(e) => e.severity(),
-            UserIdMismatch => Security,
-            NoCredentialsProvided => Low,
+            AuthError::UserNotFound(_) => Severity::Low,
+            AuthError::PasswordMismatch => Severity::High,
+            AuthError::UsernameTaken(_) => Severity::Low,
+            AuthError::InvalidUsername { .. } => Severity::Low,
+            AuthError::Session(e) => e.severity(),
+            AuthError::AccessToken(e) => e.severity(),
+            AuthError::NoCredentialsProvided => Severity::Low,
+            AuthError::MultipleCredentialsProvided { .. } => Severity::High,
         }
     }
 }
 
 impl CookieError {
     pub fn severity(&self) -> Severity {
-        use CookieError::*;
-        use Severity::*;
-
         match self {
-            CookieNotFound(_) => Low,
+            CookieError::CookieNotFound(_) => Severity::Low,
         }
     }
 }
 
 impl SessionError {
     pub fn severity(&self) -> Severity {
-        use SessionError::*;
-        use Severity::*;
-
         match self {
-            InvalidSessionToken => Low,
-            MalformedSessionToken => Security,
-            SessionCookieNotFound => Low,
+            SessionError::InvalidSessionToken => Severity::Low,
+            SessionError::MalformedSessionToken => Severity::Security,
+            SessionError::SessionCookieNotFound => Severity::Low,
         }
     }
 }
 
 impl AccessTokenError {
     pub fn severity(&self) -> Severity {
-        use AccessTokenError::*;
-        use Severity::*;
-
         match self {
-            AccessTokenNotFound => Low,
-            MalformedAccessToken => Security,
-            InvalidAccessToken => Low,
+            AccessTokenError::AccessTokenNotFound => Severity::Low,
+            AccessTokenError::MalformedAccessToken => Severity::Security,
+            AccessTokenError::InvalidAccessToken => Severity::Low,
         }
     }
 }
@@ -188,41 +175,32 @@ impl InternalError {
 
 impl IntoResponse for HandlerError {
     fn into_response(self) -> Response {
-        use HandlerErrorKind::*;
-        use Severity::*;
-
         match self.kind.severity() {
-            Low | Medium => tracing::info!("{:?}", self.kind),
-            High => tracing::warn!("{:?}", self.kind),
-            Critical => tracing::error!("{:?}", self.kind),
-            Security => tracing::error!(":SECURITY: {:?}", self.kind),
+            Severity::Low | Severity::Medium => tracing::info!("{:?}", self.kind),
+            Severity::High => tracing::warn!("{:?}", self.kind),
+            Severity::Critical => tracing::error!("{:?}", self.kind),
+            Severity::Security => tracing::error!(":SECURITY: {:?}", self.kind),
         };
 
         match self.kind {
-            Public(e) => {
+            HandlerErrorKind::Public(e) => {
                 let status_code = match &e {
-                    PublicError::Auth(e) => {
-                        use AuthError::*;
-                        match e {
-                            UserNotFound(_) => StatusCode::NOT_FOUND,
-                            PasswordMismatch
-                            | Session(_)
-                            | AccessToken(_)
-                            | NoCredentialsProvided => StatusCode::UNAUTHORIZED,
-                            UsernameTaken(_) => StatusCode::CONFLICT,
-                            InvalidUsername {
-                                username: _,
-                                reason: _,
-                            } => StatusCode::BAD_REQUEST,
-                            UserIdMismatch => StatusCode::FORBIDDEN,
-                        }
-                    }
-                    PublicError::Cookie(e) => {
-                        use CookieError::*;
-                        match e {
-                            CookieNotFound(_) => StatusCode::BAD_REQUEST,
-                        }
-                    }
+                    PublicError::Auth(e) => match e {
+                        AuthError::UserNotFound(_) => StatusCode::NOT_FOUND,
+                        AuthError::PasswordMismatch
+                        | AuthError::Session(_)
+                        | AuthError::AccessToken(_)
+                        | AuthError::NoCredentialsProvided => StatusCode::UNAUTHORIZED,
+                        AuthError::UsernameTaken(_) => StatusCode::CONFLICT,
+                        AuthError::InvalidUsername {
+                            username: _,
+                            reason: _,
+                        } => StatusCode::BAD_REQUEST,
+                        AuthError::MultipleCredentialsProvided { .. } => StatusCode::FORBIDDEN,
+                    },
+                    PublicError::Cookie(e) => match e {
+                        CookieError::CookieNotFound(_) => StatusCode::BAD_REQUEST,
+                    },
                 };
 
                 let now = OffsetDateTime::now_utc()
@@ -233,8 +211,10 @@ impl IntoResponse for HandlerError {
                     .ok();
 
                 let message = match e.severity() {
-                    Low | Medium | High | Critical => e.to_string(),
-                    Security => format!("{}. this incident will be reported!", e),
+                    Severity::Low | Severity::Medium | Severity::High | Severity::Critical => {
+                        e.to_string()
+                    }
+                    Severity::Security => format!("{}. this incident will be reported!", e),
                 };
 
                 (
@@ -247,7 +227,7 @@ impl IntoResponse for HandlerError {
                 )
                     .into_response()
             }
-            Internal(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+            HandlerErrorKind::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
         }
     }
 }

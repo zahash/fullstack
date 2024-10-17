@@ -21,6 +21,7 @@ use crate::{
     AppState,
 };
 
+#[derive(Debug)]
 pub struct AccessToken(Token<32>);
 
 impl AccessToken {
