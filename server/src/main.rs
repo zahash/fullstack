@@ -65,24 +65,24 @@ async fn main() -> Result<(), anyhow::Error> {
         .route("/private", get(private))
         .with_state(AppState { pool })
         .layer(
-            TraceLayer::new_for_http().make_span_with(|request: &Request<_>| {
-                let request_id = request
-                    .extensions()
-                    .get::<RequestId>()
-                    .cloned()
-                    .unwrap_or_else(|| {
-                        tracing::warn!("unable to get RequestId extension when making span");
-                        RequestId::unknown()
-                    });
-
-                tracing::info_span!(
-                    "request",
-                    "{} {} {}",
-                    request_id,
-                    request.method(),
-                    request.uri(),
-                )
-            }),
+            TraceLayer::new_for_http().make_span_with(|request: &Request<_>| match request
+                .extensions()
+                .get::<RequestId>() {
+                    Some(request_id) => tracing::info_span!(
+                        "request",
+                        "{} {} {}",
+                        request_id,
+                        request.method(),
+                        request.uri(),
+                    ),
+                    None => tracing::info_span!(
+                        "request",
+                        "{} {}",
+                        request.method(),
+                        request.uri(),
+                    ),
+                }
+            ),
         )
         .layer(axum::middleware::from_fn(
             |mut request: Request<Body>, next: Next| async {

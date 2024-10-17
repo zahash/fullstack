@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use axum::{
     body::Body,
     http::{Response, StatusCode},
@@ -32,6 +34,24 @@ impl<const N: usize> Token<N> {
 impl<const N: usize> From<[u8; N]> for Token<N> {
     fn from(bytes: [u8; N]) -> Self {
         Token(bytes)
+    }
+}
+
+impl<'a, const N: usize> TryFrom<&'a str> for Token<N> {
+    type Error = &'a str;
+
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+        let bytes = BASE64_STANDARD.decode(value).map_err(|_| value)?;
+        let bytes: [u8; N] = bytes.try_into().map_err(|_| value)?;
+        Ok(Token(bytes))
+    }
+}
+
+impl<const N: usize> Deref for Token<N> {
+    type Target = [u8; N];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

@@ -1,16 +1,16 @@
 use anyhow::Context;
 use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
-use axum_extra::extract::CookieJar;
 use sqlx::{Sqlite, SqlitePool, Type};
 
 use crate::{
-    error::{AuthError, HandlerError, HandlerErrorKind},
+    access_token::AccessToken,
+    error::{AccessTokenError, AuthError, HandlerError, HandlerErrorKind, SessionError},
     request_id::RequestId,
     session_id::SessionId,
     AppState,
 };
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct UserId(i64);
 
 #[async_trait]
@@ -21,35 +21,92 @@ impl FromRequestParts<AppState> for UserId {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        async fn inner(parts: &mut Parts, pool: &SqlitePool) -> Result<UserId, HandlerErrorKind> {
-            let jar = CookieJar::from_headers(&parts.headers);
-            let session_id = SessionId::try_from(&jar)?;
-            let session_id_hash = session_id.hash();
+        UserId::from_request_parts(&state.pool, parts)
+            .await
+            .map_err(|e| HandlerError {
+                request_id: RequestId::from(parts),
+                kind: e.into(),
+            })
+    }
+}
 
-            let session = sqlx::query!(
-                "SELECT user_id FROM sessions WHERE session_id_hash = ? AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)",
-                session_id_hash
-            )
-            .fetch_optional(pool)
-            .await.context("extractor: session_id -> UserId")?
-            .ok_or(AuthError::InvalidSession)?;
+impl UserId {
+    pub async fn from_session_id(
+        pool: &SqlitePool,
+        session_id: &SessionId,
+    ) -> Result<Self, HandlerErrorKind> {
+        let session_id_hash = session_id.hash();
 
-            Ok(UserId(session.user_id))
+        let record = sqlx::query!(
+            "SELECT user_id FROM sessions WHERE session_id_hash = ? AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)",
+            session_id_hash
+        )
+        .fetch_optional(pool)
+        .await.context("SessionId -> UserId")?
+        .ok_or(SessionError::InvalidSessionToken)?;
+
+        Ok(Self(record.user_id))
+    }
+
+    pub async fn from_access_token(
+        pool: &SqlitePool,
+        access_token: &AccessToken,
+    ) -> Result<Self, HandlerErrorKind> {
+        let access_token_hash = access_token.hash();
+
+        let record = sqlx::query!(
+            "SELECT user_id FROM access_tokens WHERE access_token_hash = ? AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)",
+            access_token_hash
+        )
+        .fetch_optional(pool)
+        .await.context("AccessToken -> UserId")?
+        .ok_or(AccessTokenError::InvalidAccessToken)?;
+
+        Ok(Self(record.user_id))
+    }
+
+    pub async fn from_request_parts(
+        pool: &SqlitePool,
+        parts: &Parts,
+    ) -> Result<Self, HandlerErrorKind> {
+        use AccessTokenError::*;
+        use SessionError::*;
+
+        match (SessionId::try_from(parts), AccessToken::try_from(parts)) {
+            (Err(SessionCookieNotFound), Err(AccessTokenNotFound)) => {
+                Err(AuthError::NoCredentialsProvided.into())
+            }
+            (Err(MalformedSessionToken), Err(MalformedAccessToken)) => {
+                // if both malformed then session token takes precedence
+                Err(MalformedSessionToken.into())
+            }
+            (Err(InvalidSessionToken), Err(InvalidAccessToken)) => {
+                // if both invalid then session token takes precedence
+                Err(InvalidSessionToken.into())
+            }
+            (Err(InvalidSessionToken), Err(AccessTokenNotFound)) => Err(InvalidSessionToken.into()),
+            (Err(SessionCookieNotFound), Err(InvalidAccessToken)) => Err(InvalidAccessToken.into()),
+            (Ok(session_id), Ok(access_token)) => {
+                let (user_id_from_session_id, user_id_from_access_token) = tokio::try_join!(
+                    Self::from_session_id(pool, &session_id),
+                    Self::from_access_token(pool, &access_token)
+                )?;
+                match user_id_from_session_id == user_id_from_access_token {
+                    true => Ok(user_id_from_session_id),
+                    false => Err(AuthError::UserIdMismatch.into()),
+                }
+            }
+            (Ok(session_id), Err(AccessTokenNotFound)) => {
+                Self::from_session_id(pool, &session_id).await
+            }
+            (Err(SessionCookieNotFound), Ok(access_token)) => {
+                Self::from_access_token(pool, &access_token).await
+            }
+            (Ok(_), Err(e)) => Err(e.into()),
+            (Err(e), Ok(_)) => Err(e.into()),
+            (Err(MalformedSessionToken), Err(_)) => Err(MalformedSessionToken.into()),
+            (Err(_), Err(MalformedAccessToken)) => Err(MalformedAccessToken.into()),
         }
-
-        let request_id = parts
-            .extensions
-            .get::<RequestId>()
-            .cloned()
-            .unwrap_or_else(|| {
-                tracing::warn!("unable to get RequestId extension when extracting UserId");
-                RequestId::unknown()
-            });
-
-        inner(parts, &state.pool).await.map_err(|e| HandlerError {
-            request_id,
-            kind: e.into(),
-        })
     }
 }
 

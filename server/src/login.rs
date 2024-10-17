@@ -37,7 +37,7 @@ pub struct Login {
 #[tracing::instrument(fields(username = %login.username, remember = %login.remember), skip_all)]
 pub async fn login(
     State(state): State<AppState>,
-    Extension(request_id): Extension<RequestId>,
+    Extension(request_id): Extension<Option<RequestId>>,
     headers: HeaderMap,
     jar: CookieJar,
     Form(login): Form<Login>,
@@ -66,7 +66,7 @@ pub async fn login(
         tracing::info!("{:?}", user.id);
 
         match verify(login.password, &user.password_hash).context("verify password hash")? {
-            false => Err(AuthError::InvalidCredentials.into()),
+            false => Err(AuthError::PasswordMismatch.into()),
             true => {
                 let session_id = SessionId::new();
                 let session_id_hash = session_id.hash();
