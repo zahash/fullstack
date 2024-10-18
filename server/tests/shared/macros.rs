@@ -51,6 +51,17 @@ macro_rules! send {
 
 #[macro_export]
 macro_rules! status {
+    ( 2xx ) => {{
+        |resp: axum::http::Response<axum::body::Body>| {
+            let status = resp.status();
+            assert!(status.is_success(), "expected 2xx status, got {}", status);
+            resp
+        }
+    }};
+    ( 2XX ) => {
+        crate::status!(2xx)
+    };
+
     ( $status:literal ) => {{
         |resp: axum::http::Response<axum::body::Body>| {
             assert_eq!(
@@ -60,13 +71,6 @@ macro_rules! status {
                 $status,
                 resp.status()
             );
-            resp
-        }
-    }};
-    ( _2xx ) => {{
-        |resp: axum::http::Response<axum::body::Body>| {
-            let status = resp.status();
-            assert!(status.is_success(), "expected 2xx status, got {}", status);
             resp
         }
     }};
