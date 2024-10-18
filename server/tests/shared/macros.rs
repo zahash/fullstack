@@ -28,6 +28,7 @@ macro_rules! request {
 #[macro_export]
 macro_rules! send {
     ($pool:ident $req:expr) => {{
+        use tower::ServiceExt;
         server::server($pool.clone())
             .oneshot($req())
             .await
@@ -58,6 +59,7 @@ macro_rules! t {
     ($e:expr => $f:expr => $($g:tt)+) => { t! { $f($e) => $($g)+ } };
 }
 
+// https://docs.rs/crate/pipe_macro/latest/source/
 // macro_rules! pipe {
 //     ($e:expr) => {$e};
 
