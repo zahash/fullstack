@@ -1,15 +1,11 @@
+use sqlx::SqlitePool;
+
 use crate::{
     fixture,
-    shared::{
-        request::{login, signup},
-        setup::pool,
-    },
+    shared::request::{login, signup},
 };
 
-#[tokio::test]
-async fn sample_fixture() {
-    let pool = pool().await;
-
+pub async fn _sample_fixture(pool: &SqlitePool) {
     fixture! {
         pool;
         signup("user1", "pass1");

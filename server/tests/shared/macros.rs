@@ -1,6 +1,6 @@
 #[macro_export]
 macro_rules! request {
-    ( $method:ident $url:expr; $($header:expr => $value:expr)* ) => {{
+    ( $method:ident $url:expr ; $($header:expr => $value:expr)* ) => {{
         let mut req = axum::http::Request::builder()
             .uri($url)
             .method(stringify!($method));
@@ -27,21 +27,20 @@ macro_rules! request {
 
 #[macro_export]
 macro_rules! fixture {
-    ($pool:ident; $( $req:expr; )*) => {{
+    ( $pool:ident ; $( $req:expr ; )* ) => {{
         $(
             let resp = crate::send!( $pool $req );
             let status = resp.status();
-            let is_success = status.is_success();
             let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
 
-            assert!(is_success, ":FIXTURE: status:{} :: {:?}", status, body);
+            assert!(status.is_success(), ":FIXTURE: status:{} :: {:?}", status, body);
         )*
     }};
 }
 
 #[macro_export]
 macro_rules! send {
-    ($pool:ident $req:expr) => {{
+    ( $pool:ident $req:expr ) => {{
         use tower::ServiceExt;
         server::server($pool.clone())
             .oneshot($req())
@@ -52,7 +51,7 @@ macro_rules! send {
 
 #[macro_export]
 macro_rules! status {
-    ($status:literal) => {{
+    ( $status:literal ) => {{
         |resp: axum::http::Response<axum::body::Body>| {
             assert_eq!(
                 resp.status().as_u16(),
@@ -64,13 +63,20 @@ macro_rules! status {
             resp
         }
     }};
+    ( _2xx ) => {{
+        |resp: axum::http::Response<axum::body::Body>| {
+            let status = resp.status();
+            assert!(status.is_success(), "expected 2xx status, got {}", status);
+            resp
+        }
+    }};
 }
 
 #[macro_export]
 macro_rules! t {
-    ($e:expr) => { $e };
-    ($e:expr => $f:expr) => { $f($e) };
-    ($e:expr => $f:expr => $($g:tt)+) => { t! { $f($e) => $($g)+ } };
+    ( $e:expr ) => { $e };
+    ( $e:expr => $f:expr ) => { $f($e) };
+    ( $e:expr => $f:expr => $($g:tt)+ ) => { t! { $f($e) => $($g)+ } };
 }
 
 // https://docs.rs/crate/pipe_macro/latest/source/
