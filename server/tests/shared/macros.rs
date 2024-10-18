@@ -26,6 +26,20 @@ macro_rules! request {
 }
 
 #[macro_export]
+macro_rules! fixture {
+    ($pool:ident; $( $req:expr; )*) => {{
+        $(
+            let resp = crate::send!( $pool $req );
+            let status = resp.status();
+            let is_success = status.is_success();
+            let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+
+            assert!(is_success, ":FIXTURE: status:{} :: {:?}", status, body);
+        )*
+    }};
+}
+
+#[macro_export]
 macro_rules! send {
     ($pool:ident $req:expr) => {{
         use tower::ServiceExt;
