@@ -1,3 +1,4 @@
+mod macros;
 mod setup;
 
 use setup::pool;
@@ -23,7 +24,7 @@ async fn onboarding_flow() {
         )
     };
 
-    status!( pool 404 login() );
-    status!( pool 201 signup() );
-    status!( pool 200 login() );
+    t!( send!(pool login)  => status!(404) );
+    t!( send!(pool signup) => status!(201) );
+    t!( send!(pool login)  => status!(200) );
 }
