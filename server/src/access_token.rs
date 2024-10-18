@@ -53,7 +53,7 @@ pub struct AccessTokenSettings {
 #[tracing::instrument(fields(?user_id, ?settings), skip_all)]
 pub async fn generate(
     State(state): State<AppState>,
-    Extension(request_id): Extension<Option<RequestId>>,
+    request_id: Option<Extension<RequestId>>,
     user_id: UserId,
     Form(settings): Form<AccessTokenSettings>,
 ) -> Result<(StatusCode, AccessToken), HandlerError> {
@@ -85,7 +85,7 @@ pub async fn generate(
     inner(state.pool, user_id, settings)
         .await
         .map_err(|e| HandlerError {
-            request_id,
+            request_id: request_id.map(|Extension(request_id)| request_id),
             kind: e.into(),
         })
 }

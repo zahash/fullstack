@@ -24,7 +24,7 @@ pub struct SignUp {
 #[tracing::instrument(fields(username = %signup.username), skip_all, ret)]
 pub async fn signup(
     State(state): State<AppState>,
-    Extension(request_id): Extension<Option<RequestId>>,
+    request_id: Option<Extension<RequestId>>,
     Form(signup): Form<SignUp>,
 ) -> Result<StatusCode, HandlerError> {
     async fn inner(
@@ -52,7 +52,7 @@ pub async fn signup(
     }
 
     inner(state.pool, signup).await.map_err(|e| HandlerError {
-        request_id,
+        request_id: request_id.map(|Extension(request_id)| request_id),
         kind: e.into(),
     })
 }
@@ -66,7 +66,7 @@ pub struct CheckUsernameAvailability {
 #[tracing::instrument(fields(?username), skip_all, ret)]
 pub async fn check_username_availability(
     State(state): State<AppState>,
-    Extension(request_id): Extension<Option<RequestId>>,
+    request_id: Option<Extension<RequestId>>,
     Form(CheckUsernameAvailability { username }): Form<CheckUsernameAvailability>,
 ) -> Result<StatusCode, HandlerError> {
     async fn inner(pool: SqlitePool, username: String) -> Result<StatusCode, HandlerErrorKind> {
@@ -94,7 +94,7 @@ pub async fn check_username_availability(
     }
 
     inner(state.pool, username).await.map_err(|e| HandlerError {
-        request_id,
+        request_id: request_id.map(|Extension(request_id)| request_id),
         kind: e.into(),
     })
 }

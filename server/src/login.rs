@@ -37,7 +37,7 @@ pub struct Login {
 #[tracing::instrument(fields(username = %login.username, remember = %login.remember), skip_all)]
 pub async fn login(
     State(state): State<AppState>,
-    Extension(request_id): Extension<Option<RequestId>>,
+    request_id: Option<Extension<RequestId>>,
     headers: HeaderMap,
     jar: CookieJar,
     Form(login): Form<Login>,
@@ -103,7 +103,7 @@ pub async fn login(
     inner(state.pool, headers, jar, login)
         .await
         .map_err(|e| HandlerError {
-            request_id,
+            request_id: request_id.map(|Extension(request_id)| request_id),
             kind: e.into(),
         })
 }

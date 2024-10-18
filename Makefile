@@ -45,9 +45,7 @@ test-env:
 	} > ./dist/.test.env
 
 test-server:
-	mkdir -p /tmp/data
-	export DATABASE_URL="sqlite:///tmp/data/test.db" && cargo sqlx database create && \
-	cd ./server && sqlx migrate run && cargo test -- --nocapture
+	cd ./server && cargo test -- --nocapture
 
 clean:
 	rm -rf ./dist/
