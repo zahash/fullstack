@@ -44,6 +44,8 @@ test-env:
 		echo "UI=./dist/ui"; \
 	} > ./dist/.test.env
 
+test: test-server
+
 test-server:
 	cd ./server && cargo test -- --nocapture
 
