@@ -1,10 +1,3 @@
-use std::ops::Deref;
-
-use axum::{
-    body::Body,
-    http::{Response, StatusCode},
-    response::IntoResponse,
-};
 use base64::{prelude::BASE64_STANDARD, Engine};
 use rand::{rngs::OsRng, RngCore};
 use sha2::{Digest, Sha256};
@@ -44,25 +37,5 @@ impl<'a, const N: usize> TryFrom<&'a str> for Token<N> {
         let bytes = BASE64_STANDARD.decode(value).map_err(|_| value)?;
         let bytes: [u8; N] = bytes.try_into().map_err(|_| value)?;
         Ok(Token(bytes))
-    }
-}
-
-impl<const N: usize> Deref for Token<N> {
-    type Target = [u8; N];
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl<const N: usize> IntoResponse for Token<N> {
-    fn into_response(self) -> Response<Body> {
-        match Response::builder().body(Body::from(self.base64encoded())) {
-            Ok(resp) => resp,
-            Err(e) => {
-                tracing::error!("unable to convert {:?} to response :: {:?}", self, e);
-                StatusCode::INTERNAL_SERVER_ERROR.into_response()
-            }
-        }
     }
 }

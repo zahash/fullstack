@@ -14,7 +14,7 @@ pub struct SessionId(Token<32>);
 
 impl SessionId {
     pub fn new() -> Self {
-        Self(Token::<32>::new())
+        Self(Token::new())
     }
 }
 
@@ -34,7 +34,7 @@ impl TryFrom<&CookieJar> for SessionId {
             .get("session_id")
             .ok_or(SessionError::SessionCookieNotFound)?
             .value();
-        let token = Token::<32>::try_from(value).map_err(|_| SessionError::MalformedSessionToken)?;
+        let token = Token::try_from(value).map_err(|_| SessionError::MalformedSessionToken)?;
         Ok(SessionId(token))
     }
 }

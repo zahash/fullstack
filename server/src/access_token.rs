@@ -3,8 +3,9 @@ use std::{ops::Deref, time::Duration};
 use anyhow::Context;
 use axum::{
     async_trait,
+    body::Body,
     extract::{FromRequestParts, State},
-    http::{request::Parts, StatusCode},
+    http::{request::Parts, Response, StatusCode},
     response::IntoResponse,
     Extension, Form,
 };
@@ -40,7 +41,13 @@ impl Deref for AccessToken {
 
 impl IntoResponse for AccessToken {
     fn into_response(self) -> axum::response::Response {
-        self.0.into_response()
+        match Response::builder().body(Body::from(self.base64encoded())) {
+            Ok(resp) => resp,
+            Err(e) => {
+                tracing::error!("unable to convert {:?} to response :: {:?}", self, e);
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
+        }
     }
 }
 
@@ -101,7 +108,7 @@ impl TryFrom<&Parts> for AccessToken {
 
         if let Ok(s) = header_value.to_str() {
             if let Some(s) = s.strip_prefix("Token ") {
-                if let Ok(token) = Token::<32>::try_from(s) {
+                if let Ok(token) = Token::try_from(s) {
                     return Ok(AccessToken(token));
                 }
             }
