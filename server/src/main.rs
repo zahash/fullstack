@@ -1,11 +1,11 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use anyhow::Context;
 use axum::Router;
 use sqlx::SqlitePool;
 use tokio::net::TcpListener;
 
-use server::{server, ui};
+use server::{server, ui, AppState, RateLimiter};
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -20,13 +20,19 @@ async fn main() -> Result<(), anyhow::Error> {
     let ui_dir = std::env::var("UI").context("UI")?;
     tracing::info!(UI = %ui_dir);
 
-    let pool = SqlitePool::connect(&database_url)
-        .await
-        .context(format!("connect database :: {}", database_url))?;
+    let state = AppState {
+        pool: SqlitePool::connect(&database_url)
+            .await
+            .context(format!("connect database :: {}", database_url))?,
+        rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
+    };
 
     let ui = ui(&ui_dir);
-    let server = server(pool);
-    let app = Router::new().merge(ui).merge(server);
+    let server = server(state);
+    let app = Router::new()
+        .merge(ui)
+        .merge(server)
+        .into_make_service_with_connect_info::<SocketAddr>();
 
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = TcpListener::bind(addr)

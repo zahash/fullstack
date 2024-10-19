@@ -42,10 +42,13 @@ macro_rules! fixture {
 macro_rules! send {
     ( $pool:ident $req:expr ) => {{
         use tower::ServiceExt;
-        server::server($pool.clone())
-            .oneshot($req())
-            .await
-            .expect("failed to send request")
+        server::server(server::AppState {
+            pool: $pool.clone(),
+            rate_limiter: std::sync::Arc::new(server::RateLimiter::nolimit()),
+        })
+        .oneshot($req())
+        .await
+        .expect("failed to send request")
     }};
 }
 
