@@ -6,8 +6,6 @@ use axum::{
 use serde_json::json;
 use time::{format_description::well_known::Iso8601, OffsetDateTime};
 
-use crate::{access_token::AccessToken, session_id::SessionId};
-
 #[derive(thiserror::Error, Debug)]
 pub enum HandlerError {
     #[error("{0}")]
@@ -46,11 +44,8 @@ pub enum AuthError {
     #[error("no credentials provided")]
     NoCredentialsProvided,
 
-    #[error("multiple credentials provided")]
-    MultipleCredentialsProvided {
-        session_id: SessionId,
-        access_token: AccessToken,
-    },
+    #[error("multiple credentials provided {0:?}")]
+    MultipleCredentialsProvided(Vec<&'static str>),
 }
 
 #[derive(thiserror::Error, Debug, PartialEq)]

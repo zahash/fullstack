@@ -24,15 +24,13 @@ impl FromRequestParts<AppState> for UserId {
         let access_token = AccessToken::try_from(parts as &Parts);
 
         match (session_id, access_token) {
-            (Ok(session_id), Ok(access_token)) => Err(AuthError::MultipleCredentialsProvided {
-                session_id,
-                access_token,
+            (Ok(_), Ok(_)) => {
+                Err(AuthError::MultipleCredentialsProvided(vec!["SessionId", "AccessToken"]).into())
             }
-            .into()),
-            (Ok(session_id), _) => Self::from_session_id(pool, &session_id).await,
-            (_, Ok(access_token)) => Self::from_access_token(pool, &access_token).await,
             (Err(err), _) if err != SessionError::SessionCookieNotFound => Err(err.into()),
             (_, Err(err)) if err != AccessTokenError::AccessTokenNotFound => Err(err.into()),
+            (Ok(session_id), _) => Self::from_session_id(pool, &session_id).await,
+            (_, Ok(access_token)) => Self::from_access_token(pool, &access_token).await,
             _ => Err(AuthError::NoCredentialsProvided.into()),
         }
     }
