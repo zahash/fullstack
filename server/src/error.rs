@@ -6,16 +6,10 @@ use axum::{
 use serde_json::json;
 use time::{format_description::well_known::Iso8601, OffsetDateTime};
 
-use crate::{access_token::AccessToken, request_id::RequestId, session_id::SessionId};
-
-#[derive(Debug)]
-pub struct HandlerError {
-    pub request_id: Option<RequestId>,
-    pub kind: HandlerErrorKind,
-}
+use crate::{access_token::AccessToken, session_id::SessionId};
 
 #[derive(thiserror::Error, Debug)]
-pub enum HandlerErrorKind {
+pub enum HandlerError {
     #[error("{0}")]
     Public(#[from] PublicError),
 
@@ -27,9 +21,6 @@ pub enum HandlerErrorKind {
 pub enum PublicError {
     #[error("{0}")]
     Auth(#[from] AuthError),
-
-    #[error("{0}")]
-    Cookie(#[from] CookieError),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -62,13 +53,7 @@ pub enum AuthError {
     },
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum CookieError {
-    #[error("cookie not found: '{0}'")]
-    CookieNotFound(&'static str),
-}
-
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, PartialEq)]
 pub enum SessionError {
     #[error("invalid session")]
     InvalidSessionToken,
@@ -80,7 +65,7 @@ pub enum SessionError {
     SessionCookieNotFound,
 }
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, PartialEq)]
 pub enum AccessTokenError {
     #[error(
         "access token not found in header. expected `Authorization: Token <your-access-token>`"
@@ -90,6 +75,9 @@ pub enum AccessTokenError {
     #[error("invalid access token")]
     InvalidAccessToken,
 
+    #[error("invalid access token format. must be in the form 'Token <your-access-token>'")]
+    InvalidAccessTokenFormat,
+
     #[error("malformed access token")]
     MalformedAccessToken,
 }
@@ -98,6 +86,7 @@ pub enum AccessTokenError {
 #[error("{0:?}")]
 pub struct InternalError(#[from] pub anyhow::Error);
 
+#[derive(PartialEq)]
 pub enum Severity {
     Low,
     Medium,
@@ -106,11 +95,11 @@ pub enum Severity {
     Security,
 }
 
-impl HandlerErrorKind {
+impl HandlerError {
     pub fn severity(&self) -> Severity {
         match self {
-            HandlerErrorKind::Public(e) => e.severity(),
-            HandlerErrorKind::Internal(e) => e.severity(),
+            HandlerError::Public(e) => e.severity(),
+            HandlerError::Internal(e) => e.severity(),
         }
     }
 }
@@ -119,7 +108,6 @@ impl PublicError {
     pub fn severity(&self) -> Severity {
         match self {
             PublicError::Auth(e) => e.severity(),
-            PublicError::Cookie(e) => e.severity(),
         }
     }
 }
@@ -139,18 +127,10 @@ impl AuthError {
     }
 }
 
-impl CookieError {
-    pub fn severity(&self) -> Severity {
-        match self {
-            CookieError::CookieNotFound(_) => Severity::Low,
-        }
-    }
-}
-
 impl SessionError {
     pub fn severity(&self) -> Severity {
         match self {
-            SessionError::InvalidSessionToken => Severity::Low,
+            SessionError::InvalidSessionToken => Severity::Medium,
             SessionError::MalformedSessionToken => Severity::Security,
             SessionError::SessionCookieNotFound => Severity::Low,
         }
@@ -162,7 +142,8 @@ impl AccessTokenError {
         match self {
             AccessTokenError::AccessTokenNotFound => Severity::Low,
             AccessTokenError::MalformedAccessToken => Severity::Security,
-            AccessTokenError::InvalidAccessToken => Severity::Low,
+            AccessTokenError::InvalidAccessToken => Severity::Medium,
+            AccessTokenError::InvalidAccessTokenFormat => Severity::Medium,
         }
     }
 }
@@ -175,15 +156,15 @@ impl InternalError {
 
 impl IntoResponse for HandlerError {
     fn into_response(self) -> Response {
-        match self.kind.severity() {
-            Severity::Low | Severity::Medium => tracing::info!("{:?}", self.kind),
-            Severity::High => tracing::warn!("{:?}", self.kind),
-            Severity::Critical => tracing::error!("{:?}", self.kind),
-            Severity::Security => tracing::error!(":SECURITY: {:?}", self.kind),
+        match self.severity() {
+            Severity::Low | Severity::Medium => tracing::info!("{:?}", self),
+            Severity::High => tracing::warn!("{:?}", self),
+            Severity::Critical => tracing::error!("{:?}", self),
+            Severity::Security => tracing::error!("!SECURITY! {:?}", self),
         };
 
-        match self.kind {
-            HandlerErrorKind::Public(e) => {
+        match self {
+            HandlerError::Public(e) => {
                 let status_code = match &e {
                     PublicError::Auth(e) => match e {
                         AuthError::UserNotFound(_) => StatusCode::NOT_FOUND,
@@ -198,9 +179,6 @@ impl IntoResponse for HandlerError {
                         } => StatusCode::BAD_REQUEST,
                         AuthError::MultipleCredentialsProvided { .. } => StatusCode::FORBIDDEN,
                     },
-                    PublicError::Cookie(e) => match e {
-                        CookieError::CookieNotFound(_) => StatusCode::BAD_REQUEST,
-                    },
                 };
 
                 let now = OffsetDateTime::now_utc()
@@ -211,30 +189,28 @@ impl IntoResponse for HandlerError {
                     .ok();
 
                 let message = match e.severity() {
-                    Severity::Low | Severity::Medium | Severity::High | Severity::Critical => {
-                        e.to_string()
-                    }
-                    Severity::Security => format!("{}. this incident will be reported!", e),
+                    Severity::Security => "Security incident detected! This will be reported immediately!",
+                    _ => "Please check the response headers for `x-request-id`, include the datetime and raise a support ticket.",
                 };
 
                 (
                     status_code,
                     Json(json!({
+                        "error": e.to_string(),
                         "message": message,
                         "datetime": now,
-                        "request_id": self.request_id
                     })),
                 )
                     .into_response()
             }
-            HandlerErrorKind::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+            HandlerError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
         }
     }
 }
 
-impl From<AuthError> for HandlerErrorKind {
+impl From<AuthError> for HandlerError {
     fn from(err: AuthError) -> Self {
-        HandlerErrorKind::Public(PublicError::Auth(err))
+        HandlerError::Public(PublicError::Auth(err))
     }
 }
 
@@ -244,26 +220,26 @@ impl From<SessionError> for PublicError {
     }
 }
 
-impl From<SessionError> for HandlerErrorKind {
+impl From<SessionError> for HandlerError {
     fn from(err: SessionError) -> Self {
-        HandlerErrorKind::Public(PublicError::from(err))
+        HandlerError::Public(PublicError::from(err))
     }
 }
 
-impl From<AccessTokenError> for HandlerErrorKind {
+impl From<AccessTokenError> for HandlerError {
     fn from(err: AccessTokenError) -> Self {
-        HandlerErrorKind::Public(PublicError::Auth(AuthError::AccessToken(err)))
+        HandlerError::Public(PublicError::Auth(AuthError::AccessToken(err)))
     }
 }
 
-impl From<anyhow::Error> for HandlerErrorKind {
+impl From<anyhow::Error> for HandlerError {
     fn from(err: anyhow::Error) -> Self {
-        HandlerErrorKind::Internal(InternalError(err))
+        HandlerError::Internal(InternalError(err))
     }
 }
 
-impl From<InternalError> for HandlerErrorKind {
+impl From<InternalError> for HandlerError {
     fn from(err: InternalError) -> Self {
-        HandlerErrorKind::Internal(err)
+        HandlerError::Internal(err)
     }
 }

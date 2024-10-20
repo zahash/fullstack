@@ -7,16 +7,14 @@ use axum::{
     extract::{FromRequestParts, State},
     http::{request::Parts, Response, StatusCode},
     response::IntoResponse,
-    Extension, Form,
+    Form,
 };
 use axum_macros::debug_handler;
 use serde::Deserialize;
-use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use crate::{
-    error::{AccessTokenError, HandlerError, InternalError},
-    request_id::RequestId,
+    error::{AccessTokenError, HandlerError},
     token::Token,
     user_id::UserId,
     AppState,
@@ -59,22 +57,16 @@ pub struct AccessTokenSettings {
 #[debug_handler]
 #[tracing::instrument(fields(?user_id, ?settings), skip_all)]
 pub async fn generate(
-    State(state): State<AppState>,
-    request_id: Option<Extension<RequestId>>,
+    State(AppState { pool, .. }): State<AppState>,
     user_id: UserId,
     Form(settings): Form<AccessTokenSettings>,
 ) -> Result<(StatusCode, AccessToken), HandlerError> {
-    async fn inner(
-        pool: SqlitePool,
-        user_id: UserId,
-        settings: AccessTokenSettings,
-    ) -> Result<(StatusCode, AccessToken), InternalError> {
-        let access_token = AccessToken::new();
-        let access_token_hash = access_token.hash();
-        let created_at = OffsetDateTime::now_utc();
-        let expires_at = settings.ttl.map(|ttl| created_at + ttl);
+    let access_token = AccessToken::new();
+    let access_token_hash = access_token.hash();
+    let created_at = OffsetDateTime::now_utc();
+    let expires_at = settings.ttl.map(|ttl| created_at + ttl);
 
-        sqlx::query!(
+    sqlx::query!(
             "INSERT INTO access_tokens (access_token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
             access_token_hash,
             user_id,
@@ -84,17 +76,9 @@ pub async fn generate(
         .execute(&pool)
         .await.context("insert access_token")?;
 
-        tracing::info!(?expires_at, "access_token created");
+    tracing::info!(?expires_at, "access_token created");
 
-        Ok((StatusCode::CREATED, access_token))
-    }
-
-    inner(state.pool, user_id, settings)
-        .await
-        .map_err(|e| HandlerError {
-            request_id: request_id.map(|Extension(request_id)| request_id),
-            kind: e.into(),
-        })
+    Ok((StatusCode::CREATED, access_token))
 }
 
 impl TryFrom<&Parts> for AccessToken {
@@ -106,15 +90,15 @@ impl TryFrom<&Parts> for AccessToken {
             .get("Authorization")
             .ok_or(AccessTokenError::AccessTokenNotFound)?;
 
-        if let Ok(s) = header_value.to_str() {
-            if let Some(s) = s.strip_prefix("Token ") {
-                if let Ok(token) = Token::try_from(s) {
-                    return Ok(AccessToken(token));
-                }
-            }
-        }
+        let token_str = header_value
+            .to_str()
+            .ok()
+            .and_then(|s| s.strip_prefix("Token "))
+            .ok_or(AccessTokenError::InvalidAccessTokenFormat)?;
 
-        Err(AccessTokenError::MalformedAccessToken)
+        Token::try_from(token_str)
+            .map(|token| AccessToken(token))
+            .map_err(|_| AccessTokenError::MalformedAccessToken)
     }
 }
 
@@ -123,9 +107,6 @@ impl<S> FromRequestParts<S> for AccessToken {
     type Rejection = HandlerError;
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        AccessToken::try_from(parts as &Parts).map_err(|e| HandlerError {
-            request_id: RequestId::from(parts),
-            kind: e.into(),
-        })
+        AccessToken::try_from(parts as &Parts).map_err(HandlerError::from)
     }
 }

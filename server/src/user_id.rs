@@ -4,8 +4,7 @@ use sqlx::{Sqlite, SqlitePool, Type};
 
 use crate::{
     access_token::AccessToken,
-    error::{AccessTokenError, AuthError, HandlerError, HandlerErrorKind, SessionError},
-    request_id::RequestId,
+    error::{AccessTokenError, AuthError, HandlerError, SessionError},
     session_id::SessionId,
     AppState,
 };
@@ -19,14 +18,23 @@ impl FromRequestParts<AppState> for UserId {
 
     async fn from_request_parts(
         parts: &mut Parts,
-        state: &AppState,
+        AppState { pool, .. }: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        UserId::from_request_parts(&state.pool, parts)
-            .await
-            .map_err(|e| HandlerError {
-                request_id: RequestId::from(parts),
-                kind: e.into(),
-            })
+        let session_id = SessionId::try_from(parts as &Parts);
+        let access_token = AccessToken::try_from(parts as &Parts);
+
+        match (session_id, access_token) {
+            (Ok(session_id), Ok(access_token)) => Err(AuthError::MultipleCredentialsProvided {
+                session_id,
+                access_token,
+            }
+            .into()),
+            (Ok(session_id), _) => Self::from_session_id(pool, &session_id).await,
+            (_, Ok(access_token)) => Self::from_access_token(pool, &access_token).await,
+            (Err(err), _) if err != SessionError::SessionCookieNotFound => Err(err.into()),
+            (_, Err(err)) if err != AccessTokenError::AccessTokenNotFound => Err(err.into()),
+            _ => Err(AuthError::NoCredentialsProvided.into()),
+        }
     }
 }
 
@@ -34,7 +42,7 @@ impl UserId {
     pub async fn from_session_id(
         pool: &SqlitePool,
         session_id: &SessionId,
-    ) -> Result<Self, HandlerErrorKind> {
+    ) -> Result<Self, HandlerError> {
         let session_id_hash = session_id.hash();
 
         let record = sqlx::query!(
@@ -51,7 +59,7 @@ impl UserId {
     pub async fn from_access_token(
         pool: &SqlitePool,
         access_token: &AccessToken,
-    ) -> Result<Self, HandlerErrorKind> {
+    ) -> Result<Self, HandlerError> {
         let access_token_hash = access_token.hash();
 
         let record = sqlx::query!(
@@ -63,25 +71,6 @@ impl UserId {
         .ok_or(AccessTokenError::InvalidAccessToken)?;
 
         Ok(Self(record.user_id))
-    }
-
-    pub async fn from_request_parts(
-        pool: &SqlitePool,
-        parts: &Parts,
-    ) -> Result<Self, HandlerErrorKind> {
-        let session_id = SessionId::try_from(parts);
-        let access_token = AccessToken::try_from(parts);
-
-        match (session_id, access_token) {
-            (Ok(session_id), Ok(access_token)) => Err(AuthError::MultipleCredentialsProvided {
-                session_id,
-                access_token,
-            }
-            .into()),
-            (Ok(session_id), _) => Self::from_session_id(pool, &session_id).await,
-            (_, Ok(access_token)) => Self::from_access_token(pool, &access_token).await,
-            _ => Err(AuthError::NoCredentialsProvided.into()),
-        }
     }
 }
 

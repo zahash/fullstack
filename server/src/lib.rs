@@ -2,8 +2,8 @@ mod access_token;
 mod error;
 mod health;
 mod login;
+mod middleware;
 mod private;
-mod request_id;
 mod session_id;
 mod signup;
 mod token;
@@ -11,7 +11,8 @@ mod user_id;
 
 use std::{
     collections::VecDeque,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    fmt::Display,
+    net::{IpAddr, SocketAddr},
     str::FromStr,
     sync::Arc,
     time::{Duration, Instant},
@@ -19,24 +20,26 @@ use std::{
 };
 
 use axum::{
-    body::{to_bytes, Body},
-    extract::State,
-    http::{header, Request, StatusCode},
-    middleware::Next,
-    response::IntoResponse,
+    http::{header, Request},
+    middleware::{from_fn, from_fn_with_state},
     routing::{get, post},
     Router,
 };
 use dashmap::DashMap;
 use forwarded_header_value::{ForwardedHeaderValue, Identifier};
 use health::health;
-use request_id::RequestId;
+use middleware::{mw_client_ip, mw_handle_leaked_5xx, mw_rate_limiter};
 use sqlx::SqlitePool;
 
 use login::login;
 use private::private;
 use signup::{check_username_availability, signup};
-use tower_http::{services::ServeDir, trace::TraceLayer};
+use tower_http::{
+    request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
+    services::ServeDir,
+    trace::TraceLayer,
+};
+use tracing::Span;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -67,24 +70,24 @@ impl RateLimiter {
         }
     }
 
-    pub fn check(&self, ip_addr: IpAddr) -> bool {
+    pub fn is_too_many(&self, ip_addr: IpAddr) -> bool {
         let now = Instant::now();
-        let mut entry = self.requests.entry(ip_addr).or_insert_with(VecDeque::new);
+        let mut request_timeline = self.requests.entry(ip_addr).or_insert_with(VecDeque::new);
 
         // clean up old entries
-        while let Some(&time) = entry.front() {
+        while let Some(&time) = request_timeline.front() {
             if now.duration_since(time) < self.interval {
                 break;
             }
-            entry.pop_front();
+            request_timeline.pop_front();
         }
 
-        if entry.len() > self.limit {
-            return false;
+        if request_timeline.len() > self.limit {
+            return true;
         }
 
-        entry.push_back(now);
-        true
+        request_timeline.push_back(now);
+        false
     }
 }
 
@@ -104,86 +107,65 @@ pub fn server(state: AppState) -> Router {
         .route("/access-token", post(access_token::generate))
         .route("/private", get(private))
         .with_state(state.clone())
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            |State(AppState { rate_limiter, .. }): State<AppState>, request: Request<Body>, next: Next| async move {
-                    let client_ip = request
-                        .headers()
-                        .get(header::FORWARDED)
-                        .and_then(|val| val.to_str().ok())
-                        .and_then(|val| ForwardedHeaderValue::from_str(val).ok())
-                        .map(|forwarded| forwarded.into_remotest())
-                        .and_then(|stanza| stanza.forwarded_for)
-                        .and_then(|identifier| match identifier {
-                            Identifier::SocketAddr(socket_addr) => Some(socket_addr.ip()),
-                            Identifier::IpAddr(ip_addr) => Some(ip_addr),
-                            _ => None,
-                        })
-                        .unwrap_or_else(|| {
-                            request
-                                .extensions()
-                                .get::<SocketAddr>()
-                                .map(|addr| addr.ip())
-                                .unwrap_or_else(|| {
-                                    tracing::warn!("unable to get SocketAddr from request");
-                                    Ipv4Addr::new(0, 0, 0, 0).into()
-                                })
-                        });
+        .layer(from_fn_with_state(state.clone(), mw_rate_limiter))
+        .layer(TraceLayer::new_for_http().make_span_with(span))
+        .layer(from_fn(mw_client_ip))
+        .layer(PropagateRequestIdLayer::x_request_id())
+        .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
+        .layer(from_fn(mw_handle_leaked_5xx))
+}
 
-                    match rate_limiter.check(client_ip) {
-                        true => next.run(request).await,
-                        false => StatusCode::TOO_MANY_REQUESTS.into_response(),
-                    }
-                }
-            ))
-        .layer(
-            TraceLayer::new_for_http().make_span_with(|request: &Request<_>| match request
+struct OptionDisplay<T>(Option<T>, &'static str);
+
+impl<T: Display> Display for OptionDisplay<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.0 {
+            Some(val) => write!(f, "{}", val),
+            None => write!(f, "{}", self.1),
+        }
+    }
+}
+
+fn span<B>(request: &Request<B>) -> Span {
+    let request_id = request
+        .headers()
+        .get("x-request-id")
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("<unknown-request-id>");
+
+    let client_ip = request
+        .extensions()
+        .get::<Option<IpAddr>>()
+        .copied()
+        .flatten();
+
+    tracing::info_span!(
+        "request",
+        "{} {} {} {}",
+        OptionDisplay(client_ip, "<unknown-client-ip>"),
+        request_id,
+        request.method(),
+        request.uri(),
+    )
+}
+
+fn client_ip<B>(request: &Request<B>) -> Option<IpAddr> {
+    request
+        .headers()
+        .get(header::FORWARDED)
+        .and_then(|val| val.to_str().ok())
+        .and_then(|val| ForwardedHeaderValue::from_str(val).ok())
+        .map(|forwarded| forwarded.into_remotest())
+        .and_then(|stanza| stanza.forwarded_for)
+        .and_then(|identifier| match identifier {
+            Identifier::SocketAddr(socket_addr) => Some(socket_addr.ip()),
+            Identifier::IpAddr(ip_addr) => Some(ip_addr),
+            _ => None,
+        })
+        .or_else(|| {
+            request
                 .extensions()
-                .get::<RequestId>() {
-                    Some(request_id) => tracing::info_span!(
-                        "request",
-                        "{} {} {}",
-                        request_id,
-                        request.method(),
-                        request.uri(),
-                    ),
-                    None => tracing::info_span!(
-                        "request",
-                        "{} {}",
-                        request.method(),
-                        request.uri(),
-                    ),
-                }
-            ),
-        )
-        .layer(axum::middleware::from_fn(
-            |mut request: Request<Body>, next: Next| async {
-                let request_id = RequestId::new();
-                request.extensions_mut().insert(request_id);
-                next.run(request).await
-            },
-        ))
-        .layer(axum::middleware::from_fn(
-            |request: Request<Body>, next: Next| async {
-                let response = next.run(request).await;
-                let status = response.status();
-
-                match status.is_server_error() {
-                    false => response,
-                    true => {
-                        // Log and capture the error details without exposing them to the client
-                        // Avoid leaking sensitive internal information in the response body for 5xx errors
-                        match to_bytes(response.into_body(), usize::MAX).await {
-                            Ok(content) if !content.is_empty() => tracing::error!("{:?}", content),
-                            Err(e) => tracing::error!(
-                                "unable to convert INTERNAL_SERVER_ERROR response body to bytes :: {:?}",
-                                e
-                            ),
-                            _ => {}
-                        }
-                        status.into_response()
-                    }
-                }
-            },
-        ))
+                .get::<SocketAddr>()
+                .map(|addr| addr.ip())
+        })
 }

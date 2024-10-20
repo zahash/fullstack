@@ -5,7 +5,6 @@ use axum_extra::extract::CookieJar;
 
 use crate::{
     error::{HandlerError, SessionError},
-    request_id::RequestId,
     token::Token,
 };
 
@@ -53,9 +52,6 @@ impl<S> FromRequestParts<S> for SessionId {
     type Rejection = HandlerError;
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        SessionId::try_from(parts as &Parts).map_err(|e| HandlerError {
-            request_id: RequestId::from(parts),
-            kind: e.into(),
-        })
+        SessionId::try_from(parts as &Parts).map_err(HandlerError::from)
     }
 }

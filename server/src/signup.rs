@@ -1,16 +1,14 @@
 use std::sync::LazyLock;
 
 use anyhow::{anyhow, Context};
-use axum::{extract::State, http::StatusCode, Extension, Form};
+use axum::{extract::State, http::StatusCode, Form};
 use axum_macros::debug_handler;
 use compiletime_regex::regex;
 use regex::Regex;
 use serde::Deserialize;
-use sqlx::SqlitePool;
 
 use crate::{
-    error::{AuthError, HandlerError, HandlerErrorKind},
-    request_id::RequestId,
+    error::{AuthError, HandlerError},
     AppState,
 };
 
@@ -21,40 +19,28 @@ pub struct SignUp {
 }
 
 #[debug_handler]
-#[tracing::instrument(fields(username = %signup.username), skip_all, ret)]
+#[tracing::instrument(fields(?username), skip_all, ret)]
 pub async fn signup(
-    State(state): State<AppState>,
-    request_id: Option<Extension<RequestId>>,
-    Form(signup): Form<SignUp>,
+    State(AppState { pool, .. }): State<AppState>,
+    Form(SignUp { username, password }): Form<SignUp>,
 ) -> Result<StatusCode, HandlerError> {
-    async fn inner(
-        pool: SqlitePool,
-        SignUp { username, password }: SignUp,
-    ) -> Result<StatusCode, HandlerErrorKind> {
-        let password_hash =
-            bcrypt::hash(password, bcrypt::DEFAULT_COST).context("hash password")?;
+    let password_hash = bcrypt::hash(password, bcrypt::DEFAULT_COST).context("hash password")?;
 
-        sqlx::query!(
-            "INSERT INTO users (username, password_hash) VALUES (?, ?)",
-            username,
-            password_hash,
-        )
-        .execute(&pool)
-        .await
-        .map_err(|e| match e {
-            sqlx::Error::Database(e) if e.is_unique_violation() => {
-                AuthError::UsernameTaken(username).into()
-            }
-            e => <anyhow::Error as Into<HandlerErrorKind>>::into(anyhow!(e).context("insert user")),
-        })?;
+    sqlx::query!(
+        "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+        username,
+        password_hash,
+    )
+    .execute(&pool)
+    .await
+    .map_err(|e| match e {
+        sqlx::Error::Database(e) if e.is_unique_violation() => {
+            AuthError::UsernameTaken(username).into()
+        }
+        e => <anyhow::Error as Into<HandlerError>>::into(anyhow!(e).context("insert user")),
+    })?;
 
-        Ok(StatusCode::CREATED)
-    }
-
-    inner(state.pool, signup).await.map_err(|e| HandlerError {
-        request_id: request_id.map(|Extension(request_id)| request_id),
-        kind: e.into(),
-    })
+    Ok(StatusCode::CREATED)
 }
 
 #[derive(Deserialize)]
@@ -65,38 +51,30 @@ pub struct CheckUsernameAvailability {
 #[debug_handler]
 #[tracing::instrument(fields(?username), skip_all, ret)]
 pub async fn check_username_availability(
-    State(state): State<AppState>,
-    request_id: Option<Extension<RequestId>>,
+    State(AppState { pool, .. }): State<AppState>,
     Form(CheckUsernameAvailability { username }): Form<CheckUsernameAvailability>,
 ) -> Result<StatusCode, HandlerError> {
-    async fn inner(pool: SqlitePool, username: String) -> Result<StatusCode, HandlerErrorKind> {
-        let username = validate_username(username)?;
+    let username = validate_username(username)?;
 
-        let username_exists = match sqlx::query!(
-            "SELECT EXISTS(SELECT 1 FROM users WHERE username = ? LIMIT 1) as username_exists",
-            username
-        )
-        .fetch_one(&pool)
-        .await
-        .context("check_username_availability")?
-        .username_exists
-        {
-            0 => false,
-            _ => true,
-        };
+    let username_exists = match sqlx::query!(
+        "SELECT EXISTS(SELECT 1 FROM users WHERE username = ? LIMIT 1) as username_exists",
+        username
+    )
+    .fetch_one(&pool)
+    .await
+    .context("check_username_availability")?
+    .username_exists
+    {
+        0 => false,
+        _ => true,
+    };
 
-        match username_exists {
-            true => Err(<AuthError as Into<HandlerErrorKind>>::into(
-                AuthError::UsernameTaken(username),
-            )),
-            false => Ok(StatusCode::OK),
-        }
+    match username_exists {
+        true => Err(<AuthError as Into<HandlerError>>::into(
+            AuthError::UsernameTaken(username),
+        )),
+        false => Ok(StatusCode::OK),
     }
-
-    inner(state.pool, username).await.map_err(|e| HandlerError {
-        request_id: request_id.map(|Extension(request_id)| request_id),
-        kind: e.into(),
-    })
 }
 
 const RE_USERNAME: LazyLock<Regex> = LazyLock::new(|| regex!(r#"^[A-Za-z0-9_]{2,30}$"#));
