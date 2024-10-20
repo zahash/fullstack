@@ -1,6 +1,6 @@
 #[macro_export]
 macro_rules! request {
-    ( $method:ident $url:expr ; $($header:expr => $value:expr)* ) => {{
+    ( $method:ident $url:expr ; $($header:expr => $value:expr)* ; $($body:expr)? ) => {{
         let mut req = axum::http::Request::builder()
             .uri($url)
             .method(stringify!($method));
@@ -9,19 +9,7 @@ macro_rules! request {
             req = req.header($header, $value);
         )*
 
-        req.body(()).expect("unable to build request")
-    }};
-
-    ( $method:ident $url:expr ; $($header:expr => $value:expr)* ; $body:expr ) => {{
-        let mut req = axum::http::Request::builder()
-            .uri($url)
-            .method(stringify!($method));
-
-        $(
-            req = req.header($header, $value);
-        )*
-
-        req.body(axum::body::Body::from($body)).expect("unable to build request")
+        req.body(axum::body::Body::from($( $body )?)).expect("unable to build request")
     }};
 }
 
@@ -61,9 +49,6 @@ macro_rules! status {
             resp
         }
     }};
-    ( 2XX ) => {
-        crate::status!(2xx)
-    };
 
     ( $status:literal ) => {{
         |resp: axum::http::Response<axum::body::Body>| {
