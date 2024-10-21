@@ -1,4 +1,5 @@
 mod access_token;
+mod check;
 mod error;
 mod health;
 mod login;
@@ -33,7 +34,7 @@ use sqlx::SqlitePool;
 
 use login::login;
 use private::private;
-use signup::{check_username_availability, signup};
+use signup::signup;
 use tower::ServiceBuilder;
 use tower_http::{
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
@@ -98,11 +99,13 @@ pub fn ui(path: &str) -> Router {
 
 pub fn server(state: AppState) -> Router {
     Router::new()
-        .route("/health", get(health))
-        .route(
-            "/check-username-availability",
-            post(check_username_availability),
+        .nest(
+            "/check",
+            Router::new()
+                .route("/username-availabililty", get(check::username_availability))
+                .route("/access-token", get(check::access_token)),
         )
+        .route("/health", get(health))
         .route("/signup", post(signup))
         .route("/login", post(login))
         .route("/access-token", post(access_token::generate))
