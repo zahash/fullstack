@@ -34,6 +34,7 @@ use sqlx::SqlitePool;
 use login::login;
 use private::private;
 use signup::{check_username_availability, signup};
+use tower::ServiceBuilder;
 use tower_http::{
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
     services::ServeDir,
@@ -107,12 +108,15 @@ pub fn server(state: AppState) -> Router {
         .route("/access-token", post(access_token::generate))
         .route("/private", get(private))
         .with_state(state.clone())
-        .layer(from_fn_with_state(state.clone(), mw_rate_limiter))
-        .layer(TraceLayer::new_for_http().make_span_with(span))
-        .layer(from_fn(mw_client_ip))
-        .layer(PropagateRequestIdLayer::x_request_id())
-        .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
-        .layer(from_fn(mw_handle_leaked_5xx))
+        .layer(
+            ServiceBuilder::new()
+                .layer(from_fn(mw_handle_leaked_5xx))
+                .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
+                .layer(PropagateRequestIdLayer::x_request_id())
+                .layer(from_fn(mw_client_ip))
+                .layer(TraceLayer::new_for_http().make_span_with(span))
+                .layer(from_fn_with_state(state.clone(), mw_rate_limiter)),
+        )
 }
 
 struct OptionDisplay<T>(Option<T>, &'static str);
