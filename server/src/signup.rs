@@ -5,12 +5,13 @@ use serde::Deserialize;
 
 use crate::{
     error::{AuthError, HandlerError},
+    types::Username,
     AppState,
 };
 
 #[derive(Deserialize)]
 pub struct SignUp {
-    pub username: String,
+    pub username: Username,
     pub password: String,
 }
 

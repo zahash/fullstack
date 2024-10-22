@@ -17,8 +17,7 @@ use time::OffsetDateTime;
 
 use crate::{
     error::{AuthError, HandlerError},
-    session_id::SessionId,
-    user_id::UserId,
+    types::{SessionId, UserId, Username},
     AppState,
 };
 
@@ -26,7 +25,7 @@ const DURATION_30_DAYS: Duration = Duration::from_secs(3600 * 24 * 30);
 
 #[derive(Deserialize)]
 pub struct Login {
-    pub username: String,
+    pub username: Username,
     pub password: String,
     pub remember: bool,
 }

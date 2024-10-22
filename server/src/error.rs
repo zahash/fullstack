@@ -6,6 +6,8 @@ use axum::{
 use serde_json::json;
 use time::{format_description::well_known::Iso8601, OffsetDateTime};
 
+use crate::types::Username;
+
 #[derive(thiserror::Error, Debug)]
 pub enum HandlerError {
     #[error("{0}")]
@@ -23,17 +25,14 @@ pub enum PublicError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum AuthError {
-    #[error("user '{0}' not found")]
-    UserNotFound(String),
+    #[error("{0:?} not found")]
+    UserNotFound(Username),
 
     #[error("password mismatch")]
     PasswordMismatch,
 
-    #[error("username '{0}' is already taken")]
-    UsernameTaken(String),
-
-    #[error("invalid username '{username}'. reason: {reason}")]
-    InvalidUsername { username: String, reason: String },
+    #[error("{0:?} is already taken")]
+    UsernameTaken(Username),
 
     #[error("{0}")]
     Session(#[from] SessionError),
@@ -113,7 +112,6 @@ impl AuthError {
             AuthError::UserNotFound(_) => Severity::Low,
             AuthError::PasswordMismatch => Severity::High,
             AuthError::UsernameTaken(_) => Severity::Low,
-            AuthError::InvalidUsername { .. } => Severity::Low,
             AuthError::Session(e) => e.severity(),
             AuthError::AccessToken(e) => e.severity(),
             AuthError::NoCredentialsProvided => Severity::Low,
@@ -168,10 +166,6 @@ impl IntoResponse for HandlerError {
                         | AuthError::AccessToken(_)
                         | AuthError::NoCredentialsProvided => StatusCode::UNAUTHORIZED,
                         AuthError::UsernameTaken(_) => StatusCode::CONFLICT,
-                        AuthError::InvalidUsername {
-                            username: _,
-                            reason: _,
-                        } => StatusCode::BAD_REQUEST,
                         AuthError::MultipleCredentialsProvided { .. } => StatusCode::FORBIDDEN,
                     },
                 };

@@ -3,9 +3,8 @@ use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
 use sqlx::{Sqlite, SqlitePool, Type};
 
 use crate::{
-    access_token::AccessToken,
     error::{AccessTokenError, AuthError, HandlerError, SessionError},
-    session_id::SessionId,
+    types::{AccessToken, SessionId},
     AppState,
 };
 

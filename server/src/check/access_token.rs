@@ -1,7 +1,7 @@
 use axum::http::StatusCode;
 use axum_macros::debug_handler;
 
-use crate::access_token::AccessToken;
+use crate::types::AccessToken;
 
 #[debug_handler]
 #[tracing::instrument(skip_all, ret)]

@@ -4,11 +4,11 @@ mod error;
 mod health;
 mod login;
 mod middleware;
+mod misc;
 mod private;
-mod session_id;
 mod signup;
 mod token;
-mod user_id;
+mod types;
 
 use std::{
     collections::VecDeque,
@@ -42,6 +42,10 @@ use tower_http::{
     trace::TraceLayer,
 };
 use tracing::Span;
+
+// TODO
+// create permissions model
+// domain types - Username, Email, etc...
 
 #[derive(Clone)]
 pub struct AppState {
