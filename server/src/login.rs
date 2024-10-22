@@ -26,7 +26,7 @@ const DURATION_30_DAYS: Duration = Duration::from_secs(3600 * 24 * 30);
 #[derive(Deserialize)]
 pub struct Login {
     pub username: Username,
-    pub password: String,
+    pub password: String, // `Password` type not necessary because no checks are required
     pub remember: bool,
 }
 
