@@ -50,6 +50,7 @@ impl TryFrom<String> for Password {
     }
 }
 
+// used by bcrypt::verify
 impl AsRef<[u8]> for Password {
     fn as_ref(&self) -> &[u8] {
         self.0.as_bytes()
@@ -62,13 +63,8 @@ impl<'de> Deserialize<'de> for Password {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        match s.parse::<Password>() {
-            Ok(password) => Ok(password),
-            Err(err) => Err(serde::de::Error::invalid_value(
-                serde::de::Unexpected::Str(&s),
-                &err,
-            )),
-        }
+        s.parse::<Self>()
+            .map_err(|err| serde::de::Error::invalid_value(serde::de::Unexpected::Str(&s), &err))
     }
 }
 

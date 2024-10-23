@@ -46,6 +46,8 @@ use tracing::Span;
 // TODO
 // create permissions model
 // domain types - Username, Email, etc...
+// email verification during signup
+// shared validation code between frontend and backend as wasm (is_strong_password)
 
 #[derive(Clone)]
 pub struct AppState {
@@ -106,7 +108,7 @@ pub fn server(state: AppState) -> Router {
         .nest(
             "/check",
             Router::new()
-                .route("/username-availabililty", get(check::username_availability))
+                .route("/username-availability", get(check::username_availability))
                 .route("/access-token", get(check::access_token)),
         )
         .route("/health", get(health))

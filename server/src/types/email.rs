@@ -5,31 +5,36 @@ use regex::Regex;
 use serde::Deserialize;
 use sqlx::{Sqlite, Type};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Username(String);
+#[derive(Debug)]
+pub struct Email(String);
 
-impl FromStr for Username {
+impl FromStr for Email {
     type Err = &'static str;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Username::try_from(s.to_string())
+        Email::try_from(s.to_string())
     }
 }
 
-const RE_USERNAME: LazyLock<Regex> = LazyLock::new(|| regex!(r#"^[A-Za-z0-9_]{2,30}$"#));
+// https://html.spec.whatwg.org/multipage/forms.html#valid-e-mail-address
+const RE_EMAIL: LazyLock<Regex> = LazyLock::new(|| {
+    regex!(
+        r#"^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$"#
+    )
+});
 
-impl TryFrom<String> for Username {
+impl TryFrom<String> for Email {
     type Error = &'static str;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        match RE_USERNAME.is_match(&value) {
+        match RE_EMAIL.is_match(&value) {
             true => Ok(Self(value)),
-            false => Err("username must be between 2-30 in length. must only contain `A-Z` `a-z` `0-9` and `_`"),
+            false => Err("email address must be of valid format as defined by the HTML5 Specification https://html.spec.whatwg.org/multipage/forms.html#valid-e-mail-address"),
         }
     }
 }
 
-impl<'de> Deserialize<'de> for Username {
+impl<'de> Deserialize<'de> for Email {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -40,13 +45,13 @@ impl<'de> Deserialize<'de> for Username {
     }
 }
 
-impl Type<Sqlite> for Username {
+impl Type<Sqlite> for Email {
     fn type_info() -> <Sqlite as sqlx::Database>::TypeInfo {
         <String as Type<Sqlite>>::type_info()
     }
 }
 
-impl sqlx::Encode<'_, Sqlite> for Username {
+impl sqlx::Encode<'_, Sqlite> for Email {
     fn encode_by_ref(
         &self,
         buf: &mut <Sqlite as sqlx::Database>::ArgumentBuffer<'_>,
