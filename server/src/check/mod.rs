@@ -6,7 +6,7 @@ pub use username_availability::username_availability;
 
 use sqlx::SqlitePool;
 
-use crate::types::Username;
+use crate::types::{Email, Username};
 
 pub async fn username_exists(pool: &SqlitePool, username: &Username) -> Result<bool, sqlx::Error> {
     match sqlx::query!(
@@ -16,6 +16,20 @@ pub async fn username_exists(pool: &SqlitePool, username: &Username) -> Result<b
     .fetch_one(pool)
     .await?
     .username_exists
+    {
+        0 => Ok(false),
+        _ => Ok(true),
+    }
+}
+
+pub async fn email_exists(pool: &SqlitePool, email: &Email) -> Result<bool, sqlx::Error> {
+    match sqlx::query!(
+        "SELECT EXISTS(SELECT 1 FROM users WHERE email = ? LIMIT 1) as email_exists",
+        email
+    )
+    .fetch_one(pool)
+    .await?
+    .email_exists
     {
         0 => Ok(false),
         _ => Ok(true),

@@ -13,6 +13,7 @@ bcrypt = "0.15"
 compiletime-regex = "1"
 dashmap = "6.1"
 forwarded-header-value = "0.1.1"
+lettre = { version = "0.11", features = ["smtp-transport", "serde"] }
 rand = "0.8"
 regex = "1"
 serde = { version = "1", features = ["derive"] }
@@ -32,8 +33,7 @@ tower = "0.5"
 tower-http = { version = "0.6", features = ["fs", "request-id", "trace"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
-uuid = { version = "1", features = ["serde", "v4"] }
 
-[profile.release]
-codegen-units = 1 # Forces the compiler to use a single code generation unit to improve optimizations
-lto = true        # Enable Link Time Optimization (LTO)
+[dev-dependencies]
+compiletime = { path = "../compiletime" }
+lettre = { version = "0.11", features = ["file-transport"] }

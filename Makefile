@@ -4,17 +4,17 @@ run:
 	@export $$(grep -v '^#' ./dist/.env | xargs) && ./dist/server
 
 server:
-	export $$(grep -v '^#' ./dist/.env | xargs) && cd ./server && cargo build --release
+	export $$(grep -v '^#' ./dist/.env | xargs) && cargo build --release
 	mkdir -p ./dist
-	cp ./server/target/release/server ./dist/server
+	cp ./target/release/server ./dist/server
 
 server-dbg:
-	export $$(grep -v '^#' ./dist/.env | xargs) && cd ./server && cargo build
+	export $$(grep -v '^#' ./dist/.env | xargs) && cargo build
 	mkdir -p ./dist
-	cp ./server/target/debug/server ./dist/server
+	cp ./target/debug/server ./dist/server
 
 prepare:
-	export $$(grep -v '^#' ./dist/.env | xargs) && cd ./server && cargo sqlx prepare
+	export $$(grep -v '^#' ./dist/.env | xargs) && cargo sqlx prepare
 
 migrations:
 	export $$(grep -v '^#' ./dist/.env | xargs) && cd ./server && sqlx migrate run
@@ -47,7 +47,10 @@ test-env:
 test: test-server
 
 test-server:
-	cd ./server && cargo test -- --nocapture
+	cargo test -- --nocapture
+
+mail:
+	mailtutan --maildir-path=/tmp
 
 clean:
 	rm -rf ./dist/

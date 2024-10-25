@@ -43,16 +43,17 @@ use tower_http::{
 };
 use tracing::Span;
 
+pub use types::{Email, Password, Username};
+
 // TODO
 // create permissions model
-// domain types - Username, Email, etc...
 // email verification during signup
 // shared validation code between frontend and backend as wasm (is_strong_password)
 
-#[derive(Clone)]
-pub struct AppState {
+pub struct AppState<T> {
     pub pool: SqlitePool,
     pub rate_limiter: Arc<RateLimiter>,
+    pub mailer: Arc<T>,
 }
 
 pub struct RateLimiter {
@@ -103,7 +104,7 @@ pub fn ui(path: &str) -> Router {
     Router::<()>::new().nest_service("/", ServeDir::new(path))
 }
 
-pub fn server(state: AppState) -> Router {
+pub fn server<T: Send + Sync + 'static>(state: AppState<T>) -> Router {
     Router::new()
         .nest(
             "/check",
@@ -181,4 +182,14 @@ fn client_ip<B>(request: &Request<B>) -> Option<IpAddr> {
                 .get::<SocketAddr>()
                 .map(|addr| addr.ip())
         })
+}
+
+impl<T> Clone for AppState<T> {
+    fn clone(&self) -> Self {
+        Self {
+            pool: self.pool.clone(),
+            rate_limiter: Arc::clone(&self.rate_limiter),
+            mailer: Arc::clone(&self.mailer),
+        }
+    }
 }

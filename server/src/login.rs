@@ -1,22 +1,21 @@
 use std::time::Duration;
 
-use anyhow::Context;
 use axum::{
     extract::State,
     http::{header::USER_AGENT, HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
     Form,
 };
 use axum_extra::extract::{
     cookie::{Cookie, SameSite},
     CookieJar,
 };
-use axum_macros::debug_handler;
 use bcrypt::verify;
 use serde::Deserialize;
 use time::OffsetDateTime;
 
 use crate::{
-    error::{AuthError, HandlerError},
+    error::{Context, InternalError},
     types::{SessionId, UserId, Username},
     AppState,
 };
@@ -30,10 +29,18 @@ pub struct Login {
     pub remember: bool,
 }
 
-#[debug_handler]
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("invalid credentials")]
+    InvalidCredentials,
+
+    #[error("{0:?}")]
+    Internal(#[from] InternalError),
+}
+
 #[tracing::instrument(fields(?username, ?remember), skip_all)]
-pub async fn login(
-    State(AppState { pool, .. }): State<AppState>,
+pub async fn login<T>(
+    State(AppState { pool, .. }): State<AppState<T>>,
     headers: HeaderMap,
     jar: CookieJar,
     Form(Login {
@@ -41,7 +48,7 @@ pub async fn login(
         password,
         remember,
     }): Form<Login>,
-) -> Result<(CookieJar, StatusCode), HandlerError> {
+) -> Result<(CookieJar, StatusCode), Error> {
     struct User {
         id: UserId,
         password_hash: String,
@@ -55,12 +62,12 @@ pub async fn login(
     .fetch_optional(&pool)
     .await
     .context("username -> User { id, password_hash }")?
-    .ok_or(AuthError::UserNotFound(username))?;
+    .ok_or(Error::InvalidCredentials)?;
 
     tracing::info!("{:?}", user.id);
 
     match verify(password, &user.password_hash).context("verify password hash")? {
-        false => Err(AuthError::PasswordMismatch.into()),
+        false => Err(Error::InvalidCredentials),
         true => {
             let session_id = SessionId::new();
             let session_id_hash = session_id.hash();
@@ -90,6 +97,21 @@ pub async fn login(
             let jar = jar.add(session_cookie);
 
             Ok((jar, StatusCode::OK))
+        }
+    }
+}
+
+impl IntoResponse for Error {
+    fn into_response(self) -> Response {
+        match self {
+            Error::InvalidCredentials => {
+                tracing::info!("{:?}", self);
+                StatusCode::UNAUTHORIZED.into_response()
+            }
+            Error::Internal(err) => {
+                tracing::warn!("{:?}", err);
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
         }
     }
 }

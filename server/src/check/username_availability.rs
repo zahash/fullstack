@@ -3,22 +3,20 @@ use axum::{
     extract::{Query, State},
     http::StatusCode,
 };
-use axum_macros::debug_handler;
 use serde::Deserialize;
 
-use crate::{check::username_exists, error::HandlerError, types::Username, AppState};
+use crate::{check::username_exists, error::InternalError, types::Username, AppState};
 
 #[derive(Deserialize)]
 pub struct Params {
     pub username: Username,
 }
 
-#[debug_handler]
 #[tracing::instrument(fields(?username), skip_all, ret)]
-pub async fn username_availability(
-    State(AppState { pool, .. }): State<AppState>,
+pub async fn username_availability<T>(
+    State(AppState { pool, .. }): State<AppState<T>>,
     Query(Params { username }): Query<Params>,
-) -> Result<StatusCode, HandlerError> {
+) -> Result<StatusCode, InternalError> {
     match username_exists(&pool, &username)
         .await
         .context("check username availability")?

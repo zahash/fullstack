@@ -2,22 +2,18 @@ use axum::{body::Body, http::Request};
 
 use crate::request;
 
-pub fn signup<'a>(username: &'a str, password: &'a str) -> impl Fn() -> Request<Body> + 'a {
-    move || {
-        request!(
-            POST "/signup";
-            "content-type" => "application/x-www-form-urlencoded";
-            format!("username={}&password={}", username, password)
-        )
-    }
+pub fn signup(username: &str, email: &str, password: &str) -> Request<Body> {
+    request!(
+        POST "/signup";
+        "content-type" => "application/x-www-form-urlencoded";
+        format!("username={}&email={}&password={}", username, email, password)
+    )
 }
 
-pub fn login<'a>(username: &'a str, password: &'a str) -> impl Fn() -> Request<Body> + 'a {
-    move || {
-        request!(
-            POST "/login";
-            "content-type" => "application/x-www-form-urlencoded";
-            format!("username={}&password={}&remember=false", username, password)
-        )
-    }
+pub fn login(username: &str, password: &str) -> Request<Body> {
+    request!(
+        POST "/login";
+        "content-type" => "application/x-www-form-urlencoded";
+        format!("username={}&password={}&remember=false", username, password)
+    )
 }

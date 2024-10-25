@@ -1,15 +1,35 @@
 use std::ops::Deref;
 
-use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
+use axum::{
+    async_trait,
+    extract::FromRequestParts,
+    http::{request::Parts, StatusCode},
+    response::{IntoResponse, Response},
+    Json,
+};
 use axum_extra::extract::CookieJar;
+use serde_json::json;
 
 use crate::{
-    error::{HandlerError, SessionError},
+    error::{HELP, SECURITY},
+    misc::now_iso8601,
     token::Token,
 };
 
 #[derive(Debug)]
 pub struct SessionId(Token<32>);
+
+#[derive(thiserror::Error, Debug, PartialEq)]
+pub enum SessionError {
+    #[error("`session_id` cookie not found")]
+    SessionCookieNotFound,
+
+    #[error("invalid session")]
+    InvalidSessionToken,
+
+    #[error("malformed session token")]
+    MalformedSessionToken,
+}
 
 impl SessionId {
     pub fn new() -> Self {
@@ -49,9 +69,39 @@ impl TryFrom<&Parts> for SessionId {
 
 #[async_trait]
 impl<S> FromRequestParts<S> for SessionId {
-    type Rejection = HandlerError;
+    type Rejection = SessionError;
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        SessionId::try_from(parts as &Parts).map_err(HandlerError::from)
+        SessionId::try_from(parts as &Parts)
+    }
+}
+
+impl IntoResponse for SessionError {
+    fn into_response(self) -> Response {
+        match self {
+            SessionError::SessionCookieNotFound | SessionError::InvalidSessionToken => {
+                tracing::info!("{:?}", self);
+                (
+                    StatusCode::UNAUTHORIZED,
+                    Json(json!({
+                        "error": self.to_string(),
+                        "help": HELP,
+                        "datetime": now_iso8601()
+                    })),
+                )
+                    .into_response()
+            }
+            SessionError::MalformedSessionToken => {
+                tracing::error!("!SECURITY! {:?}", self);
+                (
+                    StatusCode::UNAUTHORIZED,
+                    Json(json!({
+                        "error": self.to_string(),
+                        "security": SECURITY
+                    })),
+                )
+                    .into_response()
+            }
+        }
     }
 }

@@ -1,0 +1,15 @@
+[package]
+name = "compiletime"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+server = { path = "../server" }
+syn = "2"
+quote = "1"
+
+[dev-dependencies]
+syn = { version = "2", features = ["extra-traits"] }

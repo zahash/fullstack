@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::LazyLock};
+use std::{fmt::Display, str::FromStr, sync::LazyLock};
 
 use compiletime_regex::regex;
 use regex::Regex;
@@ -52,5 +52,11 @@ impl sqlx::Encode<'_, Sqlite> for Username {
         buf: &mut <Sqlite as sqlx::Database>::ArgumentBuffer<'_>,
     ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
         <String as sqlx::Encode<Sqlite>>::encode_by_ref(&self.0, buf)
+    }
+}
+
+impl Display for Username {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Username({})", self.0)
     }
 }

@@ -16,8 +16,8 @@ pub async fn mw_client_ip(mut request: Request<Body>, next: Next) -> Response<Bo
     next.run(request).await
 }
 
-pub async fn mw_rate_limiter(
-    State(AppState { rate_limiter, .. }): State<AppState>,
+pub async fn mw_rate_limiter<T>(
+    State(AppState { rate_limiter, .. }): State<AppState<T>>,
     request: Request<Body>,
     next: Next,
 ) -> Response<Body> {

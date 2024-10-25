@@ -1,5 +1,4 @@
 mod access_token;
-mod available_username;
 mod email;
 mod password;
 mod session_id;

@@ -1,36 +1,63 @@
-use anyhow::Context;
-use axum::{async_trait, extract::FromRequestParts, http::request::Parts};
+use axum::{
+    async_trait,
+    extract::FromRequestParts,
+    http::{request::Parts, StatusCode},
+    response::{IntoResponse, Response},
+    Json,
+};
+use serde_json::json;
 use sqlx::{Sqlite, SqlitePool, Type};
 
 use crate::{
-    error::{AccessTokenError, AuthError, HandlerError, SessionError},
+    error::{Context, InternalError},
     types::{AccessToken, SessionId},
     AppState,
 };
 
+use super::{access_token::AccessTokenError, session_id::SessionError};
+
 #[derive(Debug, PartialEq)]
 pub struct UserId(i64);
 
+#[derive(thiserror::Error, Debug)]
+pub enum UserIdError {
+    #[error("{0}")]
+    AccessToken(#[from] AccessTokenError),
+
+    #[error("{0}")]
+    Session(#[from] SessionError),
+
+    #[error("multiple credentials provided {0:?}")]
+    MultipleCredentialsProvided(Vec<&'static str>),
+
+    #[error("no credentials provided")]
+    NoCredentialsProvided,
+
+    #[error("{0:?}")]
+    Internal(#[from] InternalError),
+}
+
 #[async_trait]
-impl FromRequestParts<AppState> for UserId {
-    type Rejection = HandlerError;
+impl<T> FromRequestParts<AppState<T>> for UserId {
+    type Rejection = UserIdError;
 
     async fn from_request_parts(
         parts: &mut Parts,
-        AppState { pool, .. }: &AppState,
+        AppState { pool, .. }: &AppState<T>,
     ) -> Result<Self, Self::Rejection> {
         let session_id = SessionId::try_from(parts as &Parts);
         let access_token = AccessToken::try_from(parts as &Parts);
 
         match (session_id, access_token) {
-            (Ok(_), Ok(_)) => {
-                Err(AuthError::MultipleCredentialsProvided(vec!["SessionId", "AccessToken"]).into())
-            }
+            (Ok(_), Ok(_)) => Err(UserIdError::MultipleCredentialsProvided(vec![
+                "SessionId",
+                "AccessToken",
+            ])),
             (Err(err), _) if err != SessionError::SessionCookieNotFound => Err(err.into()),
             (_, Err(err)) if err != AccessTokenError::AccessTokenNotFound => Err(err.into()),
             (Ok(session_id), _) => Self::from_session_id(pool, &session_id).await,
             (_, Ok(access_token)) => Self::from_access_token(pool, &access_token).await,
-            _ => Err(AuthError::NoCredentialsProvided.into()),
+            _ => Err(UserIdError::NoCredentialsProvided),
         }
     }
 }
@@ -39,7 +66,7 @@ impl UserId {
     pub async fn from_session_id(
         pool: &SqlitePool,
         session_id: &SessionId,
-    ) -> Result<Self, HandlerError> {
+    ) -> Result<Self, UserIdError> {
         let session_id_hash = session_id.hash();
 
         let record = sqlx::query!(
@@ -47,7 +74,8 @@ impl UserId {
             session_id_hash
         )
         .fetch_optional(pool)
-        .await.context("SessionId -> UserId")?
+        .await
+        .context("SessionId -> UserId")?
         .ok_or(SessionError::InvalidSessionToken)?;
 
         Ok(Self(record.user_id))
@@ -56,7 +84,7 @@ impl UserId {
     pub async fn from_access_token(
         pool: &SqlitePool,
         access_token: &AccessToken,
-    ) -> Result<Self, HandlerError> {
+    ) -> Result<Self, UserIdError> {
         let access_token_hash = access_token.hash();
 
         let record = sqlx::query!(
@@ -89,5 +117,38 @@ impl sqlx::Encode<'_, Sqlite> for UserId {
 impl From<i64> for UserId {
     fn from(value: i64) -> Self {
         UserId(value)
+    }
+}
+
+impl IntoResponse for UserIdError {
+    fn into_response(self) -> Response {
+        match self {
+            UserIdError::AccessToken(err) => err.into_response(),
+            UserIdError::Session(err) => err.into_response(),
+            UserIdError::MultipleCredentialsProvided(_) => {
+                tracing::warn!("{:?}", self);
+                (
+                    StatusCode::UNAUTHORIZED,
+                    Json(json!({
+                        "error": self.to_string()
+                    })),
+                )
+                    .into_response()
+            }
+            UserIdError::NoCredentialsProvided => {
+                tracing::info!("{:?}", self);
+                (
+                    StatusCode::UNAUTHORIZED,
+                    Json(json!({
+                        "error": self.to_string()
+                    })),
+                )
+                    .into_response()
+            }
+            UserIdError::Internal(err) => {
+                tracing::warn!("{:?}", err);
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
+        }
     }
 }

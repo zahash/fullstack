@@ -2,12 +2,11 @@ use std::time::Duration;
 
 use anyhow::Context;
 use axum::{extract::State, http::StatusCode, Form};
-use axum_macros::debug_handler;
 use serde::Deserialize;
 use time::OffsetDateTime;
 
 use crate::{
-    error::HandlerError,
+    error::InternalError,
     types::{AccessToken, UserId},
     AppState,
 };
@@ -17,13 +16,12 @@ pub struct AccessTokenSettings {
     ttl: Option<Duration>,
 }
 
-#[debug_handler]
 #[tracing::instrument(fields(?user_id, ?settings), skip_all)]
-pub async fn generate(
-    State(AppState { pool, .. }): State<AppState>,
+pub async fn generate<T>(
+    State(AppState { pool, .. }): State<AppState<T>>,
     user_id: UserId,
     Form(settings): Form<AccessTokenSettings>,
-) -> Result<(StatusCode, AccessToken), HandlerError> {
+) -> Result<(StatusCode, AccessToken), InternalError> {
     let access_token = AccessToken::new();
     let access_token_hash = access_token.hash();
     let created_at = OffsetDateTime::now_utc();
