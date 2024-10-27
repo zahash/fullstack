@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["compiletime", "server"]
+members = ["compiletime", "server", "test-proc-macros"]
 
 [profile.release]
 lto = true

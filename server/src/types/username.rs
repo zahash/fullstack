@@ -1,6 +1,6 @@
 use std::{fmt::Display, str::FromStr, sync::LazyLock};
 
-use compiletime_regex::regex;
+use compiletime::regex;
 use regex::Regex;
 use serde::Deserialize;
 use sqlx::{Sqlite, Type};

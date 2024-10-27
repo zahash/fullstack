@@ -1,10 +1,10 @@
 mod shared;
 
-use compiletime::{email, password, username};
 use shared::{
     request::{login, signup},
     setup::pool,
 };
+use test_proc_macros::{email, password, username};
 
 #[tokio::test]
 async fn onboarding_flow() {
