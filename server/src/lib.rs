@@ -14,12 +14,14 @@ use std::{
     collections::VecDeque,
     fmt::Display,
     net::{IpAddr, SocketAddr},
+    path::{Path, PathBuf},
     str::FromStr,
     sync::Arc,
     time::{Duration, Instant},
     usize,
 };
 
+use anyhow::Context;
 use axum::{
     http::{header, Request},
     middleware::{from_fn, from_fn_with_state},
@@ -29,12 +31,14 @@ use axum::{
 use dashmap::DashMap;
 use forwarded_header_value::{ForwardedHeaderValue, Identifier};
 use health::health;
+// use lettre::SmtpTransport;
 use middleware::{mw_client_ip, mw_handle_leaked_5xx, mw_rate_limiter};
 use sqlx::SqlitePool;
 
 use login::login;
 use private::private;
 use signup::signup;
+use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
@@ -100,7 +104,7 @@ impl RateLimiter {
     }
 }
 
-pub fn ui(path: &str) -> Router {
+pub fn ui(path: impl AsRef<Path>) -> Router {
     Router::<()>::new().nest_service("/", ServeDir::new(path))
 }
 
@@ -192,4 +196,56 @@ impl<T> Clone for AppState<T> {
             mailer: Arc::clone(&self.mailer),
         }
     }
+}
+
+#[derive(Debug)]
+pub struct ServerOpts {
+    pub database_url: String,
+    pub port: u16,
+    pub ui_dir: PathBuf,
+    pub smtp: SMTPConfig,
+}
+
+#[derive(Debug)]
+pub struct SMTPConfig {
+    pub relay: String,
+    pub username: String,
+    pub password: String,
+}
+
+pub async fn run(opts: ServerOpts) -> Result<(), Box<dyn std::error::Error>> {
+    tracing_subscriber::fmt().init();
+
+    tracing::info!(?opts);
+
+    let state = AppState {
+        pool: SqlitePool::connect(&opts.database_url)
+            .await
+            .with_context(|| format!("connect database :: {}", opts.database_url))?,
+        rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
+        mailer: Arc::new(()),
+        // mailer: Arc::new(
+        //     SmtpTransport::relay(&opts.smtp.relay)?
+        //         .credentials((opts.smtp.username, opts.smtp.password).into())
+        //         .build(),
+        // ),
+    };
+
+    let ui = ui(&opts.ui_dir);
+    let server = server(state);
+    let app = Router::new()
+        .merge(ui)
+        .merge(server)
+        .into_make_service_with_connect_info::<SocketAddr>();
+
+    let addr = SocketAddr::from(([127, 0, 0, 1], opts.port));
+    let listener = TcpListener::bind(addr)
+        .await
+        .with_context(|| format!("bind :: {}", addr))?;
+    tracing::info!(
+        "listening on {}",
+        listener.local_addr().context("local_addr")?
+    );
+    axum::serve(listener, app).await.context("axum::serve")?;
+    Ok(())
 }

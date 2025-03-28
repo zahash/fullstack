@@ -1,0 +1,16 @@
+[package]
+name = "cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+sqlx = { version = "0.8", features = [
+    "migrate",
+    "runtime-tokio-native-tls",
+    "sqlite",
+] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+server = { path = "../server" }
