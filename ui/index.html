@@ -4,15 +4,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-16x16.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-32x32.png">
+
+  <title>FullStack</title>
+
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon/16x16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon/32x32.png">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/zahash/css@704fbfd166c0c603a734d1c92fbe3538d3817bca/variables.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/zahash/css@704fbfd166c0c603a734d1c92fbe3538d3817bca/global.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/zahash/css@704fbfd166c0c603a734d1c92fbe3538d3817bca/header.min.css">
 </head>
 
 <body>
   <noscript>You need to enable JavaScript to run this app.</noscript>
+
+  <header>
+    <div class="content">
+      <a href="/">
+        <h1>FullStack</h1>
+      </a>
+
+      <nav>
+        <ul>
+          <li><a href="/login">Login</a></li>
+          <li><a href="/signup">SignUp</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
   <div id="root"></div>
 
-  <script src="/src/index.tsx" type="module"></script>
+  <script type="module" src="./app.js"></script>
 </body>
 
 </html>
