@@ -1,14 +1,15 @@
-use axum::Json;
+use axum::{Json, http::StatusCode};
 use axum_macros::debug_handler;
-use sysinfo::{CpuRefreshKind, MemoryRefreshKind, ProcessRefreshKind, RefreshKind, System};
+use sysinfo::System;
 
 #[debug_handler]
 #[tracing::instrument(ret)]
-pub async fn health() -> Json<System> {
-    Json(System::new_with_specifics(
-        RefreshKind::new()
-            .with_cpu(CpuRefreshKind::everything())
-            .with_memory(MemoryRefreshKind::everything())
-            .with_processes(ProcessRefreshKind::everything()),
-    ))
+pub async fn health() -> StatusCode {
+    StatusCode::OK
+}
+
+#[debug_handler]
+#[tracing::instrument(ret)]
+pub async fn sysinfo() -> Json<System> {
+    Json(System::new_all())
 }

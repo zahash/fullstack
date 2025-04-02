@@ -18,26 +18,17 @@ use std::{
     str::FromStr,
     sync::Arc,
     time::{Duration, Instant},
-    usize,
 };
 
 use anyhow::Context;
 use axum::{
-    http::{header, Request},
+    Router,
+    http::{Request, header},
     middleware::{from_fn, from_fn_with_state},
     routing::{get, post},
-    Router,
 };
 use dashmap::DashMap;
 use forwarded_header_value::{ForwardedHeaderValue, Identifier};
-use health::health;
-// use lettre::SmtpTransport;
-use middleware::{mw_client_ip, mw_handle_leaked_5xx, mw_rate_limiter};
-use sqlx::SqlitePool;
-
-use login::login;
-use private::private;
-use signup::signup;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{
@@ -46,6 +37,14 @@ use tower_http::{
     trace::TraceLayer,
 };
 use tracing::Span;
+// use lettre::SmtpTransport;
+use middleware::{mw_client_ip, mw_handle_leaked_5xx, mw_rate_limiter};
+use sqlx::SqlitePool;
+
+use health::{health, sysinfo};
+use login::login;
+use private::private;
+use signup::signup;
 
 pub use types::{Email, Password, Username};
 
@@ -118,6 +117,7 @@ pub fn server<T: Send + Sync + 'static>(state: AppState<T>) -> Router {
                 .route("/access-token", get(check::access_token)),
         )
         .route("/health", get(health))
+        .route("/sysinfo", get(sysinfo))
         .route("/signup", post(signup))
         .route("/login", post(login))
         .route("/access-token", post(access_token::generate))

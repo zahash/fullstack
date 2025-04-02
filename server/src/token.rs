@@ -1,5 +1,5 @@
-use base64::{prelude::BASE64_STANDARD, Engine};
-use rand::{rngs::OsRng, RngCore};
+use base64::{Engine, prelude::BASE64_STANDARD};
+use rand::RngCore;
 use sha2::{Digest, Sha256};
 
 #[derive(Debug)]
@@ -7,7 +7,7 @@ pub struct Token<const N: usize>([u8; N]);
 
 impl<const N: usize> Token<N> {
     pub fn new() -> Self {
-        let mut rng = OsRng;
+        let mut rng = rand::rng();
         let mut buffer = [0u8; N];
         rng.fill_bytes(&mut buffer);
         Self(buffer)
