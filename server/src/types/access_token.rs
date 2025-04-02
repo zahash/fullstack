@@ -1,12 +1,11 @@
 use std::ops::Deref;
 
 use axum::{
-    async_trait,
+    Json,
     body::Body,
     extract::FromRequestParts,
-    http::{request::Parts, StatusCode},
+    http::{StatusCode, request::Parts},
     response::{IntoResponse, Response},
-    Json,
 };
 use serde_json::json;
 
@@ -84,8 +83,7 @@ impl TryFrom<&Parts> for AccessToken {
     }
 }
 
-#[async_trait]
-impl<S> FromRequestParts<S> for AccessToken {
+impl<S: Send + Sync> FromRequestParts<S> for AccessToken {
     type Rejection = AccessTokenError;
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {

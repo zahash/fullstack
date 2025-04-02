@@ -14,7 +14,7 @@ use std::{
     collections::VecDeque,
     fmt::Display,
     net::{IpAddr, SocketAddr},
-    path::{Path, PathBuf},
+    path::PathBuf,
     str::FromStr,
     sync::Arc,
     time::{Duration, Instant},
@@ -101,10 +101,6 @@ impl RateLimiter {
         request_timeline.push_back(now);
         false
     }
-}
-
-pub fn ui(path: impl AsRef<Path>) -> Router {
-    Router::<()>::new().nest_service("/", ServeDir::new(path))
 }
 
 pub fn server<T: Send + Sync + 'static>(state: AppState<T>) -> Router {
@@ -232,11 +228,8 @@ pub async fn run(opts: ServerOpts) -> Result<(), Box<dyn std::error::Error>> {
         // ),
     };
 
-    let ui = ui(&opts.ui_dir);
-    let server = server(state);
-    let app = Router::new()
-        .merge(ui)
-        .merge(server)
+    let app = server(state)
+        .fallback_service(ServeDir::new(&opts.ui_dir))
         .into_make_service_with_connect_info::<SocketAddr>();
 
     let addr = SocketAddr::from(([127, 0, 0, 1], opts.port));

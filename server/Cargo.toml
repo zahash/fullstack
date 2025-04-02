@@ -5,9 +5,9 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1"
-axum = "0.7"
-axum-extra = { version = "0.9", features = ["cookie"] }
-axum-macros = "0.4"
+axum = "0.8"
+axum-extra = { version = "0.10", features = ["cookie"] }
+axum-macros = "0.5"
 base64 = "0.22"
 bcrypt = "0.17"
 compiletime = { path = "../compiletime", features = ["regex"] }

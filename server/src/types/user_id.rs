@@ -1,5 +1,4 @@
 use axum::{
-    async_trait,
     extract::FromRequestParts,
     http::{request::Parts, StatusCode},
     response::{IntoResponse, Response},
@@ -37,8 +36,7 @@ pub enum UserIdError {
     Internal(#[from] InternalError),
 }
 
-#[async_trait]
-impl<T> FromRequestParts<AppState<T>> for UserId {
+impl<T: Send + Sync> FromRequestParts<AppState<T>> for UserId {
     type Rejection = UserIdError;
 
     async fn from_request_parts(

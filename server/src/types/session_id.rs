@@ -1,11 +1,10 @@
 use std::ops::Deref;
 
 use axum::{
-    async_trait,
-    extract::FromRequestParts,
-    http::{request::Parts, StatusCode},
-    response::{IntoResponse, Response},
     Json,
+    extract::FromRequestParts,
+    http::{StatusCode, request::Parts},
+    response::{IntoResponse, Response},
 };
 use axum_extra::extract::CookieJar;
 use serde_json::json;
@@ -67,8 +66,7 @@ impl TryFrom<&Parts> for SessionId {
     }
 }
 
-#[async_trait]
-impl<S> FromRequestParts<S> for SessionId {
+impl<S: Send + Sync> FromRequestParts<S> for SessionId {
     type Rejection = SessionError;
 
     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
