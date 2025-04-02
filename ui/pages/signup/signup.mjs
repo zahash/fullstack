@@ -1,5 +1,5 @@
-import signal, { merge } from "./lib/signal.mjs";
-import debounce from "./debounce.mjs";
+import signal, { merge } from "../../lib/signal.mjs";
+import debounce from "../../debounce.mjs";
 
 const ele_username = document.getElementById("signup-username");
 const ele_password = document.getElementById("signup-password");

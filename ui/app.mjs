@@ -1,7 +1,7 @@
 import initRouter from "./lib/router.mjs";
 
 initRouter({
-    "/": { template: "./home.html", title: "Home", scripts: ["./home.mjs"] },
-    "/login": { template: "./login.html", title: "Login", scripts: ["./login.mjs"] },
-    "/signup": { template: "./signup.html", title: "Sign Up", scripts: ["./signup.mjs"] }
+    "/": { template: "./pages/home/home.html", title: "Home", scripts: ["./pages/home/home.mjs"] },
+    "/login": { template: "./pages/login/login.html", title: "Login", scripts: ["./pages/login/login.mjs"] },
+    "/signup": { template: "./pages/signup/signup.html", title: "Sign Up", scripts: ["./pages/signup/signup.mjs"] }
 });
