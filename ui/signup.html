@@ -1,15 +1,17 @@
-<form onsubmit="signup(event)">
-    <input type="text" placeholder="username" required />
-    <!-- oninput={() => { set_usernameStatus(undefined); debounced_checkUsernameAvailability(); }} -->
-    <!-- <p style={{ display: usernameStatus() === "unavailable" ? "block" : "none" }}>username taken</p> -->
-    <!-- <p style={{ display: usernameStatus() === "invalid" ? "block" : "none" }}>invalid username</p> -->
+<form id="signup-form">
+    <input id="signup-username" type="text" placeholder="username" required />
+    <input id="signup-password" type="password" placeholder="password" required />
+    <input id="signup-email" type="email" placeholder="email" required />
 
-    <input oninput="checkPasswordStrength()" type="password" placeholder="password" required />
-    <!-- <p style={{ display: passwordHasSpecial() ? "none" : "block" }}>password must have atleast one special character</p> -->
-    <!-- <p style={{ display: passwordHasDigit() ? "none" : "block" }}>password must have atleast one digit</p> -->
-    <!-- <p style={{ display: passwordHasLowercase() ? "none" : "block" }}>password must have atleast one lowercase letter</p> -->
-    <!-- <p style={{ display: passwordHasUppercase() ? "none" : "block" }}>password must have atleast one uppercase letter</p> -->
+    <button id="signup-btn" type="submit" disabled>sign up</button>
 
-    <button type="submit">sign up</button>
-    <!-- disabled={!canSubmit()} -->
+    <p id="signup-msg-username" style="display: none;"></p>
+
+    <p id="signup-msg-password-length" style="display: none;">password must be atleast 8 characters long</p>
+    <p id="signup-msg-password-special" style="display: none;">password must have atleast one special character</p>
+    <p id="signup-msg-password-digit" style="display: none;">password must have atleast one digit</p>
+    <p id="signup-msg-password-lower" style="display: none;">password must have atleast one lowercase letter</p>
+    <p id="signup-msg-password-upper" style="display: none;">password must have atleast one uppercase letter</p>
+
+    <p id="signup-msg-email" style="display: none;"></p>
 </form>

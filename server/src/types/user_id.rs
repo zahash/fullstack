@@ -145,10 +145,7 @@ impl IntoResponse for UserIdError {
                 )
                     .into_response()
             }
-            UserIdError::Internal(err) => {
-                tracing::warn!("{:?}", err);
-                StatusCode::INTERNAL_SERVER_ERROR.into_response()
-            }
+            UserIdError::Internal(err) => err.into_response(),
         }
     }
 }

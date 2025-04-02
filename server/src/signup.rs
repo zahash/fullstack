@@ -1,5 +1,5 @@
 use axum::{
-    extract::State,
+    extract::{rejection::FormRejection, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     Form, Json,
@@ -30,19 +30,26 @@ pub enum Error {
     #[error("{0} already linked to another account")]
     EmailExists(Email),
 
+    #[error("{0}")]
+    FormRejection(FormRejection),
+
     #[error("{0:?}")]
     Internal(#[from] InternalError),
 }
 
-#[tracing::instrument(fields(?username), skip_all, ret)]
+#[tracing::instrument(fields(username = tracing::field::Empty), skip_all, ret)]
 pub async fn signup<T>(
     State(AppState { pool, .. }): State<AppState<T>>,
-    Form(SignUp {
+    payload: Result<Form<SignUp>, FormRejection>,
+) -> Result<StatusCode, Error> {
+    let Form(SignUp {
         username,
         email,
         password,
-    }): Form<SignUp>,
-) -> Result<StatusCode, Error> {
+    }) = payload.map_err(Error::from)?;
+
+    tracing::Span::current().record("username", &tracing::field::display(&username));
+
     let password_hash = bcrypt::hash(password, bcrypt::DEFAULT_COST).context("hash password")?;
 
     if username_exists(&pool, &username)
@@ -69,9 +76,27 @@ pub async fn signup<T>(
     Ok(StatusCode::CREATED)
 }
 
+impl From<FormRejection> for Error {
+    fn from(err: FormRejection) -> Self {
+        Error::FormRejection(err)
+    }
+}
+
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
         match self {
+            Error::FormRejection(err) => {
+                tracing::info!("{:?}", err);
+                (
+                    err.status(),
+                    Json(json!({
+                        "error": err.body_text(),
+                        "help": HELP,
+                        "datetime": now_iso8601()
+                    })),
+                )
+                    .into_response()
+            }
             Error::UsernameExists(_) | Error::EmailExists(_) => {
                 tracing::info!("{:?}", self);
                 (
@@ -84,10 +109,7 @@ impl IntoResponse for Error {
                 )
                     .into_response()
             }
-            Error::Internal(err) => {
-                tracing::warn!("{:?}", err);
-                StatusCode::INTERNAL_SERVER_ERROR.into_response()
-            }
+            Error::Internal(err) => err.into_response(),
         }
     }
 }

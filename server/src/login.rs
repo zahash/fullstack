@@ -108,10 +108,7 @@ impl IntoResponse for Error {
                 tracing::info!("{:?}", self);
                 StatusCode::UNAUTHORIZED.into_response()
             }
-            Error::Internal(err) => {
-                tracing::warn!("{:?}", err);
-                StatusCode::INTERNAL_SERVER_ERROR.into_response()
-            }
+            Error::Internal(err) => err.into_response(),
         }
     }
 }

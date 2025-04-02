@@ -1,13 +1,13 @@
-const usernameEle = document.getElementById("login-username");
-const passwordEle = document.getElementById("login-password");
-const rememberEle = document.getElementById("login-remember");
+const ele_username = document.getElementById("login-username");
+const ele_password = document.getElementById("login-password");
+const ele_remember = document.getElementById("login-remember");
 
 /**
  * Handles the login form submission.
  *
  * @param {SubmitEvent} event - The event object from the form submission.
  */
-async function login(event) {
+export default async function login(event) {
     event.preventDefault();
 
     const response = await fetch("/login", {
@@ -15,9 +15,9 @@ async function login(event) {
         credentials: "include",
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
-            "username": usernameEle.value,
-            "password": passwordEle.value,
-            "remember": rememberEle.checked ? "true" : "false"
+            "username": ele_username.value,
+            "password": ele_password.value,
+            "remember": ele_remember.checked ? "true" : "false"
         })
     });
 
@@ -27,3 +27,5 @@ async function login(event) {
         console.log(await response.json());
     }
 }
+
+document.getElementById("login-form").addEventListener("submit", login);

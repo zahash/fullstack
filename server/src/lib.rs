@@ -114,6 +114,7 @@ pub fn server<T: Send + Sync + 'static>(state: AppState<T>) -> Router {
             "/check",
             Router::new()
                 .route("/username-availability", get(check::username_availability))
+                .route("/email-availability", get(check::email_availability))
                 .route("/access-token", get(check::access_token)),
         )
         .route("/health", get(health))

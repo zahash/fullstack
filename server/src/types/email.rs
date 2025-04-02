@@ -9,7 +9,7 @@ use sqlx::{Sqlite, Type};
 #[derive(Debug)]
 pub struct Email(lettre::Address);
 
-const MSG: &'static str = "expected valid email format as specified by the HTML5 Specification https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address";
+const MSG: &'static str = "email must conform to the HTML5 Specification https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address";
 
 impl FromStr for Email {
     type Err = &'static str;

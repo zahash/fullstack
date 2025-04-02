@@ -1,7 +1,9 @@
 mod access_token;
+mod email_availability;
 mod username_availability;
 
 pub use access_token::access_token;
+pub use email_availability::email_availability;
 pub use username_availability::username_availability;
 
 use sqlx::SqlitePool;

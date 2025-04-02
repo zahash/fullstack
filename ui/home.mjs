@@ -1,4 +1,4 @@
-async function private() {
+async function fetchPrivate() {
     const response = await fetch("/private", { credentials: 'include' });
     if (response.ok) {
         console.log(response.body);
@@ -6,3 +6,5 @@ async function private() {
         console.log(await response.json());
     }
 }
+
+document.getElementById("private-btn").addEventListener("click", fetchPrivate);
