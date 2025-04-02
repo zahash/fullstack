@@ -1,31 +1,32 @@
 use std::time::Duration;
 
 use axum::{
-    extract::State,
-    http::{header::USER_AGENT, HeaderMap, StatusCode},
-    response::{IntoResponse, Response},
     Form,
+    extract::State,
+    http::{HeaderMap, StatusCode, header::USER_AGENT},
+    response::{IntoResponse, Response},
 };
 use axum_extra::extract::{
-    cookie::{Cookie, SameSite},
     CookieJar,
+    cookie::{Cookie, SameSite},
 };
 use bcrypt::verify;
 use serde::Deserialize;
 use time::OffsetDateTime;
 
 use crate::{
-    error::{Context, InternalError},
-    types::{SessionId, UserId, Username},
     AppState,
+    error::{Context, InternalError},
+    types::{SessionId, UserId},
 };
 
 const DURATION_30_DAYS: Duration = Duration::from_secs(3600 * 24 * 30);
 
 #[derive(Deserialize)]
 pub struct Login {
-    pub username: Username,
-    pub password: String, // `Password` type not necessary because no checks are required
+    // `Username` and `Password` type not necessary because no checks are required
+    pub username: String,
+    pub password: String,
     pub remember: bool,
 }
 
