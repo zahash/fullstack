@@ -1,19 +1,6 @@
 import signal, { merge } from "../../lib/signal.mjs";
 import debounce from "../../debounce.mjs";
 
-const ele_username = document.getElementById("signup-username");
-const ele_password = document.getElementById("signup-password");
-const ele_email = document.getElementById("signup-email");
-const ele_signupBtn = document.getElementById("signup-btn");
-
-const ele_msg_username = document.getElementById("signup-msg-username");
-const ele_msg_passwordLength = document.getElementById("signup-msg-password-length");
-const ele_msg_passwordSpecial = document.getElementById("signup-msg-password-special");
-const ele_msg_passwordDigit = document.getElementById("signup-msg-password-digit");
-const ele_msg_passwordLower = document.getElementById("signup-msg-password-lower");
-const ele_msg_passwordUpper = document.getElementById("signup-msg-password-upper");
-const ele_msg_email = document.getElementById("signup-msg-email");
-
 const re_special = /[!@#$%^&*()_+\-=\[\]{};':"\\|,\.<>\/?]/;
 const re_digit = /\d/;
 const re_lowercase = /[a-z]/;
@@ -40,6 +27,8 @@ let canSignup = merge({ usernameStatus, passwordStatus, emailStatus }).derive(ob
 );
 
 usernameStatus.effect(({ status, message }) => {
+    const ele_msg_username = document.getElementById("signup-msg-username");
+
     switch (status) {
         case "unavailable":
             ele_msg_username.textContent = "username taken";
@@ -54,13 +43,15 @@ usernameStatus.effect(({ status, message }) => {
     }
 });
 passwordStatus.effect(val => {
-    ele_msg_passwordLength.style.display = val.length ? "none" : "block";
-    ele_msg_passwordSpecial.style.display = val.special ? "none" : "block";
-    ele_msg_passwordDigit.style.display = val.digit ? "none" : "block";
-    ele_msg_passwordLower.style.display = val.lower ? "none" : "block";
-    ele_msg_passwordUpper.style.display = val.upper ? "none" : "block";
+    document.getElementById("signup-msg-password-length").style.display = val.length ? "none" : "block";
+    document.getElementById("signup-msg-password-special").style.display = val.special ? "none" : "block";
+    document.getElementById("signup-msg-password-digit").style.display = val.digit ? "none" : "block";
+    document.getElementById("signup-msg-password-lower").style.display = val.lower ? "none" : "block";
+    document.getElementById("signup-msg-password-upper").style.display = val.upper ? "none" : "block";
 });
 emailStatus.effect(({ status, message }) => {
+    const ele_msg_email = document.getElementById("signup-msg-email");
+
     switch (status) {
         case "unavailable":
             ele_msg_email.textContent = "email taken";
@@ -74,11 +65,11 @@ emailStatus.effect(({ status, message }) => {
             ele_msg_email.style.display = "none";
     }
 });
-canSignup.effect(val => ele_signupBtn.disabled = !val);
+canSignup.effect(val => document.getElementById("signup-btn").disabled = !val);
 
 const debounced_checkUsernameAvailability = debounce(async () => {
     usernameStatus({});
-    const response = await fetch(`/check/username-availability?username=${ele_username.value}`);
+    const response = await fetch(`/check/username-availability?username=${document.getElementById("signup-username").value}`);
     if (response.status == 200) usernameStatus({ status: "ok" });
     else if (response.status == 400) {
         const json = await response.json();
@@ -91,7 +82,7 @@ const debounced_checkUsernameAvailability = debounce(async () => {
 
 const debounced_checkEmailAvailability = debounce(async () => {
     emailStatus({});
-    const response = await fetch(`/check/email-availability?email=${ele_email.value}`);
+    const response = await fetch(`/check/email-availability?email=${document.getElementById("signup-email").value}`);
     if (response.status == 200) emailStatus({ status: "ok" });
     else if (response.status == 400) {
         const json = await response.json();
@@ -104,7 +95,7 @@ const debounced_checkEmailAvailability = debounce(async () => {
 
 // TODO: can this function be shared between frontend and backend as a wasm module?
 function checkPasswordStrength() {
-    const password = ele_password.value;
+    const password = document.getElementById("signup-password").value;
 
     passwordStatus({
         length: password.length >= 8,
@@ -127,9 +118,9 @@ async function signup(event) {
         method: "POST",
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
-            "username": ele_username.value,
-            "password": ele_password.value,
-            "email": ele_email.value,
+            "username": document.getElementById("signup-username").value,
+            "password": document.getElementById("signup-password").value,
+            "email": document.getElementById("signup-email").value,
         })
     });
 
@@ -137,7 +128,7 @@ async function signup(event) {
     else alert(JSON.stringify(await response.json()));
 }
 
-document.getElementById("signup-form").addEventListener("submit", signup);
-ele_username.addEventListener("input", debounced_checkUsernameAvailability);
-ele_password.addEventListener("input", checkPasswordStrength);
-ele_email.addEventListener("input", debounced_checkEmailAvailability);
+window.signup = signup;
+window.debounced_checkUsernameAvailability = debounced_checkUsernameAvailability;
+window.checkPasswordStrength = checkPasswordStrength;
+window.debounced_checkEmailAvailability = debounced_checkEmailAvailability;

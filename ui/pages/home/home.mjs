@@ -1,10 +1,10 @@
 async function fetchPrivate() {
-    const response = await fetch("/private", { credentials: 'include' });
+    const response = await fetch("/private");
     if (response.ok) {
-        console.log(response.body);
+        console.log(await response.text());
     } else {
         console.log(await response.json());
     }
 }
 
-document.getElementById("private-btn").addEventListener("click", fetchPrivate);
+window.fetchPrivate = fetchPrivate;

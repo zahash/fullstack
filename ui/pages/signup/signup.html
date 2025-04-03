@@ -1,7 +1,8 @@
-<form id="signup-form">
-    <input id="signup-username" type="text" placeholder="username" required />
-    <input id="signup-password" type="password" placeholder="password" required />
-    <input id="signup-email" type="email" placeholder="email" required />
+<form id="signup-form" onsubmit="signup(event)">
+    <input id="signup-username" type="text" placeholder="username" required
+        oninput="debounced_checkUsernameAvailability()" />
+    <input id="signup-password" type="password" placeholder="password" required oninput="checkPasswordStrength()" />
+    <input id="signup-email" type="email" placeholder="email" required oninput="debounced_checkEmailAvailability()" />
 
     <button id="signup-btn" type="submit" disabled>sign up</button>
 
