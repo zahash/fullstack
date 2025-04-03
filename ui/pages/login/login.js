@@ -22,5 +22,3 @@ async function login(event) {
         console.log("login failed");
     }
 }
-
-window.login = login;

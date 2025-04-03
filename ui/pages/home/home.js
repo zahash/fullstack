@@ -6,5 +6,3 @@ async function fetchPrivate() {
         console.log(await response.json());
     }
 }
-
-window.fetchPrivate = fetchPrivate;
