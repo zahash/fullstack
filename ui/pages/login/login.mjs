@@ -1,4 +1,4 @@
-import { redirect } from "../../app.mjs";
+import { hooks } from "../../app.mjs";
 
 /**
  * Handles the login form submission.
@@ -20,7 +20,7 @@ async function login(event) {
 
     if (response.ok) {
         console.log("login successful");
-        redirect("/");
+        hooks.redirect("/");
     } else {
         console.log("login failed");
     }
