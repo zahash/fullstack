@@ -1,3 +1,5 @@
+import { redirect } from "../../app.mjs";
+
 /**
  * Handles the login form submission.
  *
@@ -18,7 +20,10 @@ async function login(event) {
 
     if (response.ok) {
         console.log("login successful");
+        redirect("/");
     } else {
         console.log("login failed");
     }
 }
+
+window.login = login;
