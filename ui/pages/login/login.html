@@ -1,4 +1,6 @@
-<div data-slot="header"></div>
+<meta data-title="Login" />
+
+<div data-fragment="header"></div>
 
 <form id="login-form" onsubmit="login(event)">
     <input id="login-username" type="text" placeholder="username" required />
@@ -9,3 +11,5 @@
     </label>
     <button type="submit">login</button>
 </form>
+
+<script src="./pages/login/login.mjs" type="module" defer></script>

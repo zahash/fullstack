@@ -1,4 +1,6 @@
-<div data-slot="header"></div>
+<meta data-title="Signup" />
+
+<div data-fragment="header"></div>
 
 <form id="signup-form" onsubmit="signup(event)">
     <input id="signup-username" type="text" placeholder="username" required
@@ -18,3 +20,6 @@
 
     <p id="signup-msg-email" style="display: none;"></p>
 </form>
+
+<script src="./pages/signup/signup.mjs" type="module" defer></script>
+<script src="./pages/signup/lifecycle.js" defer></script>
