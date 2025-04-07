@@ -19,10 +19,10 @@ async function login(event) {
     });
 
     if (response.ok) {
-        console.log("login successful");
+        alert("login successful");
         hooks.redirect("/");
     } else {
-        console.log("login failed");
+        alert("login failed");
     }
 }
 

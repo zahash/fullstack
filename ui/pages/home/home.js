@@ -1,7 +1,7 @@
-async function fetchPrivate() {
+async function fetchPrivate(event) {
     const response = await fetch("/private");
     if (response.ok) {
-        console.log(await response.text());
+        event.target.outerHTML = await response.text();
     } else {
         console.log(await response.json());
     }

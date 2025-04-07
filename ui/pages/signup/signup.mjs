@@ -1,5 +1,6 @@
 import signal, { merge } from "../../lib/signal.mjs";
 import debounce from "../../debounce.mjs";
+import { hooks } from "../../app.mjs";
 
 const re_special = /[!@#$%^&*()_+\-=\[\]{};':"\\|,\.<>\/?]/;
 const re_digit = /\d/;
@@ -132,3 +133,7 @@ window.signup = signup;
 window.debounced_checkUsernameAvailability = debounced_checkUsernameAvailability;
 window.checkPasswordStrength = checkPasswordStrength;
 window.debounced_checkEmailAvailability = debounced_checkEmailAvailability;
+
+hooks.onMount(() => console.log("HOOKS SIGNUP MOUNT"));
+hooks.onUnmount(() => console.log("HOOKS SIGNUP UN-MOUNT"));
+hooks.ready();

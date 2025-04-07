@@ -1,2 +1,2 @@
-export { default } from "https://cdn.jsdelivr.net/gh/zahash/spamf@a4700b80d4ff9f733cde99e54d966e5243a6c9f2/signal.js";
-export * from "https://cdn.jsdelivr.net/gh/zahash/spamf@a4700b80d4ff9f733cde99e54d966e5243a6c9f2/signal.js";
+export { default } from "https://cdn.jsdelivr.net/gh/zahash/spamf@199147c89cbc0b5475f924d77fb149c4adf3e673/signal.js";
+export * from "https://cdn.jsdelivr.net/gh/zahash/spamf@199147c89cbc0b5475f924d77fb149c4adf3e673/signal.js";

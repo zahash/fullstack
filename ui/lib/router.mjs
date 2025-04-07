@@ -1,2 +1,2 @@
-export { default } from "https://cdn.jsdelivr.net/gh/zahash/spamf@46d8fa43ed02c189c719a5a39508d1e0c29b7adb/router.js";
-export * from "https://cdn.jsdelivr.net/gh/zahash/spamf@46d8fa43ed02c189c719a5a39508d1e0c29b7adb/router.js";
+export { default } from "https://cdn.jsdelivr.net/gh/zahash/spamf@199147c89cbc0b5475f924d77fb149c4adf3e673/router.js";
+export * from "https://cdn.jsdelivr.net/gh/zahash/spamf@199147c89cbc0b5475f924d77fb149c4adf3e673/router.js";

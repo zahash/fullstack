@@ -1,6 +1,6 @@
 import initRouter from "./lib/router.mjs";
 
-export const hooks = initRouter({
+export const hooks = await initRouter({
     routes: {
         "/": { template: "./pages/home/home.html" },
         "/login": { template: "./pages/login/login.html" },
