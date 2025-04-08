@@ -1,18 +1,18 @@
 use axum::{
-    extract::{rejection::FormRejection, State},
+    Form, Json,
+    extract::{State, rejection::FormRejection},
     http::StatusCode,
     response::{IntoResponse, Response},
-    Form, Json,
 };
 use serde::Deserialize;
 use serde_json::json;
 
 use crate::{
+    AppState,
     check::{email_exists, username_exists},
-    error::{Context, InternalError, HELP},
+    error::{Context, HELP, InternalError},
     misc::now_iso8601,
     types::{Email, Password, Username},
-    AppState,
 };
 
 #[derive(Deserialize)]
@@ -38,8 +38,8 @@ pub enum Error {
 }
 
 #[tracing::instrument(fields(username = tracing::field::Empty), skip_all, ret)]
-pub async fn signup<T>(
-    State(AppState { pool, .. }): State<AppState<T>>,
+pub async fn signup(
+    State(AppState { pool, .. }): State<AppState>,
     payload: Result<Form<SignUp>, FormRejection>,
 ) -> Result<StatusCode, Error> {
     let Form(SignUp {

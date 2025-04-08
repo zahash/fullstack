@@ -1,18 +1,18 @@
 use axum::{
+    Json,
     extract::{Query, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use serde::Deserialize;
 use serde_json::json;
 
 use crate::{
+    AppState,
     check::email_exists,
-    error::{Context, InternalError, HELP},
+    error::{Context, HELP, InternalError},
     misc::now_iso8601,
     types::Email,
-    AppState,
 };
 
 #[derive(Deserialize)]
@@ -30,8 +30,8 @@ pub enum Error {
 }
 
 #[tracing::instrument(fields(?email), skip_all, ret)]
-pub async fn email_availability<T>(
-    State(AppState { pool, .. }): State<AppState<T>>,
+pub async fn email_availability(
+    State(AppState { pool, .. }): State<AppState>,
     Query(Params { email }): Query<Params>,
 ) -> Result<StatusCode, Error> {
     let email = Email::try_from(email).map_err(Error::InvalidParams)?;

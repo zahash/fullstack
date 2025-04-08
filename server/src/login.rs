@@ -40,8 +40,8 @@ pub enum Error {
 }
 
 #[tracing::instrument(fields(?username, ?remember), skip_all)]
-pub async fn login<T>(
-    State(AppState { pool, .. }): State<AppState<T>>,
+pub async fn login(
+    State(AppState { pool, .. }): State<AppState>,
     headers: HeaderMap,
     jar: CookieJar,
     Form(Login {

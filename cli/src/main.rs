@@ -31,23 +31,22 @@ enum Command {
         /// Example: `./ui` or `/var/www/html`
         #[arg(long)]
         ui_dir: PathBuf,
+        // /// The SMTP relay server used for sending emails.
+        // /// This should be a valid SMTP server address.
+        // /// Example: `"smtp.gmail.com"`
+        // #[arg(long)]
+        // smtp_relay: String,
 
-        /// The SMTP relay server used for sending emails.
-        /// This should be a valid SMTP server address.
-        /// Example: `"smtp.gmail.com"`
-        #[arg(long)]
-        smtp_relay: String,
+        // /// The username for authenticating with the SMTP server.
+        // /// Example: `"user@example.com"`
+        // #[arg(long)]
+        // smtp_username: String,
 
-        /// The username for authenticating with the SMTP server.
-        /// Example: `"user@example.com"`
-        #[arg(long)]
-        smtp_username: String,
-
-        /// The password for the SMTP server.
-        /// This should be kept secure and **not logged**.
-        /// Example: `"supersecretpassword"`
-        #[arg(long)]
-        smtp_password: String,
+        // /// The password for the SMTP server.
+        // /// This should be kept secure and **not logged**.
+        // /// Example: `"supersecretpassword"`
+        // #[arg(long)]
+        // smtp_password: String,
     },
 
     /// Runs database migrations.
@@ -105,19 +104,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             port,
             database_url,
             ui_dir,
-            smtp_relay,
-            smtp_username,
-            smtp_password,
+            // smtp_relay,
+            // smtp_username,
+            // smtp_password,
         } => {
             run(ServerOpts {
                 database_url,
                 port,
                 ui_dir,
-                smtp: server::SMTPConfig {
-                    relay: smtp_relay,
-                    username: smtp_username,
-                    password: smtp_password,
-                },
+                // smtp: server::SMTPConfig {
+                //     relay: smtp_relay,
+                //     username: smtp_username,
+                //     password: smtp_password,
+                // },
             })
             .await
         }

@@ -1,18 +1,18 @@
 use axum::{
+    Json,
     extract::{Query, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
 };
 use serde::Deserialize;
 use serde_json::json;
 
 use crate::{
+    AppState,
     check::username_exists,
-    error::{Context, InternalError, HELP},
+    error::{Context, HELP, InternalError},
     misc::now_iso8601,
     types::Username,
-    AppState,
 };
 
 #[derive(Deserialize)]
@@ -30,8 +30,8 @@ pub enum Error {
 }
 
 #[tracing::instrument(fields(?username), skip_all, ret)]
-pub async fn username_availability<T>(
-    State(AppState { pool, .. }): State<AppState<T>>,
+pub async fn username_availability(
+    State(AppState { pool, .. }): State<AppState>,
     Query(Params { username }): Query<Params>,
 ) -> Result<StatusCode, Error> {
     let username = Username::try_from(username).map_err(Error::InvalidParams)?;

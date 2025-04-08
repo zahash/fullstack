@@ -1,16 +1,16 @@
 use axum::{
-    extract::FromRequestParts,
-    http::{request::Parts, StatusCode},
-    response::{IntoResponse, Response},
     Json,
+    extract::FromRequestParts,
+    http::{StatusCode, request::Parts},
+    response::{IntoResponse, Response},
 };
 use serde_json::json;
 use sqlx::{Sqlite, SqlitePool, Type};
 
 use crate::{
+    AppState,
     error::{Context, InternalError},
     types::{AccessToken, SessionId},
-    AppState,
 };
 
 use super::{access_token::AccessTokenError, session_id::SessionError};
@@ -36,12 +36,12 @@ pub enum UserIdError {
     Internal(#[from] InternalError),
 }
 
-impl<T: Send + Sync> FromRequestParts<AppState<T>> for UserId {
+impl FromRequestParts<AppState> for UserId {
     type Rejection = UserIdError;
 
     async fn from_request_parts(
         parts: &mut Parts,
-        AppState { pool, .. }: &AppState<T>,
+        AppState { pool, .. }: &AppState,
     ) -> Result<Self, Self::Rejection> {
         let session_id = SessionId::try_from(parts as &Parts);
         let access_token = AccessToken::try_from(parts as &Parts);

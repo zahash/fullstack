@@ -23,6 +23,7 @@ use std::{
 use anyhow::Context;
 use axum::{
     Router,
+    extract::ConnectInfo,
     http::{Request, header},
     middleware::{from_fn, from_fn_with_state},
     routing::{get, post},
@@ -53,10 +54,10 @@ pub use types::{Email, Password, Username};
 // email verification during signup
 // shared validation code between frontend and backend as wasm (is_strong_password)
 
-pub struct AppState<T> {
+pub struct AppState {
     pub pool: SqlitePool,
     pub rate_limiter: Arc<RateLimiter>,
-    pub mailer: Arc<T>,
+    // pub mailer: Arc<()>,
 }
 
 pub struct RateLimiter {
@@ -103,7 +104,7 @@ impl RateLimiter {
     }
 }
 
-pub fn server<T: Send + Sync + 'static>(state: AppState<T>) -> Router {
+pub fn server(state: AppState) -> Router {
     Router::new()
         .nest(
             "/check",
@@ -180,17 +181,17 @@ fn client_ip<B>(request: &Request<B>) -> Option<IpAddr> {
         .or_else(|| {
             request
                 .extensions()
-                .get::<SocketAddr>()
-                .map(|addr| addr.ip())
+                .get::<ConnectInfo<SocketAddr>>()
+                .map(|connect_info| connect_info.0.ip())
         })
 }
 
-impl<T> Clone for AppState<T> {
+impl Clone for AppState {
     fn clone(&self) -> Self {
         Self {
             pool: self.pool.clone(),
             rate_limiter: Arc::clone(&self.rate_limiter),
-            mailer: Arc::clone(&self.mailer),
+            // mailer: Arc::clone(&self.mailer),
         }
     }
 }
@@ -200,7 +201,7 @@ pub struct ServerOpts {
     pub database_url: String,
     pub port: u16,
     pub ui_dir: PathBuf,
-    pub smtp: SMTPConfig,
+    // pub smtp: SMTPConfig,
 }
 
 #[derive(Debug)]
@@ -220,7 +221,7 @@ pub async fn run(opts: ServerOpts) -> Result<(), Box<dyn std::error::Error>> {
             .await
             .with_context(|| format!("connect database :: {}", opts.database_url))?,
         rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
-        mailer: Arc::new(()),
+        // mailer: Arc::new(()),
         // mailer: Arc::new(
         //     SmtpTransport::relay(&opts.smtp.relay)?
         //         .credentials((opts.smtp.username, opts.smtp.password).into())

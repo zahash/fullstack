@@ -1,14 +1,14 @@
 use std::time::Duration;
 
 use anyhow::Context;
-use axum::{extract::State, http::StatusCode, Form};
+use axum::{Form, extract::State, http::StatusCode};
 use serde::Deserialize;
 use time::OffsetDateTime;
 
 use crate::{
+    AppState,
     error::InternalError,
     types::{AccessToken, UserId},
-    AppState,
 };
 
 #[derive(Deserialize, Debug)]
@@ -17,8 +17,8 @@ pub struct AccessTokenSettings {
 }
 
 #[tracing::instrument(fields(?user_id, ?settings), skip_all)]
-pub async fn generate<T>(
-    State(AppState { pool, .. }): State<AppState<T>>,
+pub async fn generate(
+    State(AppState { pool, .. }): State<AppState>,
     user_id: UserId,
     Form(settings): Form<AccessTokenSettings>,
 ) -> Result<(StatusCode, AccessToken), InternalError> {

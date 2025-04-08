@@ -33,7 +33,7 @@ macro_rules! send {
         server::server(server::AppState {
             pool: $pool.clone(),
             rate_limiter: std::sync::Arc::new(server::RateLimiter::nolimit()),
-            mailer: std::sync::Arc::new(lettre::FileTransport::new("/tmp")),
+            // mailer: std::sync::Arc::new(lettre::FileTransport::new("/tmp")),
         })
         .oneshot($req)
         .await

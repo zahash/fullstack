@@ -1,14 +1,14 @@
 use std::net::IpAddr;
 
 use axum::{
-    body::{to_bytes, Body},
+    body::{Body, to_bytes},
     extract::State,
     http::{Request, Response, StatusCode},
     middleware::Next,
     response::IntoResponse,
 };
 
-use crate::{client_ip, AppState};
+use crate::{AppState, client_ip};
 
 pub async fn mw_client_ip(mut request: Request<Body>, next: Next) -> Response<Body> {
     let ip = client_ip(&request);
@@ -16,8 +16,8 @@ pub async fn mw_client_ip(mut request: Request<Body>, next: Next) -> Response<Bo
     next.run(request).await
 }
 
-pub async fn mw_rate_limiter<T>(
-    State(AppState { rate_limiter, .. }): State<AppState<T>>,
+pub async fn mw_rate_limiter(
+    State(AppState { rate_limiter, .. }): State<AppState>,
     request: Request<Body>,
     next: Next,
 ) -> Response<Body> {
