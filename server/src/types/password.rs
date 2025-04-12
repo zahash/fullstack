@@ -45,7 +45,9 @@ impl TryFrom<String> for Password {
     fn try_from(value: String) -> Result<Self, Self::Error> {
         match Self::is_strong(&value) {
             true => Ok(Self(value)),
-            false => Err("password must be at least 8 characters long, and include a mix of uppercase and lowercase letters, digits, and special characters"),
+            false => Err(
+                "password must be at least 8 characters long, and include a mix of uppercase and lowercase letters, digits, and special characters",
+            ),
         }
     }
 }

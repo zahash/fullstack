@@ -1,39 +1,39 @@
 use std::ops::Deref;
 
 use axum::{
-    Json,
-    body::Body,
-    extract::FromRequestParts,
     http::{StatusCode, request::Parts},
     response::{IntoResponse, Response},
 };
-use serde_json::json;
 
 use crate::{
-    error::{HELP, SECURITY},
-    misc::now_iso8601,
+    error::{error, security_error},
     token::Token,
 };
 
-#[derive(Debug)]
+#[derive(Clone)]
 pub struct AccessToken(Token<32>);
 
 #[derive(thiserror::Error, Debug, PartialEq)]
-pub enum AccessTokenError {
+pub enum AccessTokenExtractionError {
     #[error(
         "access token not found in header. expected `Authorization: Token <your-access-token>`"
     )]
-    AccessTokenNotFound,
-
-    // could be because it expired or it was not found.
-    #[error("invalid access token")]
-    InvalidAccessToken,
+    AccessTokenHeaderNotFound,
 
     #[error("invalid access token format. must be in the form 'Token <your-access-token>'")]
     InvalidAccessTokenFormat,
 
     #[error("malformed access token")]
     MalformedAccessToken,
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum AccessTokenValiationError {
+    #[error("access token not associated with any account")]
+    UnAssociatedAccessToken,
+
+    #[error("access token expired")]
+    AccessTokenExpired,
 }
 
 impl AccessToken {
@@ -52,72 +52,62 @@ impl Deref for AccessToken {
 
 impl IntoResponse for AccessToken {
     fn into_response(self) -> Response {
-        match Response::builder().body(Body::from(self.base64encoded())) {
-            Ok(resp) => resp,
-            Err(e) => {
-                tracing::error!("unable to convert {:?} to response :: {:?}", self, e);
-                StatusCode::INTERNAL_SERVER_ERROR.into_response()
-            }
-        }
+        self.base64encoded().into_response()
     }
 }
 
 impl TryFrom<&Parts> for AccessToken {
-    type Error = AccessTokenError;
+    type Error = AccessTokenExtractionError;
 
     fn try_from(parts: &Parts) -> Result<Self, Self::Error> {
         let header_value = parts
             .headers
             .get("Authorization")
-            .ok_or(AccessTokenError::AccessTokenNotFound)?;
+            .ok_or(AccessTokenExtractionError::AccessTokenHeaderNotFound)?;
 
         let token_str = header_value
             .to_str()
             .ok()
             .and_then(|s| s.strip_prefix("Token "))
-            .ok_or(AccessTokenError::InvalidAccessTokenFormat)?;
+            .ok_or(AccessTokenExtractionError::InvalidAccessTokenFormat)?;
 
-        Token::try_from(token_str)
+        Token::base64decode(token_str)
             .map(|token| AccessToken(token))
-            .map_err(|_| AccessTokenError::MalformedAccessToken)
+            .map_err(|_| AccessTokenExtractionError::MalformedAccessToken)
     }
 }
 
-impl<S: Send + Sync> FromRequestParts<S> for AccessToken {
-    type Rejection = AccessTokenError;
+// impl<S: Send + Sync> FromRequestParts<S> for AccessToken {
+//     type Rejection = AccessTokenExtractionError;
 
-    async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        AccessToken::try_from(parts as &Parts)
-    }
-}
+//     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
+//         AccessToken::try_from(parts as &Parts)
+//     }
+// }
 
-impl IntoResponse for AccessTokenError {
+impl IntoResponse for AccessTokenExtractionError {
     fn into_response(self) -> Response {
         match self {
-            AccessTokenError::AccessTokenNotFound
-            | AccessTokenError::InvalidAccessToken
-            | AccessTokenError::InvalidAccessTokenFormat => {
+            AccessTokenExtractionError::AccessTokenHeaderNotFound
+            | AccessTokenExtractionError::InvalidAccessTokenFormat => {
                 tracing::info!("{:?}", self);
-                (
-                    StatusCode::UNAUTHORIZED,
-                    Json(json!({
-                        "error": self.to_string(),
-                        "help": HELP,
-                        "datetime": now_iso8601()
-                    })),
-                )
-                    .into_response()
+                (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
             }
-            AccessTokenError::MalformedAccessToken => {
+            AccessTokenExtractionError::MalformedAccessToken => {
                 tracing::error!("!SECURITY! {:?}", self);
-                (
-                    StatusCode::UNAUTHORIZED,
-                    Json(json!({
-                        "error": self.to_string(),
-                        "security": SECURITY
-                    })),
-                )
-                    .into_response()
+                (StatusCode::UNAUTHORIZED, security_error(&self.to_string())).into_response()
+            }
+        }
+    }
+}
+
+impl IntoResponse for AccessTokenValiationError {
+    fn into_response(self) -> Response {
+        match self {
+            AccessTokenValiationError::UnAssociatedAccessToken
+            | AccessTokenValiationError::AccessTokenExpired => {
+                tracing::info!("{:?}", self);
+                (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
             }
         }
     }

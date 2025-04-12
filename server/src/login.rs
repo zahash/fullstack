@@ -6,10 +6,7 @@ use axum::{
     http::{HeaderMap, StatusCode, header::USER_AGENT},
     response::{IntoResponse, Response},
 };
-use axum_extra::extract::{
-    CookieJar,
-    cookie::{Cookie, SameSite},
-};
+use axum_extra::extract::CookieJar;
 use bcrypt::verify;
 use serde::Deserialize;
 use time::OffsetDateTime;
@@ -27,7 +24,6 @@ pub struct Login {
     // `Username` and `Password` type not necessary because no checks are required
     pub username: String,
     pub password: String,
-    pub remember: bool,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -39,16 +35,12 @@ pub enum Error {
     Internal(#[from] InternalError),
 }
 
-#[tracing::instrument(fields(?username, ?remember), skip_all)]
+#[tracing::instrument(fields(?username), skip_all)]
 pub async fn login(
     State(AppState { pool, .. }): State<AppState>,
     headers: HeaderMap,
     jar: CookieJar,
-    Form(Login {
-        username,
-        password,
-        remember,
-    }): Form<Login>,
+    Form(Login { username, password }): Form<Login>,
 ) -> Result<(CookieJar, StatusCode), Error> {
     struct User {
         id: UserId,
@@ -73,7 +65,7 @@ pub async fn login(
             let session_id = SessionId::new();
             let session_id_hash = session_id.hash();
             let created_at = OffsetDateTime::now_utc();
-            let expires_at = remember.then_some(created_at + DURATION_30_DAYS);
+            let expires_at = created_at + DURATION_30_DAYS;
             let user_agent = headers.get(USER_AGENT).and_then(|val| val.to_str().ok());
 
             sqlx::query!(
@@ -89,12 +81,7 @@ pub async fn login(
 
             tracing::info!(?expires_at, ?user_agent, "session created");
 
-            let session_cookie = Cookie::build(("session_id", session_id.base64encoded()))
-                .path("/")
-                .same_site(SameSite::Strict)
-                .expires(expires_at)
-                .http_only(true)
-                .secure(true);
+            let session_cookie = session_id.into_cookie(expires_at);
             let jar = jar.add(session_cookie);
 
             Ok((jar, StatusCode::OK))

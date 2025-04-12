@@ -125,7 +125,10 @@ async function signup(event) {
         })
     });
 
-    if (response.ok) alert("signup successful!");
+    if (response.ok) {
+        alert("signup successful!");
+        hooks.redirect("/login");
+    }
     else alert(JSON.stringify(await response.json()));
 }
 

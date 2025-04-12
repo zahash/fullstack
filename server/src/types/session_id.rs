@@ -1,17 +1,17 @@
 use std::ops::Deref;
 
 use axum::{
-    Json,
-    extract::FromRequestParts,
     http::{StatusCode, request::Parts},
     response::{IntoResponse, Response},
 };
-use axum_extra::extract::CookieJar;
-use serde_json::json;
+use axum_extra::extract::{
+    CookieJar,
+    cookie::{Cookie, SameSite},
+};
+use time::OffsetDateTime;
 
 use crate::{
-    error::{HELP, SECURITY},
-    misc::now_iso8601,
+    error::{error, security_error},
     token::Token,
 };
 
@@ -19,20 +19,36 @@ use crate::{
 pub struct SessionId(Token<32>);
 
 #[derive(thiserror::Error, Debug, PartialEq)]
-pub enum SessionError {
+pub enum SessionIdExtractionError {
     #[error("`session_id` cookie not found")]
     SessionCookieNotFound,
-
-    #[error("invalid session")]
-    InvalidSessionToken,
 
     #[error("malformed session token")]
     MalformedSessionToken,
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum SessionIdValidationError {
+    #[error("session id not associated with any user")]
+    UnAssociatedSessionId,
+
+    #[error("session expired")]
+    SessionExpired,
+}
+
 impl SessionId {
     pub fn new() -> Self {
         Self(Token::new())
+    }
+
+    pub fn into_cookie<'a>(self, expires_at: OffsetDateTime) -> Cookie<'a> {
+        Cookie::build(("session_id", self.base64encoded()))
+            .path("/")
+            .same_site(SameSite::Strict)
+            .expires(expires_at)
+            .http_only(true)
+            .secure(true)
+            .build()
     }
 }
 
@@ -45,20 +61,21 @@ impl Deref for SessionId {
 }
 
 impl TryFrom<&CookieJar> for SessionId {
-    type Error = SessionError;
+    type Error = SessionIdExtractionError;
 
     fn try_from(jar: &CookieJar) -> Result<Self, Self::Error> {
         let value = jar
             .get("session_id")
-            .ok_or(SessionError::SessionCookieNotFound)?
+            .ok_or(SessionIdExtractionError::SessionCookieNotFound)?
             .value();
-        let token = Token::try_from(value).map_err(|_| SessionError::MalformedSessionToken)?;
+        let token = Token::base64decode(value)
+            .map_err(|_| SessionIdExtractionError::MalformedSessionToken)?;
         Ok(SessionId(token))
     }
 }
 
 impl TryFrom<&Parts> for SessionId {
-    type Error = SessionError;
+    type Error = SessionIdExtractionError;
 
     fn try_from(parts: &Parts) -> Result<Self, Self::Error> {
         let jar = CookieJar::from_headers(&parts.headers);
@@ -66,39 +83,43 @@ impl TryFrom<&Parts> for SessionId {
     }
 }
 
-impl<S: Send + Sync> FromRequestParts<S> for SessionId {
-    type Rejection = SessionError;
+// for building session cookie
+// impl From<SessionId> for Cow<'_, str> {
+//     fn from(value: SessionId) -> Self {
+//         value.base64encoded().into()
+//     }
+// }
 
-    async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-        SessionId::try_from(parts as &Parts)
+// impl<S: Send + Sync> FromRequestParts<S> for SessionId {
+//     type Rejection = SessionIdExtractionError;
+
+//     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
+//         SessionId::try_from(parts as &Parts)
+//     }
+// }
+
+impl IntoResponse for SessionIdExtractionError {
+    fn into_response(self) -> Response {
+        match self {
+            SessionIdExtractionError::SessionCookieNotFound => {
+                tracing::info!("{:?}", self);
+                (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
+            }
+            SessionIdExtractionError::MalformedSessionToken => {
+                tracing::error!("!SECURITY! {:?}", self);
+                (StatusCode::UNAUTHORIZED, security_error(&self.to_string())).into_response()
+            }
+        }
     }
 }
 
-impl IntoResponse for SessionError {
+impl IntoResponse for SessionIdValidationError {
     fn into_response(self) -> Response {
         match self {
-            SessionError::SessionCookieNotFound | SessionError::InvalidSessionToken => {
+            SessionIdValidationError::UnAssociatedSessionId
+            | SessionIdValidationError::SessionExpired => {
                 tracing::info!("{:?}", self);
-                (
-                    StatusCode::UNAUTHORIZED,
-                    Json(json!({
-                        "error": self.to_string(),
-                        "help": HELP,
-                        "datetime": now_iso8601()
-                    })),
-                )
-                    .into_response()
-            }
-            SessionError::MalformedSessionToken => {
-                tracing::error!("!SECURITY! {:?}", self);
-                (
-                    StatusCode::UNAUTHORIZED,
-                    Json(json!({
-                        "error": self.to_string(),
-                        "security": SECURITY
-                    })),
-                )
-                    .into_response()
+                (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
             }
         }
     }

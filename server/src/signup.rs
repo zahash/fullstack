@@ -1,17 +1,15 @@
 use axum::{
-    Form, Json,
+    Form,
     extract::{State, rejection::FormRejection},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
 use serde::Deserialize;
-use serde_json::json;
 
 use crate::{
     AppState,
     check::{email_exists, username_exists},
-    error::{Context, HELP, InternalError},
-    misc::now_iso8601,
+    error::{Context, InternalError, error},
     types::{Email, Password, Username},
 };
 
@@ -87,27 +85,11 @@ impl IntoResponse for Error {
         match self {
             Error::FormRejection(err) => {
                 tracing::info!("{:?}", err);
-                (
-                    err.status(),
-                    Json(json!({
-                        "error": err.body_text(),
-                        "help": HELP,
-                        "datetime": now_iso8601()
-                    })),
-                )
-                    .into_response()
+                (err.status(), error(&err.body_text())).into_response()
             }
             Error::UsernameExists(_) | Error::EmailExists(_) => {
                 tracing::info!("{:?}", self);
-                (
-                    StatusCode::CONFLICT,
-                    Json(json!({
-                        "error": self.to_string(),
-                        "help": HELP,
-                        "datetime": now_iso8601(),
-                    })),
-                )
-                    .into_response()
+                (StatusCode::CONFLICT, error(&self.to_string())).into_response()
             }
             Error::Internal(err) => err.into_response(),
         }

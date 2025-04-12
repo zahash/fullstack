@@ -4,7 +4,6 @@ use anyhow::Context;
 use clap::{Parser, Subcommand};
 
 use server::{ServerOpts, run};
-use sqlx::{SqlitePool, migrate::Migrator, sqlite::SqliteConnectOptions};
 
 #[derive(Debug, Parser)]
 struct Args {
@@ -48,18 +47,6 @@ enum Command {
         // #[arg(long)]
         // smtp_password: String,
     },
-
-    /// Runs database migrations.
-    Migration {
-        /// The database connection URL used by the server.
-        /// Example: `sqlite:///tmp/data/data.db` (or) `/tmp/data/data.db` (or) `./data.db`
-        #[arg(long)]
-        database_url: String,
-
-        /// The path to the migration folder.
-        #[arg(long)]
-        migration_dir: PathBuf,
-    },
 }
 
 #[allow(dead_code)]
@@ -99,6 +86,8 @@ where
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tracing_subscriber::fmt().init();
+
     match Args::parse().cmd {
         Command::Server {
             port,
@@ -119,23 +108,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // },
             })
             .await
-        }
-        Command::Migration {
-            database_url,
-            migration_dir,
-        } => {
-            let pool_opts = SqliteConnectOptions::new()
-                .filename(&database_url)
-                .create_if_missing(true);
-            let pool = SqlitePool::connect_with(pool_opts)
-                .await
-                .with_context(|| format!("connect database :: {}", database_url))?;
-            Ok(Migrator::new(migration_dir)
-                .await
-                .context("migrator source")?
-                .run(&pool)
-                .await
-                .context("run migrations")?)
         }
     }
 }

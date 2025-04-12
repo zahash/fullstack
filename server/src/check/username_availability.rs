@@ -1,17 +1,14 @@
 use axum::{
-    Json,
     extract::{Query, State},
     http::StatusCode,
     response::IntoResponse,
 };
 use serde::Deserialize;
-use serde_json::json;
 
 use crate::{
     AppState,
     check::username_exists,
-    error::{Context, HELP, InternalError},
-    misc::now_iso8601,
+    error::{Context, InternalError, error},
     types::Username,
 };
 
@@ -50,15 +47,7 @@ impl IntoResponse for Error {
         match self {
             Error::InvalidParams(err) => {
                 tracing::info!("{:?}", err);
-                (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({
-                        "error": err,
-                        "help": HELP,
-                        "datetime": now_iso8601()
-                    })),
-                )
-                    .into_response()
+                (StatusCode::BAD_REQUEST, error(err)).into_response()
             }
             Error::Internal(err) => err.into_response(),
         }

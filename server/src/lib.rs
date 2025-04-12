@@ -212,9 +212,7 @@ pub struct SMTPConfig {
 }
 
 pub async fn run(opts: ServerOpts) -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt().init();
-
-    tracing::info!(?opts);
+    tracing::info!("{:?}", opts);
 
     let state = AppState {
         pool: SqlitePool::connect(&opts.database_url)

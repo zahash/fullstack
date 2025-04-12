@@ -1,4 +1,4 @@
-use time::{format_description::well_known::Iso8601, OffsetDateTime};
+use time::{OffsetDateTime, format_description::well_known::Iso8601};
 
 pub fn now_iso8601() -> Option<String> {
     OffsetDateTime::now_utc()

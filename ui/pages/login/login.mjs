@@ -14,7 +14,6 @@ async function login(event) {
         body: new URLSearchParams({
             "username": document.getElementById("login-username").value,
             "password": document.getElementById("login-password").value,
-            "remember": document.getElementById("login-remember").checked ? "true" : "false"
         })
     });
 

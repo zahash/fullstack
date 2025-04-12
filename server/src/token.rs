@@ -2,7 +2,7 @@ use base64::{Engine, prelude::BASE64_STANDARD};
 use rand::RngCore;
 use sha2::{Digest, Sha256};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Token<const N: usize>([u8; N]);
 
 impl<const N: usize> Token<N> {
@@ -22,20 +22,16 @@ impl<const N: usize> Token<N> {
     pub fn base64encoded(&self) -> String {
         BASE64_STANDARD.encode(self.0)
     }
+
+    pub fn base64decode(s: &str) -> Result<Self, &str> {
+        let bytes = BASE64_STANDARD.decode(s).map_err(|_| s)?;
+        let bytes: [u8; N] = bytes.try_into().map_err(|_| s)?;
+        Ok(Token(bytes))
+    }
 }
 
 impl<const N: usize> From<[u8; N]> for Token<N> {
     fn from(bytes: [u8; N]) -> Self {
         Token(bytes)
-    }
-}
-
-impl<'a, const N: usize> TryFrom<&'a str> for Token<N> {
-    type Error = &'a str;
-
-    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        let bytes = BASE64_STANDARD.decode(value).map_err(|_| value)?;
-        let bytes: [u8; N] = bytes.try_into().map_err(|_| value)?;
-        Ok(Token(bytes))
     }
 }

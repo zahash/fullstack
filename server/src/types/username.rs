@@ -24,7 +24,9 @@ impl TryFrom<String> for Username {
     fn try_from(value: String) -> Result<Self, Self::Error> {
         match RE_USERNAME.is_match(&value) {
             true => Ok(Self(value)),
-            false => Err("username must be between 2-30 in length. must only contain `A-Z` `a-z` `0-9` and `_`"),
+            false => Err(
+                "username must be between 2-30 in length. must only contain `A-Z` `a-z` `0-9` and `_`",
+            ),
         }
     }
 }

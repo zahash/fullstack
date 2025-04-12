@@ -3,7 +3,7 @@ CREATE TABLE sessions (
     session_id_hash BLOB NOT NULL UNIQUE,
     user_id INTEGER NOT NULL,
     created_at DATETIME NOT NULL,
-    expires_at DATETIME,
+    expires_at DATETIME NOT NULL,
     user_agent TEXT,
     FOREIGN KEY (user_id) REFERENCES users (id)
 );
