@@ -10,10 +10,4 @@ async function logout() {
     }
 }
 
-hooks.onMount(() => {
-    window.logout = logout;
-});
-hooks.onUnmount(() => {
-    delete window.logout;
-});
-hooks.ready();
+window.logout = logout;

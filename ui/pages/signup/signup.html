@@ -2,23 +2,25 @@
 
 <div data-fragment="header"></div>
 
-<form id="signup-form" onsubmit="signup(event)">
-    <input id="signup-username" type="text" placeholder="username" required
-        oninput="debounced_checkUsernameAvailability()" />
-    <input id="signup-password" type="password" placeholder="password" required oninput="checkPasswordStrength()" />
-    <input id="signup-email" type="email" placeholder="email" required oninput="debounced_checkEmailAvailability()" />
+<div class="content">
+    <form id="signup-form" onsubmit="signup(event)">
+        <input id="signup-username" type="text" placeholder="username" required
+            oninput="debounced_checkUsernameAvailability()" />
+        <input id="signup-password" type="password" placeholder="password" required oninput="checkPasswordStrength()" />
+        <input id="signup-email" type="email" placeholder="email" required oninput="debounced_checkEmailAvailability()" />
 
-    <button id="signup-btn" type="submit" disabled>sign up</button>
+        <button id="signup-btn" type="submit" disabled>sign up</button>
 
-    <p id="signup-msg-username" style="display: none;"></p>
+        <p id="signup-msg-username" style="display: none;"></p>
 
-    <p id="signup-msg-password-length" style="display: none;">password must be atleast 8 characters long</p>
-    <p id="signup-msg-password-special" style="display: none;">password must have atleast one special character</p>
-    <p id="signup-msg-password-digit" style="display: none;">password must have atleast one digit</p>
-    <p id="signup-msg-password-lower" style="display: none;">password must have atleast one lowercase letter</p>
-    <p id="signup-msg-password-upper" style="display: none;">password must have atleast one uppercase letter</p>
+        <p id="signup-msg-password-length" style="display: none;">password must be atleast 8 characters long</p>
+        <p id="signup-msg-password-special" style="display: none;">password must have atleast one special character</p>
+        <p id="signup-msg-password-digit" style="display: none;">password must have atleast one digit</p>
+        <p id="signup-msg-password-lower" style="display: none;">password must have atleast one lowercase letter</p>
+        <p id="signup-msg-password-upper" style="display: none;">password must have atleast one uppercase letter</p>
 
-    <p id="signup-msg-email" style="display: none;"></p>
-</form>
+        <p id="signup-msg-email" style="display: none;"></p>
+    </form>
+</div>
 
 <script src="./pages/signup/signup.mjs" type="module" defer></script>

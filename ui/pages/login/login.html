@@ -2,10 +2,12 @@
 
 <div data-fragment="header"></div>
 
-<form id="login-form" onsubmit="login(event)">
-    <input id="login-username" type="text" placeholder="username" required />
-    <input id="login-password" type="password" placeholder="password" required />
-    <button type="submit">login</button>
-</form>
+<div class="content">
+    <form id="login-form" onsubmit="login(event)">
+        <input id="login-username" type="text" placeholder="username" required />
+        <input id="login-password" type="password" placeholder="password" required />
+        <button type="submit">login</button>
+    </form>
+</div>
 
 <script src="./pages/login/login.mjs" type="module" defer></script>
