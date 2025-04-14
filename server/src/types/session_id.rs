@@ -52,6 +52,16 @@ impl SessionId {
     }
 }
 
+pub trait SessionExt {
+    fn remove_session_cookie(self) -> Self;
+}
+
+impl SessionExt for CookieJar {
+    fn remove_session_cookie(self) -> Self {
+        self.remove("session_id")
+    }
+}
+
 impl Deref for SessionId {
     type Target = Token<32>;
 

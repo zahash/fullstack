@@ -10,6 +10,6 @@ pub use access_token::AccessToken;
 pub use email::Email;
 pub use password::Password;
 pub use permissions::{InsufficientPermissions, Permissions};
-pub use session_id::SessionId;
+pub use session_id::{SessionExt, SessionId};
 pub use user_id::UserId;
 pub use username::Username;

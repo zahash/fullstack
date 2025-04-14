@@ -25,4 +25,12 @@ async function login(event) {
     }
 }
 
-window.login = login;
+hooks.onMount(() => {
+    console.log("LOGIN MOUNT");
+    window.login = login;
+});
+hooks.onUnmount(() => {
+    console.log("LOGIN UN-MOUNT");
+    delete window.login;
+});
+hooks.ready();

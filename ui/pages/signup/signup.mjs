@@ -132,11 +132,16 @@ async function signup(event) {
     else alert(JSON.stringify(await response.json()));
 }
 
-window.signup = signup;
-window.debounced_checkUsernameAvailability = debounced_checkUsernameAvailability;
-window.checkPasswordStrength = checkPasswordStrength;
-window.debounced_checkEmailAvailability = debounced_checkEmailAvailability;
-
-hooks.onMount(() => console.log("HOOKS SIGNUP MOUNT"));
-hooks.onUnmount(() => console.log("HOOKS SIGNUP UN-MOUNT"));
+hooks.onMount(() => {
+    window.signup = signup;
+    window.debounced_checkUsernameAvailability = debounced_checkUsernameAvailability;
+    window.checkPasswordStrength = checkPasswordStrength;
+    window.debounced_checkEmailAvailability = debounced_checkEmailAvailability;
+});
+hooks.onUnmount(() => {
+    delete window.signup;
+    delete window.debounced_checkUsernameAvailability;
+    delete window.checkPasswordStrength;
+    delete window.debounced_checkEmailAvailability;
+});
 hooks.ready();

@@ -3,6 +3,7 @@ mod check;
 mod error;
 mod health;
 mod login;
+mod logout;
 mod middleware;
 mod misc;
 mod private;
@@ -30,6 +31,7 @@ use axum::{
 };
 use dashmap::DashMap;
 use forwarded_header_value::{ForwardedHeaderValue, Identifier};
+use logout::logout;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{
@@ -117,6 +119,7 @@ pub fn server(state: AppState) -> Router {
         .route("/sysinfo", get(sysinfo))
         .route("/signup", post(signup))
         .route("/login", post(login))
+        .route("/logout", get(logout))
         .route("/access-token", post(access_token::generate))
         .route("/private", get(private))
         .with_state(state.clone())
