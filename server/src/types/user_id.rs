@@ -3,25 +3,6 @@ use sqlx::{Sqlite, Type};
 #[derive(Debug, Clone, PartialEq)]
 pub struct UserId(i64);
 
-// #[derive(thiserror::Error, Debug)]
-// pub enum Error {
-//     #[error("{0}")]
-//     Auth(#[from] AuthError),
-// }
-
-// impl FromRequestParts<AppState> for UserId {
-//     type Rejection = Error;
-
-//     async fn from_request_parts(
-//         parts: &mut Parts,
-//         state: &AppState,
-//     ) -> Result<Self, Self::Rejection> {
-//         match Auth::from_request_parts(parts, state).await? {
-//             Auth::Session { user_id, .. } | Auth::AccessToken { user_id, .. } => Ok(user_id),
-//         }
-//     }
-// }
-
 impl Type<Sqlite> for UserId {
     fn type_info() -> <Sqlite as sqlx::Database>::TypeInfo {
         <i64 as Type<Sqlite>>::type_info()
@@ -42,11 +23,3 @@ impl From<i64> for UserId {
         UserId(value)
     }
 }
-
-// impl IntoResponse for Error {
-//     fn into_response(self) -> Response {
-//         match self {
-//             Error::Auth(err) => err.into_response(),
-//         }
-//     }
-// }

@@ -3,46 +3,51 @@ use axum::{
     http::{StatusCode, request::Parts},
     response::IntoResponse,
 };
-use time::OffsetDateTime;
 
 use crate::{
     AppState,
     error::{Context, InternalError, error},
-    types::{AccessToken, SessionId, UserId},
+    types::{
+        AccessToken, AccessTokenInfo, AccessTokenInfoError, SessionId, SessionInfo,
+        SessionInfoError, UserId,
+    },
 };
 
 use super::{
     access_token::{AccessTokenExtractionError, AccessTokenValiationError},
-    session_id::{SessionIdExtractionError, SessionIdValidationError},
+    session_id::{SessionIdExtractionError, SessionValidationError},
 };
 
-// include username and access token name
+// TODO: include Basic auth in this
 pub enum Principal {
-    UserId(UserId),
-    AccessToken {
-        access_token: AccessToken,
-        owner: UserId,
-    },
+    Session(SessionInfo),
+    AccessToken(AccessTokenInfo),
 }
 
 pub struct Permissions {
-    permissions: Vec<String>,
-    principal: Principal,
+    pub permissions: Vec<String>,
+    pub principal: Principal,
 }
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("{0}")]
-    AccessTokenExtraction(#[from] AccessTokenExtractionError),
-
-    #[error("{0}")]
     SessionIdExtraction(#[from] SessionIdExtractionError),
 
     #[error("{0}")]
-    SessionIdValidation(#[from] SessionIdValidationError),
+    AccessTokenExtraction(#[from] AccessTokenExtractionError),
+
+    #[error("{0}")]
+    SessionIdValidation(#[from] SessionValidationError),
 
     #[error("{0}")]
     AccessTokenValidation(#[from] AccessTokenValiationError),
+
+    #[error("{0}")]
+    SessionInfo(#[from] SessionInfoError),
+
+    #[error("{0}")]
+    AccessTokenInfo(#[from] AccessTokenInfoError),
 
     #[error("multiple credentials provided {0:?}")]
     MultipleCredentialsProvided(Vec<&'static str>),
@@ -61,8 +66,8 @@ impl FromRequestParts<AppState> for Permissions {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        let session_id = SessionId::try_from(parts as &Parts);
-        let access_token = AccessToken::try_from(parts as &Parts);
+        let session_id = SessionId::try_from(&parts.headers);
+        let access_token = AccessToken::try_from(&parts.headers);
 
         match (session_id, access_token) {
             (Ok(_), Ok(_)) => Err(Error::MultipleCredentialsProvided(vec![
@@ -76,90 +81,22 @@ impl FromRequestParts<AppState> for Permissions {
                 Err(err.into())
             }
             (Ok(session_id), _) => {
-                let session_id_hash = session_id.hash();
-
-                let record = sqlx::query!(
-                    "SELECT user_id, expires_at FROM sessions
-                     WHERE session_id_hash = ?",
-                    session_id_hash
-                )
-                .fetch_optional(&state.pool)
-                .await
-                .context("Auth :: select SessionId")?
-                .ok_or(Error::SessionIdValidation(
-                    SessionIdValidationError::UnAssociatedSessionId,
-                ))?;
-
-                if OffsetDateTime::now_utc() > record.expires_at {
-                    return Err(Error::SessionIdValidation(
-                        SessionIdValidationError::SessionExpired,
-                    ));
-                }
-
-                let user_id = UserId::from(record.user_id);
-
-                let permissions = sqlx::query!(
-                    "SELECT p.permission from permissions p
-                     INNER JOIN user_permissions up ON up.permission_id = p.id
-                     WHERE up.user_id = ?",
-                    user_id
-                )
-                .fetch_all(&state.pool)
-                .await
-                .context("UserId -> Permissions")?
-                .into_iter()
-                .map(|record| record.permission)
-                .collect::<Vec<String>>();
-
-                Ok(Self {
-                    permissions,
-                    principal: Principal::UserId(user_id),
-                })
+                let info = session_id.info(&state.pool).await?;
+                let validated_info = info.validate()?;
+                let permissions = validated_info
+                    .permissions(&state.pool)
+                    .await
+                    .context("Valid<SessionInfo> -> Permissions")?;
+                Ok(permissions)
             }
             (_, Ok(access_token)) => {
-                let access_token_hash = access_token.hash();
-
-                let record = sqlx::query!(
-                    "SELECT user_id, expires_at FROM access_tokens
-                     WHERE access_token_hash = ?",
-                    access_token_hash
-                )
-                .fetch_optional(&state.pool)
-                .await
-                .context("Auth :: select AccessToken")?
-                .ok_or(Error::AccessTokenValidation(
-                    AccessTokenValiationError::UnAssociatedAccessToken,
-                ))?;
-
-                if OffsetDateTime::now_utc() > record.expires_at {
-                    return Err(Error::AccessTokenValidation(
-                        AccessTokenValiationError::AccessTokenExpired,
-                    ));
-                }
-
-                let user_id = UserId::from(record.user_id);
-
-                let permissions = sqlx::query!(
-                    "SELECT p.permission from permissions p
-                     INNER JOIN access_token_permissions atp ON atp.permission_id = p.id
-                     INNER JOIN access_tokens at ON atp.access_token_id = at.id
-                     WHERE at.access_token_hash = ?",
-                    access_token_hash
-                )
-                .fetch_all(&state.pool)
-                .await
-                .context("AccessToken -> Permissions")?
-                .into_iter()
-                .map(|record| record.permission)
-                .collect::<Vec<String>>();
-
-                Ok(Self {
-                    permissions,
-                    principal: Principal::AccessToken {
-                        access_token,
-                        owner: user_id,
-                    },
-                })
+                let info = access_token.info(&state.pool).await?;
+                let validated_info = info.validate()?;
+                let permissions = validated_info
+                    .permissions(&state.pool)
+                    .await
+                    .context("Valid<AccessTokenInfo> -> Permissions")?;
+                Ok(permissions)
             }
             _ => Err(Error::NoCredentialsProvided),
         }
@@ -168,23 +105,24 @@ impl FromRequestParts<AppState> for Permissions {
 
 #[derive(thiserror::Error, Debug)]
 #[error("insufficient permissions")]
-pub struct InsufficientPermissions;
+pub struct InsufficientPermissionsError;
 
 impl Permissions {
     pub fn contains(&self, permission: &str) -> bool {
         self.permissions.iter().any(|s| s == permission)
     }
 
-    pub fn require(&self, permission: &str) -> Result<(), InsufficientPermissions> {
+    pub fn require(&self, permission: &str) -> Result<(), InsufficientPermissionsError> {
         match self.contains(permission) {
             true => Ok(()),
-            false => Err(InsufficientPermissions),
+            false => Err(InsufficientPermissionsError),
         }
     }
 
     pub fn user_id(&self) -> &UserId {
         match &self.principal {
-            Principal::UserId(user_id) | Principal::AccessToken { owner: user_id, .. } => user_id,
+            Principal::Session(SessionInfo { user_id, .. })
+            | Principal::AccessToken(AccessTokenInfo { user_id, .. }) => user_id,
         }
     }
 }
@@ -192,10 +130,12 @@ impl Permissions {
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
-            Error::AccessTokenExtraction(err) => err.into_response(),
             Error::SessionIdExtraction(err) => err.into_response(),
+            Error::AccessTokenExtraction(err) => err.into_response(),
             Error::SessionIdValidation(err) => err.into_response(),
             Error::AccessTokenValidation(err) => err.into_response(),
+            Error::SessionInfo(err) => err.into_response(),
+            Error::AccessTokenInfo(err) => err.into_response(),
             Error::MultipleCredentialsProvided(_) => {
                 tracing::warn!("{:?}", self);
                 (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
@@ -209,7 +149,7 @@ impl IntoResponse for Error {
     }
 }
 
-impl IntoResponse for InsufficientPermissions {
+impl IntoResponse for InsufficientPermissionsError {
     fn into_response(self) -> axum::response::Response {
         tracing::info!("{:?}", self);
         (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()

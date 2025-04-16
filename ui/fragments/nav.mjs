@@ -1,4 +1,4 @@
-import {hooks} from "../app.mjs";
+import { hooks } from "../app.mjs";
 
 async function logout() {
     const response = await fetch("/logout");

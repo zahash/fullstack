@@ -1,17 +1,53 @@
-use axum::http::StatusCode;
+use axum::{
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    response::IntoResponse,
+};
+use axum_macros::debug_handler;
 
-// use crate::types::AccessToken;
+use crate::{
+    AppState,
+    error::InternalError,
+    types::{
+        AccessToken, AccessTokenExtractionError, AccessTokenInfoError, AccessTokenValiationError,
+    },
+};
 
-// #[debug_handler]
-// #[tracing::instrument(skip_all, ret)]
-// /// - If the `AccessToken` extractor successfully extracts and validates the token,
-// ///   the function proceeds and returns `StatusCode::OK`.
-// /// - If extraction or validation fails, the request is rejected with an appropriate
-// ///   error status before reaching this point.
-// pub async fn access_token(_: AccessToken) -> StatusCode {
-//     StatusCode::OK
-// }
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("{0}")]
+    AccessTokenExtraction(#[from] AccessTokenExtractionError),
 
-pub async fn access_token() -> StatusCode {
-    todo!()
+    #[error("{0}")]
+    AccessTokenInfo(#[from] AccessTokenInfoError),
+
+    #[error("{0}")]
+    AccessTokenValidation(#[from] AccessTokenValiationError),
+
+    #[error("{0:?}")]
+    Internal(#[from] InternalError),
+}
+
+#[debug_handler]
+pub async fn access_token(
+    State(AppState { pool, .. }): State<AppState>,
+    headers: HeaderMap,
+) -> Result<StatusCode, Error> {
+    AccessToken::try_from(&headers)?
+        .info(&pool)
+        .await?
+        .validate()?;
+
+    Ok(StatusCode::OK)
+}
+
+impl IntoResponse for Error {
+    fn into_response(self) -> axum::response::Response {
+        match self {
+            Error::AccessTokenExtraction(err) => err.into_response(),
+            Error::AccessTokenInfo(err) => err.into_response(),
+            Error::AccessTokenValidation(err) => err.into_response(),
+            Error::Internal(err) => err.into_response(),
+        }
+    }
 }

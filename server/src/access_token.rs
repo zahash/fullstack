@@ -8,7 +8,7 @@ use time::OffsetDateTime;
 use crate::{
     AppState,
     error::{Context, InternalError},
-    types::{AccessToken, InsufficientPermissions, Permissions},
+    types::{AccessToken, InsufficientPermissionsError, Permissions},
 };
 
 #[derive(Deserialize, Debug)]
@@ -20,7 +20,7 @@ pub struct AccessTokenSettings {
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("{0}")]
-    Permission(#[from] InsufficientPermissions),
+    Permission(#[from] InsufficientPermissionsError),
 
     #[error("{0:?}")]
     Internal(#[from] InternalError),

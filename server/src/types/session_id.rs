@@ -1,22 +1,30 @@
 use std::ops::Deref;
 
 use axum::{
-    http::{StatusCode, request::Parts},
+    http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
 };
 use axum_extra::extract::{
     CookieJar,
     cookie::{Cookie, SameSite},
 };
+use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use crate::{
-    error::{error, security_error},
+    error::{Context, InternalError, error, security_error},
     token::Token,
+    types::{Permissions, Principal, UserId, Valid},
 };
 
-#[derive(Debug)]
 pub struct SessionId(Token<32>);
+
+pub struct SessionInfo {
+    pub user_id: UserId,
+    pub created_at: OffsetDateTime,
+    pub expires_at: OffsetDateTime,
+    pub user_agent: Option<String>,
+}
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum SessionIdExtractionError {
@@ -28,10 +36,16 @@ pub enum SessionIdExtractionError {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum SessionIdValidationError {
+pub enum SessionInfoError {
     #[error("session id not associated with any user")]
     UnAssociatedSessionId,
 
+    #[error("{0:?}")]
+    Internal(#[from] InternalError),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum SessionValidationError {
     #[error("session expired")]
     SessionExpired,
 }
@@ -49,6 +63,54 @@ impl SessionId {
             .http_only(true)
             .secure(true)
             .build()
+    }
+
+    pub async fn info(&self, pool: &SqlitePool) -> Result<SessionInfo, SessionInfoError> {
+        let session_id_hash = self.hash();
+
+        sqlx::query_as!(
+            SessionInfo,
+            "SELECT user_id, created_at, expires_at, user_agent FROM sessions WHERE session_id_hash = ?",
+            session_id_hash
+        )
+        .fetch_optional(pool)
+        .await
+        .context("SessionId -> SessionInfo")?
+        .ok_or(SessionInfoError::UnAssociatedSessionId)
+    }
+}
+
+impl SessionInfo {
+    pub fn is_expired(&self) -> bool {
+        OffsetDateTime::now_utc() > self.expires_at
+    }
+
+    pub fn validate(self) -> Result<Valid<SessionInfo>, SessionValidationError> {
+        if self.is_expired() {
+            return Err(SessionValidationError::SessionExpired);
+        }
+
+        Ok(Valid(self))
+    }
+}
+
+impl Valid<SessionInfo> {
+    pub async fn permissions(self, pool: &SqlitePool) -> Result<Permissions, sqlx::Error> {
+        let user_id = &self.0.user_id;
+
+        let permissions = sqlx::query_scalar!(
+            "SELECT p.permission from permissions p
+             INNER JOIN user_permissions up ON up.permission_id = p.id
+             WHERE up.user_id = ?",
+            user_id
+        )
+        .fetch_all(pool)
+        .await?;
+
+        Ok(Permissions {
+            permissions,
+            principal: Principal::Session(self.0),
+        })
     }
 }
 
@@ -84,29 +146,14 @@ impl TryFrom<&CookieJar> for SessionId {
     }
 }
 
-impl TryFrom<&Parts> for SessionId {
+impl TryFrom<&HeaderMap> for SessionId {
     type Error = SessionIdExtractionError;
 
-    fn try_from(parts: &Parts) -> Result<Self, Self::Error> {
-        let jar = CookieJar::from_headers(&parts.headers);
+    fn try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
+        let jar = CookieJar::from_headers(headers);
         SessionId::try_from(&jar)
     }
 }
-
-// for building session cookie
-// impl From<SessionId> for Cow<'_, str> {
-//     fn from(value: SessionId) -> Self {
-//         value.base64encoded().into()
-//     }
-// }
-
-// impl<S: Send + Sync> FromRequestParts<S> for SessionId {
-//     type Rejection = SessionIdExtractionError;
-
-//     async fn from_request_parts(parts: &mut Parts, _: &S) -> Result<Self, Self::Rejection> {
-//         SessionId::try_from(parts as &Parts)
-//     }
-// }
 
 impl IntoResponse for SessionIdExtractionError {
     fn into_response(self) -> Response {
@@ -123,11 +170,22 @@ impl IntoResponse for SessionIdExtractionError {
     }
 }
 
-impl IntoResponse for SessionIdValidationError {
+impl IntoResponse for SessionInfoError {
     fn into_response(self) -> Response {
         match self {
-            SessionIdValidationError::UnAssociatedSessionId
-            | SessionIdValidationError::SessionExpired => {
+            SessionInfoError::UnAssociatedSessionId => {
+                tracing::info!("{:?}", self);
+                (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
+            }
+            SessionInfoError::Internal(err) => err.into_response(),
+        }
+    }
+}
+
+impl IntoResponse for SessionValidationError {
+    fn into_response(self) -> Response {
+        match self {
+            SessionValidationError::SessionExpired => {
                 tracing::info!("{:?}", self);
                 (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
             }

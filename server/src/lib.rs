@@ -52,7 +52,6 @@ use signup::signup;
 pub use types::{Email, Password, Username};
 
 // TODO
-// create permissions model
 // email verification during signup
 // shared validation code between frontend and backend as wasm (is_strong_password)
 
