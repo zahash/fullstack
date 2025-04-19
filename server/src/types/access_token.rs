@@ -1,14 +1,14 @@
 use std::ops::Deref;
 
 use axum::{
-    http::{HeaderMap, StatusCode},
+    http::StatusCode,
     response::{IntoResponse, Response},
 };
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use crate::{
-    error::{Context, InternalError, error, security_error},
+    error::error,
     token::Token,
     types::{Permissions, Principal, UserId, Valid},
 };
@@ -23,28 +23,28 @@ pub struct AccessTokenInfo {
     pub expires_at: OffsetDateTime,
 }
 
-#[derive(thiserror::Error, Debug, PartialEq)]
-pub enum AccessTokenExtractionError {
-    #[error(
-        "access token not found in header. expected `Authorization: Token <your-access-token>`"
-    )]
-    AccessTokenHeaderNotFound,
+// #[derive(thiserror::Error, Debug, PartialEq)]
+// pub enum AccessTokenExtractionError {
+//     #[error(
+//         "access token not found in header. expected `Authorization: Token <your-access-token>`"
+//     )]
+//     AccessTokenHeaderNotFound,
 
-    #[error("invalid access token format. must be in the form 'Token <your-access-token>'")]
-    InvalidAccessTokenFormat,
+//     #[error("invalid access token format. must be in the form 'Token <your-access-token>'")]
+//     InvalidAccessTokenFormat,
 
-    #[error("malformed access token")]
-    MalformedAccessToken,
-}
+//     #[error("malformed access token")]
+//     MalformedAccessToken,
+// }
 
-#[derive(thiserror::Error, Debug)]
-pub enum AccessTokenInfoError {
-    #[error("access token not associated with any account")]
-    UnAssociatedAccessToken,
+// #[derive(thiserror::Error, Debug)]
+// pub enum AccessTokenInfoError {
+//     #[error("access token not associated with any account")]
+//     UnAssociatedAccessToken,
 
-    #[error("{0:?}")]
-    Internal(#[from] InternalError),
-}
+//     #[error("{0:?}")]
+//     Internal(#[from] InternalError),
+// }
 
 #[derive(thiserror::Error, Debug)]
 pub enum AccessTokenValiationError {
@@ -57,7 +57,7 @@ impl AccessToken {
         Self(Token::new())
     }
 
-    pub async fn info(&self, pool: &SqlitePool) -> Result<AccessTokenInfo, AccessTokenInfoError> {
+    pub async fn info(&self, pool: &SqlitePool) -> Result<Option<AccessTokenInfo>, sqlx::Error> {
         let access_token_hash = self.hash();
 
         sqlx::query_as!(
@@ -66,8 +66,6 @@ impl AccessToken {
             access_token_hash
         ).fetch_optional(pool)
         .await
-        .context("AccessToken -> AccessTokenInfo")?
-        .ok_or(AccessTokenInfoError::UnAssociatedAccessToken)
     }
 }
 
@@ -113,59 +111,65 @@ impl Deref for AccessToken {
     }
 }
 
+impl From<Token<32>> for AccessToken {
+    fn from(value: Token<32>) -> Self {
+        Self(value)
+    }
+}
+
 impl IntoResponse for AccessToken {
     fn into_response(self) -> Response {
         self.base64encoded().into_response()
     }
 }
 
-impl TryFrom<&HeaderMap> for AccessToken {
-    type Error = AccessTokenExtractionError;
+// impl TryFrom<&HeaderMap> for AccessToken {
+//     type Error = AccessTokenExtractionError;
 
-    fn try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
-        let header_value = headers
-            .get("Authorization")
-            .ok_or(AccessTokenExtractionError::AccessTokenHeaderNotFound)?;
+//     fn try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
+//         let header_value = headers
+//             .get("Authorization")
+//             .ok_or(AccessTokenExtractionError::AccessTokenHeaderNotFound)?;
 
-        let token_str = header_value
-            .to_str()
-            .ok()
-            .and_then(|s| s.strip_prefix("Token "))
-            .ok_or(AccessTokenExtractionError::InvalidAccessTokenFormat)?;
+//         let token_str = header_value
+//             .to_str()
+//             .ok()
+//             .and_then(|s| s.strip_prefix("Token "))
+//             .ok_or(AccessTokenExtractionError::InvalidAccessTokenFormat)?;
 
-        Token::base64decode(token_str)
-            .map(|token| AccessToken(token))
-            .map_err(|_| AccessTokenExtractionError::MalformedAccessToken)
-    }
-}
+//         Token::base64decode(token_str)
+//             .map(|token| AccessToken(token))
+//             .map_err(|_| AccessTokenExtractionError::MalformedAccessToken)
+//     }
+// }
 
-impl IntoResponse for AccessTokenExtractionError {
-    fn into_response(self) -> Response {
-        match self {
-            AccessTokenExtractionError::AccessTokenHeaderNotFound
-            | AccessTokenExtractionError::InvalidAccessTokenFormat => {
-                tracing::info!("{:?}", self);
-                (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
-            }
-            AccessTokenExtractionError::MalformedAccessToken => {
-                tracing::error!("!SECURITY! {:?}", self);
-                (StatusCode::UNAUTHORIZED, security_error(&self.to_string())).into_response()
-            }
-        }
-    }
-}
+// impl IntoResponse for AccessTokenExtractionError {
+//     fn into_response(self) -> Response {
+//         match self {
+//             AccessTokenExtractionError::AccessTokenHeaderNotFound
+//             | AccessTokenExtractionError::InvalidAccessTokenFormat => {
+//                 tracing::info!("{:?}", self);
+//                 (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
+//             }
+//             AccessTokenExtractionError::MalformedAccessToken => {
+//                 tracing::error!("!SECURITY! {:?}", self);
+//                 (StatusCode::UNAUTHORIZED, security_error(&self.to_string())).into_response()
+//             }
+//         }
+//     }
+// }
 
-impl IntoResponse for AccessTokenInfoError {
-    fn into_response(self) -> Response {
-        match self {
-            AccessTokenInfoError::UnAssociatedAccessToken => {
-                tracing::info!("{:?}", self);
-                (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
-            }
-            AccessTokenInfoError::Internal(err) => err.into_response(),
-        }
-    }
-}
+// impl IntoResponse for AccessTokenInfoError {
+//     fn into_response(self) -> Response {
+//         match self {
+//             AccessTokenInfoError::UnAssociatedAccessToken => {
+//                 tracing::info!("{:?}", self);
+//                 (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
+//             }
+//             AccessTokenInfoError::Internal(err) => err.into_response(),
+//         }
+//     }
+// }
 
 impl IntoResponse for AccessTokenValiationError {
     fn into_response(self) -> Response {

@@ -10,7 +10,7 @@ use serde_json::json;
 use crate::misc::now_iso8601;
 
 pub const HELP: &'static str = "Please check the response headers for `x-request-id`, include the datetime and raise a support ticket.";
-pub const SECURITY: &'static str = "Security incident detected! This will be reported immediately!";
+// pub const SECURITY: &'static str = "Security incident detected! This will be reported immediately!";
 
 #[derive(thiserror::Error, Debug)]
 #[error("{0:?}")]
@@ -49,10 +49,10 @@ pub fn error(msg: &str) -> Json<serde_json::Value> {
     }))
 }
 
-pub fn security_error(msg: &str) -> Json<serde_json::Value> {
-    Json(json!({
-        "error": msg,
-        "security": SECURITY,
-        "datetime": now_iso8601()
-    }))
-}
+// pub fn security_error(msg: &str) -> Json<serde_json::Value> {
+//     Json(json!({
+//         "error": msg,
+//         "security": SECURITY,
+//         "datetime": now_iso8601()
+//     }))
+// }

@@ -7,19 +7,22 @@ use axum_macros::debug_handler;
 
 use crate::{
     AppState,
-    error::InternalError,
-    types::{
-        AccessToken, AccessTokenExtractionError, AccessTokenInfoError, AccessTokenValiationError,
-    },
+    error::{Context, InternalError, error},
+    types::{AccessTokenValiationError, AuthorizationHeader, AuthorizationHeaderError},
 };
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("{0}")]
-    AccessTokenExtraction(#[from] AccessTokenExtractionError),
+    AuthorizationHeader(#[from] AuthorizationHeaderError),
 
-    #[error("{0}")]
-    AccessTokenInfo(#[from] AccessTokenInfoError),
+    #[error(
+        "access token not found in header. expected `Authorization: Token <your-access-token>`"
+    )]
+    AccessTokenHeaderNotFound,
+
+    #[error("access token not associated with any account")]
+    UnAssociatedAccessToken,
 
     #[error("{0}")]
     AccessTokenValidation(#[from] AccessTokenValiationError),
@@ -33,10 +36,19 @@ pub async fn access_token(
     State(AppState { pool, .. }): State<AppState>,
     headers: HeaderMap,
 ) -> Result<StatusCode, Error> {
-    AccessToken::try_from(&headers)?
+    let Some(AuthorizationHeader::AccessToken(access_token)) =
+        AuthorizationHeader::try_from_headers(&headers)?
+    else {
+        return Err(Error::AccessTokenHeaderNotFound);
+    };
+
+    let info = access_token
         .info(&pool)
-        .await?
-        .validate()?;
+        .await
+        .context("AccessToken -> AccessTokenInfo")?
+        .ok_or(Error::UnAssociatedAccessToken)?;
+
+    info.validate()?;
 
     Ok(StatusCode::OK)
 }
@@ -44,8 +56,11 @@ pub async fn access_token(
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
-            Error::AccessTokenExtraction(err) => err.into_response(),
-            Error::AccessTokenInfo(err) => err.into_response(),
+            Error::AuthorizationHeader(err) => err.into_response(),
+            Error::AccessTokenHeaderNotFound | Error::UnAssociatedAccessToken => {
+                tracing::info!("{:?}", self);
+                (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
+            }
             Error::AccessTokenValidation(err) => err.into_response(),
             Error::Internal(err) => err.into_response(),
         }

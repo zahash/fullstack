@@ -12,9 +12,9 @@ use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
 use crate::{
-    error::{Context, InternalError, error, security_error},
+    error::error,
     token::Token,
-    types::{Permissions, Principal, UserId, Valid},
+    types::{Base64DecodeError, Permissions, Principal, UserId, Valid},
 };
 
 pub struct SessionId(Token<32>);
@@ -26,23 +26,22 @@ pub struct SessionInfo {
     pub user_agent: Option<String>,
 }
 
-#[derive(thiserror::Error, Debug, PartialEq)]
-pub enum SessionIdExtractionError {
-    #[error("`session_id` cookie not found")]
-    SessionCookieNotFound,
+// #[derive(thiserror::Error, Debug, PartialEq)]
+// pub enum SessionIdExtractionError {
+//     // #[error("`session_id` cookie not found")]
+//     // SessionCookieNotFound,
+//     #[error("{0}")]
+//     Base64Decode(Base64DecodeError),
+// }
 
-    #[error("malformed session token")]
-    MalformedSessionToken,
-}
+// #[derive(thiserror::Error, Debug)]
+// pub enum SessionInfoError {
+//     #[error("session id not associated with any user")]
+//     UnAssociatedSessionId,
 
-#[derive(thiserror::Error, Debug)]
-pub enum SessionInfoError {
-    #[error("session id not associated with any user")]
-    UnAssociatedSessionId,
-
-    #[error("{0:?}")]
-    Internal(#[from] InternalError),
-}
+//     #[error("{0:?}")]
+//     Internal(#[from] InternalError),
+// }
 
 #[derive(thiserror::Error, Debug)]
 pub enum SessionValidationError {
@@ -65,7 +64,23 @@ impl SessionId {
             .build()
     }
 
-    pub async fn info(&self, pool: &SqlitePool) -> Result<SessionInfo, SessionInfoError> {
+    pub fn try_from_cookie_jar(jar: &CookieJar) -> Result<Option<SessionId>, Base64DecodeError> {
+        let Some(session_cookie) = jar.get("session_id") else {
+            return Ok(None);
+        };
+
+        let token = Token::base64decode(session_cookie.value())
+            .map_err(|_| Base64DecodeError("SessionId"))?;
+
+        Ok(Some(SessionId(token)))
+    }
+
+    pub fn try_from_headers(headers: &HeaderMap) -> Result<Option<SessionId>, Base64DecodeError> {
+        let jar = CookieJar::from_headers(headers);
+        SessionId::try_from_cookie_jar(&jar)
+    }
+
+    pub async fn info(&self, pool: &SqlitePool) -> Result<Option<SessionInfo>, sqlx::Error> {
         let session_id_hash = self.hash();
 
         sqlx::query_as!(
@@ -75,8 +90,6 @@ impl SessionId {
         )
         .fetch_optional(pool)
         .await
-        .context("SessionId -> SessionInfo")?
-        .ok_or(SessionInfoError::UnAssociatedSessionId)
     }
 }
 
@@ -132,55 +145,55 @@ impl Deref for SessionId {
     }
 }
 
-impl TryFrom<&CookieJar> for SessionId {
-    type Error = SessionIdExtractionError;
+// impl TryFrom<&CookieJar> for SessionId {
+//     type Error = SessionIdExtractionError;
 
-    fn try_from(jar: &CookieJar) -> Result<Self, Self::Error> {
-        let value = jar
-            .get("session_id")
-            .ok_or(SessionIdExtractionError::SessionCookieNotFound)?
-            .value();
-        let token = Token::base64decode(value)
-            .map_err(|_| SessionIdExtractionError::MalformedSessionToken)?;
-        Ok(SessionId(token))
-    }
-}
+//     fn try_from(jar: &CookieJar) -> Result<Self, Self::Error> {
+//         let value = jar
+//             .get("session_id")
+//             .ok_or(SessionIdExtractionError::SessionCookieNotFound)?
+//             .value();
+//         let token =
+//             Token::base64decode(value).map_err(|_| SessionIdExtractionError::Base64Decode)?;
+//         Ok(SessionId(token))
+//     }
+// }
 
-impl TryFrom<&HeaderMap> for SessionId {
-    type Error = SessionIdExtractionError;
+// impl TryFrom<&HeaderMap> for SessionId {
+//     type Error = SessionIdExtractionError;
 
-    fn try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
-        let jar = CookieJar::from_headers(headers);
-        SessionId::try_from(&jar)
-    }
-}
+//     fn try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
+//         let jar = CookieJar::from_headers(headers);
+//         SessionId::try_from(&jar)
+//     }
+// }
 
-impl IntoResponse for SessionIdExtractionError {
-    fn into_response(self) -> Response {
-        match self {
-            SessionIdExtractionError::SessionCookieNotFound => {
-                tracing::info!("{:?}", self);
-                (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
-            }
-            SessionIdExtractionError::MalformedSessionToken => {
-                tracing::error!("!SECURITY! {:?}", self);
-                (StatusCode::UNAUTHORIZED, security_error(&self.to_string())).into_response()
-            }
-        }
-    }
-}
+// impl IntoResponse for SessionIdExtractionError {
+//     fn into_response(self) -> Response {
+//         match self {
+//             SessionIdExtractionError::SessionCookieNotFound => {
+//                 tracing::info!("{:?}", self);
+//                 (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
+//             }
+//             SessionIdExtractionError::Base64Decode => {
+//                 tracing::error!("!SECURITY! {:?}", self);
+//                 (StatusCode::UNAUTHORIZED, security_error(&self.to_string())).into_response()
+//             }
+//         }
+//     }
+// }
 
-impl IntoResponse for SessionInfoError {
-    fn into_response(self) -> Response {
-        match self {
-            SessionInfoError::UnAssociatedSessionId => {
-                tracing::info!("{:?}", self);
-                (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
-            }
-            SessionInfoError::Internal(err) => err.into_response(),
-        }
-    }
-}
+// impl IntoResponse for SessionInfoError {
+//     fn into_response(self) -> Response {
+//         match self {
+//             SessionInfoError::UnAssociatedSessionId => {
+//                 tracing::info!("{:?}", self);
+//                 (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
+//             }
+//             SessionInfoError::Internal(err) => err.into_response(),
+//         }
+//     }
+// }
 
 impl IntoResponse for SessionValidationError {
     fn into_response(self) -> Response {

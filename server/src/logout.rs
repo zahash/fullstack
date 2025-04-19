@@ -11,7 +11,7 @@ pub async fn logout(
     State(AppState { pool, .. }): State<AppState>,
     mut jar: CookieJar,
 ) -> Result<CookieJar, InternalError> {
-    if let Ok(session_id) = SessionId::try_from(&jar) {
+    if let Ok(Some(session_id)) = SessionId::try_from_cookie_jar(&jar) {
         let session_id_hash = session_id.hash();
         sqlx::query!(
             "DELETE FROM sessions WHERE session_id_hash = ?",

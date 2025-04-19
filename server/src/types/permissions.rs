@@ -8,14 +8,9 @@ use crate::{
     AppState,
     error::{Context, InternalError, error},
     types::{
-        AccessToken, AccessTokenInfo, AccessTokenInfoError, SessionId, SessionInfo,
-        SessionInfoError, UserId,
+        AccessTokenInfo, AccessTokenValiationError, AuthorizationHeader, AuthorizationHeaderError,
+        Base64DecodeError, SessionId, SessionInfo, SessionValidationError, UserId,
     },
-};
-
-use super::{
-    access_token::{AccessTokenExtractionError, AccessTokenValiationError},
-    session_id::{SessionIdExtractionError, SessionValidationError},
 };
 
 // TODO: include Basic auth in this
@@ -32,25 +27,22 @@ pub struct Permissions {
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("{0}")]
-    SessionIdExtraction(#[from] SessionIdExtractionError),
+    AuthorizationHeader(#[from] AuthorizationHeaderError),
 
-    #[error("{0}")]
-    AccessTokenExtraction(#[from] AccessTokenExtractionError),
-
-    #[error("{0}")]
-    SessionIdValidation(#[from] SessionValidationError),
+    #[error("access token not associated with any account")]
+    UnAssociatedAccessToken,
 
     #[error("{0}")]
     AccessTokenValidation(#[from] AccessTokenValiationError),
 
     #[error("{0}")]
-    SessionInfo(#[from] SessionInfoError),
+    Base64Decode(#[from] Base64DecodeError),
+
+    #[error("session id not associated with any user")]
+    UnAssociatedSessionId,
 
     #[error("{0}")]
-    AccessTokenInfo(#[from] AccessTokenInfoError),
-
-    #[error("multiple credentials provided {0:?}")]
-    MultipleCredentialsProvided(Vec<&'static str>),
+    SessionIdValidation(#[from] SessionValidationError),
 
     #[error("no credentials provided")]
     NoCredentialsProvided,
@@ -66,40 +58,39 @@ impl FromRequestParts<AppState> for Permissions {
         parts: &mut Parts,
         state: &AppState,
     ) -> Result<Self, Self::Rejection> {
-        let session_id = SessionId::try_from(&parts.headers);
-        let access_token = AccessToken::try_from(&parts.headers);
-
-        match (session_id, access_token) {
-            (Ok(_), Ok(_)) => Err(Error::MultipleCredentialsProvided(vec![
-                "SessionId",
-                "AccessToken",
-            ])),
-            (Err(err), _) if err != SessionIdExtractionError::SessionCookieNotFound => {
-                Err(err.into())
+        if let Some(authorization_header) = AuthorizationHeader::try_from_headers(&parts.headers)? {
+            match authorization_header {
+                AuthorizationHeader::AccessToken(access_token) => {
+                    let info = access_token
+                        .info(&state.pool)
+                        .await
+                        .context("AccessToken -> AccessTokenInfo")?
+                        .ok_or(Error::UnAssociatedAccessToken)?;
+                    let validated_info = info.validate()?;
+                    let permissions = validated_info
+                        .permissions(&state.pool)
+                        .await
+                        .context("Valid<AccessTokenInfo> -> Permissions")?;
+                    return Ok(permissions);
+                }
             }
-            (_, Err(err)) if err != AccessTokenExtractionError::AccessTokenHeaderNotFound => {
-                Err(err.into())
-            }
-            (Ok(session_id), _) => {
-                let info = session_id.info(&state.pool).await?;
-                let validated_info = info.validate()?;
-                let permissions = validated_info
-                    .permissions(&state.pool)
-                    .await
-                    .context("Valid<SessionInfo> -> Permissions")?;
-                Ok(permissions)
-            }
-            (_, Ok(access_token)) => {
-                let info = access_token.info(&state.pool).await?;
-                let validated_info = info.validate()?;
-                let permissions = validated_info
-                    .permissions(&state.pool)
-                    .await
-                    .context("Valid<AccessTokenInfo> -> Permissions")?;
-                Ok(permissions)
-            }
-            _ => Err(Error::NoCredentialsProvided),
         }
+
+        if let Some(session_id) = SessionId::try_from_headers(&parts.headers)? {
+            let info = session_id
+                .info(&state.pool)
+                .await
+                .context("SessionId -> SessionInfo")?
+                .ok_or(Error::UnAssociatedSessionId)?;
+            let validated_info = info.validate()?;
+            let permissions = validated_info
+                .permissions(&state.pool)
+                .await
+                .context("Valid<SessionInfo> -> Permissions")?;
+            return Ok(permissions);
+        }
+
+        Err(Error::NoCredentialsProvided)
     }
 }
 
@@ -130,16 +121,15 @@ impl Permissions {
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
-            Error::SessionIdExtraction(err) => err.into_response(),
-            Error::AccessTokenExtraction(err) => err.into_response(),
-            Error::SessionIdValidation(err) => err.into_response(),
-            Error::AccessTokenValidation(err) => err.into_response(),
-            Error::SessionInfo(err) => err.into_response(),
-            Error::AccessTokenInfo(err) => err.into_response(),
-            Error::MultipleCredentialsProvided(_) => {
-                tracing::warn!("{:?}", self);
+            Error::AuthorizationHeader(err) => err.into_response(),
+            Error::UnAssociatedAccessToken
+            | Error::UnAssociatedSessionId
+            | Error::Base64Decode(_) => {
+                tracing::info!("{:?}", self);
                 (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
             }
+            Error::SessionIdValidation(err) => err.into_response(),
+            Error::AccessTokenValidation(err) => err.into_response(),
             Error::NoCredentialsProvided => {
                 tracing::info!("{:?}", self);
                 (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
@@ -152,6 +142,6 @@ impl IntoResponse for Error {
 impl IntoResponse for InsufficientPermissionsError {
     fn into_response(self) -> axum::response::Response {
         tracing::info!("{:?}", self);
-        (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
+        (StatusCode::FORBIDDEN, error(&self.to_string())).into_response()
     }
 }
