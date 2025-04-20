@@ -5,7 +5,7 @@ pub async fn pool() -> SqlitePool {
         .await
         .expect("unable to connect to test db");
 
-    sqlx::migrate!("./migrations")
+    sqlx::migrate!("../migrations")
         .run(&pool)
         .await
         .expect("unable to run migrations");

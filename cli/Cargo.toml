@@ -15,4 +15,4 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1"
 tracing-subscriber = "0.3"
 
-server = { path = "../server" }
+server-core = { path = "../server-core" }

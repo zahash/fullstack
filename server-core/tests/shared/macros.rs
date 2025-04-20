@@ -31,9 +31,9 @@ macro_rules! fixture {
 macro_rules! send {
     ( $pool:ident $req:expr ) => {{
         use tower::ServiceExt;
-        server::server(server::AppState {
+        server_core::server(server_core::AppState {
             pool: $pool.clone(),
-            rate_limiter: std::sync::Arc::new(server::RateLimiter::nolimit()),
+            rate_limiter: std::sync::Arc::new(server_core::RateLimiter::nolimit()),
             // mailer: std::sync::Arc::new(lettre::FileTransport::new("/tmp")),
         })
         .oneshot($req)

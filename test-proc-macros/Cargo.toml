@@ -10,12 +10,12 @@ proc-macro = true
 syn = "2"
 quote = "1"
 
-server = { path = "../server", optional = true }
+server-core = { path = "../server-core", optional = true }
 
 [features]
-username = ["dep:server"]
-password = ["dep:server"]
-email = ["dep:server"]
+username = ["dep:server-core"]
+password = ["dep:server-core"]
+email = ["dep:server-core"]
 
 [dev-dependencies]
 syn = { version = "2", features = ["extra-traits"] }
