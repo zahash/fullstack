@@ -5,6 +5,7 @@ mod error;
 mod middleware;
 mod password;
 mod permissions;
+mod rate_limiter;
 mod session_id;
 mod token;
 mod user_id;
@@ -17,25 +18,23 @@ pub use error::{Context, InternalError, error};
 pub use middleware::{mw_client_ip, mw_handle_leaked_5xx, mw_rate_limiter};
 pub use password::Password;
 pub use permissions::{InsufficientPermissionsError, Permissions, Principal};
+pub use rate_limiter::RateLimiter;
 pub use session_id::{SessionExt, SessionId, SessionInfo, SessionValidationError};
 pub use token::Token;
 pub use user_id::UserId;
 pub use username::Username;
 
 use std::{
-    collections::VecDeque,
     fmt::Display,
     net::{IpAddr, SocketAddr},
     str::FromStr,
     sync::Arc,
-    time::{Duration, Instant},
 };
 
 use axum::{
     extract::ConnectInfo,
     http::{Request, header},
 };
-use dashmap::DashMap;
 use forwarded_header_value::{ForwardedHeaderValue, Identifier};
 use tracing::Span;
 // use lettre::SmtpTransport;
@@ -49,50 +48,6 @@ pub struct AppState {
     pub pool: SqlitePool,
     pub rate_limiter: Arc<RateLimiter>,
     // pub mailer: Arc<()>,
-}
-
-pub struct RateLimiter {
-    requests: DashMap<IpAddr, VecDeque<Instant>>,
-    limit: usize,
-    interval: Duration,
-}
-
-impl RateLimiter {
-    pub fn new(limit: usize, interval: Duration) -> Self {
-        Self {
-            requests: DashMap::default(),
-            limit,
-            interval,
-        }
-    }
-
-    pub fn nolimit() -> Self {
-        Self {
-            requests: DashMap::default(),
-            limit: usize::MAX,
-            interval: Duration::from_secs(0),
-        }
-    }
-
-    pub fn is_too_many(&self, ip_addr: IpAddr) -> bool {
-        let now = Instant::now();
-        let mut request_timeline = self.requests.entry(ip_addr).or_insert_with(VecDeque::new);
-
-        // clean up old entries
-        while let Some(&time) = request_timeline.front() {
-            if now.duration_since(time) < self.interval {
-                break;
-            }
-            request_timeline.pop_front();
-        }
-
-        if request_timeline.len() > self.limit {
-            return true;
-        }
-
-        request_timeline.push_back(now);
-        false
-    }
 }
 
 struct OptionDisplay<T>(Option<T>, &'static str);
