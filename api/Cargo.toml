@@ -4,8 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-server-core = { path = "../server-core" }
-
 anyhow = "1"
 axum = "0.8"
 axum-extra = { version = "0.10", features = ["cookie"] }
@@ -25,6 +23,8 @@ tokio = "1"
 tower = "0.5"
 tower-http = { version = "0.6", features = ["fs", "request-id", "trace"] }
 tracing = "0.1"
+
+server-core = { path = "../server-core" }
 
 [dev-dependencies]
 test-proc-macros = { path = "../test-proc-macros", features = [

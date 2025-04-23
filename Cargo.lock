@@ -385,11 +385,9 @@ name = "cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "api",
  "clap",
- "sqlx",
+ "server",
  "tokio",
- "tracing",
  "tracing-subscriber",
 ]
 
@@ -1834,6 +1832,20 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "server"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "api",
+ "axum",
+ "server-core",
+ "sqlx",
+ "tokio",
+ "tower-http",
+ "tracing",
 ]
 
 [[package]]

@@ -3,7 +3,7 @@ use std::{path::PathBuf, str::FromStr};
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 
-use api::{ServerOpts, run};
+use server::{ServerOpts, serve};
 
 #[derive(Debug, Parser)]
 struct Args {
@@ -97,7 +97,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // smtp_username,
             // smtp_password,
         } => {
-            run(ServerOpts {
+            serve(ServerOpts {
                 database_url,
                 port,
                 ui_dir,
