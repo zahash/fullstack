@@ -1,4 +1,4 @@
-use crate::types::{InsufficientPermissionsError, Permissions};
+use server_core::{InsufficientPermissionsError, Permissions};
 
 #[tracing::instrument(fields(user_id = tracing::field::Empty), skip_all, ret)]
 pub async fn private(permissions: Permissions) -> Result<String, InsufficientPermissionsError> {

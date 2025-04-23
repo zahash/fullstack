@@ -6,12 +6,8 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::{
-    AppState,
-    check::{email_exists, username_exists},
-    error::{Context, InternalError, error},
-    types::{Email, Password, Username},
-};
+use crate::check::{email_exists, username_exists};
+use server_core::{AppState, Context, Email, InternalError, Password, Username, error};
 
 #[derive(Deserialize)]
 pub struct SignUp {

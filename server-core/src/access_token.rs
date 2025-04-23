@@ -1,69 +1,108 @@
-use std::time::Duration;
+use std::ops::Deref;
 
-use axum::{Form, extract::State, http::StatusCode, response::IntoResponse};
-use axum_macros::debug_handler;
-use serde::Deserialize;
+use axum::{
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
+use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use crate::{
-    AppState,
-    error::{Context, InternalError},
-    types::{AccessToken, InsufficientPermissionsError, Permissions},
-};
+use crate::{Permissions, Principal, Token, UserId, Valid, error};
 
-#[derive(Deserialize, Debug)]
-pub struct AccessTokenSettings {
-    name: String,
-    ttl: Option<Duration>,
+pub struct AccessToken(Token<32>);
+
+pub struct AccessTokenInfo {
+    id: i64,
+    pub name: String,
+    pub user_id: UserId,
+    pub created_at: OffsetDateTime,
+    pub expires_at: OffsetDateTime,
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error("{0}")]
-    Permission(#[from] InsufficientPermissionsError),
-
-    #[error("{0:?}")]
-    Internal(#[from] InternalError),
+pub enum AccessTokenValiationError {
+    #[error("access token expired")]
+    AccessTokenExpired,
 }
 
-#[debug_handler]
-#[tracing::instrument(fields(user_id = tracing::field::Empty, ?settings), skip_all)]
-pub async fn generate(
-    State(AppState { pool, .. }): State<AppState>,
-    permissions: Permissions,
-    Form(settings): Form<AccessTokenSettings>,
-) -> Result<(StatusCode, AccessToken), Error> {
-    permissions.require("access_token:create")?;
+impl AccessToken {
+    pub fn new() -> Self {
+        Self(Token::new())
+    }
 
-    let user_id = permissions.user_id();
-    tracing::Span::current().record("user_id", &tracing::field::debug(user_id));
+    pub async fn info(&self, pool: &SqlitePool) -> Result<Option<AccessTokenInfo>, sqlx::Error> {
+        let access_token_hash = self.hash();
 
-    let access_token = AccessToken::new();
-    let access_token_hash = access_token.hash();
-    let created_at = OffsetDateTime::now_utc();
-    let expires_at = settings.ttl.map(|ttl| created_at + ttl);
+        sqlx::query_as!(
+            AccessTokenInfo,
+            r#"SELECT id as "id!", name, user_id, created_at, expires_at FROM access_tokens WHERE access_token_hash = ?"#,
+            access_token_hash
+        ).fetch_optional(pool)
+        .await
+    }
+}
 
-    sqlx::query!(
-            "INSERT INTO access_tokens (name, access_token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
-            settings.name,
-            access_token_hash,
-            user_id,
-            created_at,
-            expires_at,
+impl AccessTokenInfo {
+    pub fn is_expired(&self) -> bool {
+        OffsetDateTime::now_utc() > self.expires_at
+    }
+
+    pub fn validate(self) -> Result<Valid<AccessTokenInfo>, AccessTokenValiationError> {
+        if self.is_expired() {
+            return Err(AccessTokenValiationError::AccessTokenExpired);
+        }
+
+        Ok(Valid(self))
+    }
+}
+
+impl Valid<AccessTokenInfo> {
+    pub async fn permissions(self, pool: &SqlitePool) -> Result<Permissions, sqlx::Error> {
+        let access_token_id = &self.0.id;
+
+        let permissions = sqlx::query_scalar!(
+            "SELECT p.permission from permissions p
+             INNER JOIN access_token_permissions atp ON atp.permission_id = p.id
+             WHERE atp.access_token_id = ?",
+            access_token_id
         )
-        .execute(&pool)
-        .await.context("insert access_token")?;
+        .fetch_all(pool)
+        .await?;
 
-    tracing::info!(?expires_at, "access_token created");
-
-    Ok((StatusCode::CREATED, access_token))
+        Ok(Permissions {
+            permissions,
+            principal: Principal::AccessToken(self.0),
+        })
+    }
 }
 
-impl IntoResponse for Error {
-    fn into_response(self) -> axum::response::Response {
+impl Deref for AccessToken {
+    type Target = Token<32>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<Token<32>> for AccessToken {
+    fn from(value: Token<32>) -> Self {
+        Self(value)
+    }
+}
+
+impl IntoResponse for AccessToken {
+    fn into_response(self) -> Response {
+        self.base64encoded().into_response()
+    }
+}
+
+impl IntoResponse for AccessTokenValiationError {
+    fn into_response(self) -> Response {
         match self {
-            Error::Permission(err) => err.into_response(),
-            Error::Internal(err) => err.into_response(),
+            AccessTokenValiationError::AccessTokenExpired => {
+                tracing::info!("{:?}", self);
+                (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
+            }
         }
     }
 }

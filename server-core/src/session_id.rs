@@ -11,11 +11,7 @@ use axum_extra::extract::{
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use crate::{
-    error::error,
-    token::Token,
-    types::{Base64DecodeError, Permissions, Principal, UserId, Valid},
-};
+use crate::{Base64DecodeError, Permissions, Principal, Token, UserId, Valid, error};
 
 pub struct SessionId(Token<32>);
 
@@ -25,23 +21,6 @@ pub struct SessionInfo {
     pub expires_at: OffsetDateTime,
     pub user_agent: Option<String>,
 }
-
-// #[derive(thiserror::Error, Debug, PartialEq)]
-// pub enum SessionIdExtractionError {
-//     // #[error("`session_id` cookie not found")]
-//     // SessionCookieNotFound,
-//     #[error("{0}")]
-//     Base64Decode(Base64DecodeError),
-// }
-
-// #[derive(thiserror::Error, Debug)]
-// pub enum SessionInfoError {
-//     #[error("session id not associated with any user")]
-//     UnAssociatedSessionId,
-
-//     #[error("{0:?}")]
-//     Internal(#[from] InternalError),
-// }
 
 #[derive(thiserror::Error, Debug)]
 pub enum SessionValidationError {
@@ -144,56 +123,6 @@ impl Deref for SessionId {
         &self.0
     }
 }
-
-// impl TryFrom<&CookieJar> for SessionId {
-//     type Error = SessionIdExtractionError;
-
-//     fn try_from(jar: &CookieJar) -> Result<Self, Self::Error> {
-//         let value = jar
-//             .get("session_id")
-//             .ok_or(SessionIdExtractionError::SessionCookieNotFound)?
-//             .value();
-//         let token =
-//             Token::base64decode(value).map_err(|_| SessionIdExtractionError::Base64Decode)?;
-//         Ok(SessionId(token))
-//     }
-// }
-
-// impl TryFrom<&HeaderMap> for SessionId {
-//     type Error = SessionIdExtractionError;
-
-//     fn try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
-//         let jar = CookieJar::from_headers(headers);
-//         SessionId::try_from(&jar)
-//     }
-// }
-
-// impl IntoResponse for SessionIdExtractionError {
-//     fn into_response(self) -> Response {
-//         match self {
-//             SessionIdExtractionError::SessionCookieNotFound => {
-//                 tracing::info!("{:?}", self);
-//                 (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
-//             }
-//             SessionIdExtractionError::Base64Decode => {
-//                 tracing::error!("!SECURITY! {:?}", self);
-//                 (StatusCode::UNAUTHORIZED, security_error(&self.to_string())).into_response()
-//             }
-//         }
-//     }
-// }
-
-// impl IntoResponse for SessionInfoError {
-//     fn into_response(self) -> Response {
-//         match self {
-//             SessionInfoError::UnAssociatedSessionId => {
-//                 tracing::info!("{:?}", self);
-//                 (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
-//             }
-//             SessionInfoError::Internal(err) => err.into_response(),
-//         }
-//     }
-// }
 
 impl IntoResponse for SessionValidationError {
     fn into_response(self) -> Response {

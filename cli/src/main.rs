@@ -3,7 +3,7 @@ use std::{path::PathBuf, str::FromStr};
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 
-use server_core::{ServerOpts, run};
+use api::{ServerOpts, run};
 
 #[derive(Debug, Parser)]
 struct Args {

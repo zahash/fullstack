@@ -3,16 +3,10 @@ use axum::{
     response::IntoResponse,
 };
 
-use crate::{
-    error::error,
-    token::Token,
-    types::{AccessToken, Base64DecodeError},
-};
+use crate::{AccessToken, Base64DecodeError, Token, error};
 
 #[derive(thiserror::Error, Debug)]
 pub enum AuthorizationHeaderError {
-    // #[error("Authorization header not found")]
-    // HeaderNotFound,
     #[error("Authorization header value must be utf-8")]
     NonUTF8HeaderValue,
 
@@ -26,26 +20,6 @@ pub enum AuthorizationHeaderError {
 pub enum AuthorizationHeader {
     AccessToken(AccessToken),
 }
-
-// impl TryFrom<&HeaderMap> for AuthorizationHeader {
-//     type Error = AuthorizationHeaderError;
-
-//     fn try_from(headers: &HeaderMap) -> Result<Self, Self::Error> {
-//         let header_value = headers
-//             .get("Authorization")
-//             .ok_or(AuthorizationHeaderError::HeaderNotFound)?
-//             .to_str()
-//             .map_err(|_| AuthorizationHeaderError::NonUTF8HeaderValue)?;
-
-//         if let Some(value) = header_value.strip_prefix("Token ") {
-//             let token =
-//                 Token::base64decode(value).map_err(|_| AuthorizationHeaderError::Base64Decode)?;
-//             return Ok(AuthorizationHeader::AccessToken(AccessToken::from(token)));
-//         }
-
-//         Err(AuthorizationHeaderError::InvalidAuthorizationType)
-//     }
-// }
 
 impl AuthorizationHeader {
     pub fn try_from_headers(

@@ -1,11 +1,7 @@
 use axum::extract::State;
 use axum_extra::extract::CookieJar;
 
-use crate::{
-    AppState,
-    error::{Context, InternalError},
-    types::{SessionExt, SessionId},
-};
+use server_core::{AppState, Context, InternalError, SessionExt, SessionId};
 
 pub async fn logout(
     State(AppState { pool, .. }): State<AppState>,

@@ -101,6 +101,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
+name = "api"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "axum-extra",
+ "axum-macros",
+ "bcrypt",
+ "serde",
+ "server-core",
+ "sqlx",
+ "sysinfo",
+ "test-proc-macros",
+ "thiserror 2.0.12",
+ "time",
+ "tokio",
+ "tower",
+ "tower-http",
+ "tracing",
+]
+
+[[package]]
 name = "atoi"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -363,8 +385,8 @@ name = "cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "api",
  "clap",
- "server-core",
  "sqlx",
  "tokio",
  "tracing",
@@ -1148,7 +1170,6 @@ dependencies = [
  "socket2",
  "tokio",
  "url",
- "uuid",
 ]
 
 [[package]]
@@ -1822,9 +1843,7 @@ dependencies = [
  "anyhow",
  "axum",
  "axum-extra",
- "axum-macros",
  "base64",
- "bcrypt",
  "compiletime",
  "dashmap",
  "forwarded-header-value",
@@ -1835,13 +1854,8 @@ dependencies = [
  "serde_json",
  "sha2",
  "sqlx",
- "sysinfo",
- "test-proc-macros",
  "thiserror 2.0.12",
  "time",
- "tokio",
- "tower",
- "tower-http",
  "tracing",
 ]
 

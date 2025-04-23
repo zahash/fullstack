@@ -6,10 +6,9 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde_json::json;
+use time::{OffsetDateTime, format_description::well_known::Iso8601};
 
-use crate::misc::now_iso8601;
-
-pub const HELP: &'static str = "Please check the response headers for `x-request-id`, include the datetime and raise a support ticket.";
+const HELP: &'static str = "Please check the response headers for `x-request-id`, include the datetime and raise a support ticket.";
 // pub const SECURITY: &'static str = "Security incident detected! This will be reported immediately!";
 
 #[derive(thiserror::Error, Debug)]
@@ -39,6 +38,18 @@ where
     {
         self.map_err(|e| InternalError(anyhow::Error::from(e).context(context)))
     }
+}
+
+fn now_iso8601() -> Option<String> {
+    OffsetDateTime::now_utc()
+        .format(&Iso8601::DATE_TIME_OFFSET)
+        .inspect_err(|e| {
+            tracing::warn!(
+                "unable to format OffsetDateTime::now_utc() as Iso8601 :: {:?}",
+                e
+            )
+        })
+        .ok()
 }
 
 pub fn error(msg: &str) -> Json<serde_json::Value> {

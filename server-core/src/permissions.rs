@@ -5,12 +5,9 @@ use axum::{
 };
 
 use crate::{
-    AppState,
-    error::{Context, InternalError, error},
-    types::{
-        AccessTokenInfo, AccessTokenValiationError, AuthorizationHeader, AuthorizationHeaderError,
-        Base64DecodeError, SessionId, SessionInfo, SessionValidationError, UserId,
-    },
+    AccessTokenInfo, AccessTokenValiationError, AppState, AuthorizationHeader,
+    AuthorizationHeaderError, Base64DecodeError, Context, InternalError, SessionId, SessionInfo,
+    SessionValidationError, UserId, error,
 };
 
 // TODO: include Basic auth in this

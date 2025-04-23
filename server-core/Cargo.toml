@@ -7,36 +7,20 @@ edition = "2024"
 anyhow = "1"
 axum = "0.8"
 axum-extra = { version = "0.10", features = ["cookie"] }
-axum-macros = "0.5"
 base64 = "0.22"
-bcrypt = "0.17"
 compiletime = { path = "../compiletime", features = ["regex"] }
 dashmap = "6.1"
 forwarded-header-value = "0.1.1"
-lettre = { version = "0.11", features = ["smtp-transport", "serde"] }
+lettre = { version = "0.11", features = ["serde"] }
 rand = "0.9"
 regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 sqlx = { version = "0.8", features = [
-    "migrate",
-    "runtime-tokio-native-tls",
     "sqlite",
     "time",
 ] }
-sysinfo = { version = "0.34", features = ["serde"] }
 thiserror = "2"
 time = { version = "0.3", features = ["serde"] }
-tokio = "1"
-tower = "0.5"
-tower-http = { version = "0.6", features = ["fs", "request-id", "trace"] }
 tracing = "0.1"
-
-[dev-dependencies]
-test-proc-macros = { path = "../test-proc-macros", features = [
-    "email",
-    "password",
-    "username",
-] }
-lettre = { version = "0.11", features = ["file-transport"] }

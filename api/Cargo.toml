@@ -1,0 +1,35 @@
+[package]
+name = "api"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+server-core = { path = "../server-core" }
+
+anyhow = "1"
+axum = "0.8"
+axum-extra = { version = "0.10", features = ["cookie"] }
+axum-macros = "0.5"
+bcrypt = "0.17"
+# lettre = { version = "0.11", features = ["smtp-transport", "serde"] }
+serde = { version = "1", features = ["derive"] }
+sqlx = { version = "0.8", features = [
+    "runtime-tokio",
+    "tls-native-tls",
+    # "tls-rustls",
+] }
+sysinfo = { version = "0.34", features = ["serde"] }
+thiserror = "2"
+time = { version = "0.3", features = ["serde"] }
+tokio = "1"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs", "request-id", "trace"] }
+tracing = "0.1"
+
+[dev-dependencies]
+test-proc-macros = { path = "../test-proc-macros", features = [
+    "email",
+    "password",
+    "username",
+] }
+# lettre = { version = "0.11", features = ["file-transport"] }

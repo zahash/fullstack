@@ -5,16 +5,13 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::{
-    AppState,
-    check::username_exists,
-    error::{Context, InternalError, error},
-    types::Username,
-};
+use crate::check::email_exists;
+
+use server_core::{AppState, Context, Email, InternalError, error};
 
 #[derive(Deserialize)]
 pub struct Params {
-    pub username: String,
+    pub email: String,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -26,16 +23,16 @@ pub enum Error {
     Internal(#[from] InternalError),
 }
 
-#[tracing::instrument(fields(?username), skip_all, ret)]
-pub async fn username_availability(
+#[tracing::instrument(fields(?email), skip_all, ret)]
+pub async fn email_availability(
     State(AppState { pool, .. }): State<AppState>,
-    Query(Params { username }): Query<Params>,
+    Query(Params { email }): Query<Params>,
 ) -> Result<StatusCode, Error> {
-    let username = Username::try_from(username).map_err(Error::InvalidParams)?;
+    let email = Email::try_from(email).map_err(Error::InvalidParams)?;
 
-    match username_exists(&pool, &username)
+    match email_exists(&pool, &email)
         .await
-        .context("check username availability")?
+        .context("check email availability")?
     {
         true => Ok(StatusCode::CONFLICT),
         false => Ok(StatusCode::OK),

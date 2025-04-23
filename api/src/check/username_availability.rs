@@ -1,23 +1,17 @@
 use axum::{
-    Json,
     extract::{Query, State},
     http::StatusCode,
     response::IntoResponse,
 };
 use serde::Deserialize;
-use serde_json::json;
 
-use crate::{
-    AppState,
-    check::email_exists,
-    error::{Context, HELP, InternalError},
-    misc::now_iso8601,
-    types::Email,
-};
+use crate::check::username_exists;
+
+use server_core::{AppState, Context, InternalError, Username, error};
 
 #[derive(Deserialize)]
 pub struct Params {
-    pub email: String,
+    pub username: String,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -29,16 +23,16 @@ pub enum Error {
     Internal(#[from] InternalError),
 }
 
-#[tracing::instrument(fields(?email), skip_all, ret)]
-pub async fn email_availability(
+#[tracing::instrument(fields(?username), skip_all, ret)]
+pub async fn username_availability(
     State(AppState { pool, .. }): State<AppState>,
-    Query(Params { email }): Query<Params>,
+    Query(Params { username }): Query<Params>,
 ) -> Result<StatusCode, Error> {
-    let email = Email::try_from(email).map_err(Error::InvalidParams)?;
+    let username = Username::try_from(username).map_err(Error::InvalidParams)?;
 
-    match email_exists(&pool, &email)
+    match username_exists(&pool, &username)
         .await
-        .context("check email availability")?
+        .context("check username availability")?
     {
         true => Ok(StatusCode::CONFLICT),
         false => Ok(StatusCode::OK),
@@ -50,15 +44,7 @@ impl IntoResponse for Error {
         match self {
             Error::InvalidParams(err) => {
                 tracing::info!("{:?}", err);
-                (
-                    StatusCode::BAD_REQUEST,
-                    Json(json!({
-                        "error": err,
-                        "help": HELP,
-                        "datetime": now_iso8601()
-                    })),
-                )
-                    .into_response()
+                (StatusCode::BAD_REQUEST, error(err)).into_response()
             }
             Error::Internal(err) => err.into_response(),
         }

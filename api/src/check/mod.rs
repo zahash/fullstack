@@ -8,7 +8,7 @@ pub use username_availability::username_availability;
 
 use sqlx::SqlitePool;
 
-use crate::types::{Email, Username};
+use server_core::{Email, Username};
 
 pub async fn username_exists(pool: &SqlitePool, username: &Username) -> Result<bool, sqlx::Error> {
     match sqlx::query!(
