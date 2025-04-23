@@ -1,10 +1,11 @@
 mod access_token;
-mod check;
+mod email;
 mod health;
 mod login;
 mod logout;
 mod private;
 mod signup;
+mod username;
 
 use axum::{
     Router,
@@ -19,27 +20,30 @@ use tower_http::{
 
 use server_core::{AppState, mw_client_ip, mw_handle_leaked_5xx, mw_rate_limiter, span};
 
+use access_token::{check_access_token, generate_access_token};
+use email::check_email_availability;
 use health::{health, sysinfo};
 use login::login;
 use logout::logout;
 use private::private;
 use signup::signup;
+use username::check_username_availability;
 
 pub fn server(state: AppState) -> Router {
     Router::new()
         .nest(
             "/check",
             Router::new()
-                .route("/username-availability", get(check::username_availability))
-                .route("/email-availability", get(check::email_availability))
-                .route("/access-token", get(check::access_token)),
+                .route("/username-availability", get(check_username_availability))
+                .route("/email-availability", get(check_email_availability))
+                .route("/access-token", get(check_access_token)),
         )
         .route("/health", get(health))
         .route("/sysinfo", get(sysinfo))
         .route("/signup", post(signup))
         .route("/login", post(login))
         .route("/logout", get(logout))
-        .route("/access-token", post(access_token::generate))
+        .route("/access-token", post(generate_access_token))
         .route("/private", get(private))
         .with_state(state.clone())
         .layer(

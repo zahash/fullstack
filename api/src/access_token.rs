@@ -1,12 +1,19 @@
 use std::time::Duration;
 
-use axum::{Form, extract::State, http::StatusCode, response::IntoResponse};
+use axum::{
+    Form,
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    response::IntoResponse,
+};
 use axum_macros::debug_handler;
 use serde::Deserialize;
 use time::OffsetDateTime;
 
 use server_core::{
-    AccessToken, AppState, Context, InsufficientPermissionsError, InternalError, Permissions,
+    AccessToken, AccessTokenValiationError, AppState, AuthorizationHeader,
+    AuthorizationHeaderError, Context, InsufficientPermissionsError, InternalError, Permissions,
+    error,
 };
 
 #[derive(Deserialize, Debug)]
@@ -15,22 +22,13 @@ pub struct AccessTokenSettings {
     ttl: Option<Duration>,
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error("{0}")]
-    Permission(#[from] InsufficientPermissionsError),
-
-    #[error("{0:?}")]
-    Internal(#[from] InternalError),
-}
-
 #[debug_handler]
 #[tracing::instrument(fields(user_id = tracing::field::Empty, ?settings), skip_all)]
-pub async fn generate(
+pub async fn generate_access_token(
     State(AppState { pool, .. }): State<AppState>,
     permissions: Permissions,
     Form(settings): Form<AccessTokenSettings>,
-) -> Result<(StatusCode, AccessToken), Error> {
+) -> Result<(StatusCode, AccessToken), AccessTokenGenerationError> {
     permissions.require("access_token:create")?;
 
     let user_id = permissions.user_id();
@@ -57,11 +55,77 @@ pub async fn generate(
     Ok((StatusCode::CREATED, access_token))
 }
 
-impl IntoResponse for Error {
+#[debug_handler]
+pub async fn check_access_token(
+    State(AppState { pool, .. }): State<AppState>,
+    headers: HeaderMap,
+) -> Result<StatusCode, CheckAccessTokenError> {
+    let Some(AuthorizationHeader::AccessToken(access_token)) =
+        AuthorizationHeader::try_from_headers(&headers)?
+    else {
+        return Err(CheckAccessTokenError::AccessTokenHeaderNotFound);
+    };
+
+    let info = access_token
+        .info(&pool)
+        .await
+        .context("AccessToken -> AccessTokenInfo")?
+        .ok_or(CheckAccessTokenError::UnAssociatedAccessToken)?;
+
+    info.validate()?;
+
+    Ok(StatusCode::OK)
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum AccessTokenGenerationError {
+    #[error("{0}")]
+    Permission(#[from] InsufficientPermissionsError),
+
+    #[error("{0:?}")]
+    Internal(#[from] InternalError),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum CheckAccessTokenError {
+    #[error("{0}")]
+    AuthorizationHeader(#[from] AuthorizationHeaderError),
+
+    #[error(
+        "access token not found in header. expected `Authorization: Token <your-access-token>`"
+    )]
+    AccessTokenHeaderNotFound,
+
+    #[error("access token not associated with any account")]
+    UnAssociatedAccessToken,
+
+    #[error("{0}")]
+    AccessTokenValidation(#[from] AccessTokenValiationError),
+
+    #[error("{0:?}")]
+    Internal(#[from] InternalError),
+}
+
+impl IntoResponse for AccessTokenGenerationError {
     fn into_response(self) -> axum::response::Response {
         match self {
-            Error::Permission(err) => err.into_response(),
-            Error::Internal(err) => err.into_response(),
+            AccessTokenGenerationError::Permission(err) => err.into_response(),
+            AccessTokenGenerationError::Internal(err) => err.into_response(),
+        }
+    }
+}
+
+impl IntoResponse for CheckAccessTokenError {
+    fn into_response(self) -> axum::response::Response {
+        match self {
+            CheckAccessTokenError::AuthorizationHeader(err) => err.into_response(),
+            CheckAccessTokenError::AccessTokenHeaderNotFound
+            | CheckAccessTokenError::UnAssociatedAccessToken => {
+                tracing::info!("{:?}", self);
+                (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()
+            }
+            CheckAccessTokenError::AccessTokenValidation(err) => err.into_response(),
+            CheckAccessTokenError::Internal(err) => err.into_response(),
         }
     }
 }
