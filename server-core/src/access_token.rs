@@ -7,7 +7,7 @@ use axum::{
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use crate::{Permissions, Principal, Token, UserId, Valid, error};
+use crate::{Token, UserId, Valid, error};
 
 pub struct AccessToken(Token<32>);
 
@@ -57,7 +57,7 @@ impl AccessTokenInfo {
 }
 
 impl Valid<AccessTokenInfo> {
-    pub async fn permissions(self, pool: &SqlitePool) -> Result<Permissions, sqlx::Error> {
+    pub async fn permissions(&self, pool: &SqlitePool) -> Result<Vec<String>, sqlx::Error> {
         let access_token_id = &self.0.id;
 
         let permissions = sqlx::query_scalar!(
@@ -69,10 +69,7 @@ impl Valid<AccessTokenInfo> {
         .fetch_all(pool)
         .await?;
 
-        Ok(Permissions {
-            permissions,
-            principal: Principal::AccessToken(self.0),
-        })
+        Ok(permissions)
     }
 }
 

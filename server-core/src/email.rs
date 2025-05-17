@@ -11,6 +11,14 @@ pub struct Email(lettre::Address);
 
 const MSG: &'static str = "email must conform to the HTML5 Specification https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address";
 
+impl Email {
+    pub fn try_from_sqlx(value: String) -> Result<Self, sqlx::Error> {
+        Self::from_str(&value).map_err(|e| {
+            sqlx::Error::Decode(format!("invalid email in database :: {} :: {}", value, e).into())
+        })
+    }
+}
+
 impl FromStr for Email {
     type Err = &'static str;
 
@@ -51,6 +59,15 @@ impl sqlx::Encode<'_, Sqlite> for Email {
         buf: &mut <Sqlite as sqlx::Database>::ArgumentBuffer<'_>,
     ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
         <String as sqlx::Encode<Sqlite>>::encode_by_ref(&self.0.to_string(), buf)
+    }
+}
+
+impl sqlx::Decode<'_, Sqlite> for Email {
+    fn decode(
+        value: <Sqlite as sqlx::Database>::ValueRef<'_>,
+    ) -> Result<Self, sqlx::error::BoxDynError> {
+        let value = <String as sqlx::Decode<Sqlite>>::decode(value)?;
+        Self::try_from(value).map_err(|err| err.into())
     }
 }
 

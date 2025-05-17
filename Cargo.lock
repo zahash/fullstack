@@ -1855,6 +1855,7 @@ dependencies = [
  "axum",
  "axum-extra",
  "base64",
+ "bcrypt",
  "compiletime",
  "dashmap",
  "forwarded-header-value",

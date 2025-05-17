@@ -1,34 +1,52 @@
-use std::{fmt::Display, str::FromStr, sync::LazyLock};
+use std::{fmt::Display, str::FromStr};
 
-use compiletime::regex;
-use regex::Regex;
 use serde::Deserialize;
 use sqlx::{Sqlite, Type};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Username(String);
 
+impl Username {
+    pub fn try_from_sqlx(value: String) -> Result<Self, sqlx::Error> {
+        Self::from_str(&value).map_err(|e| {
+            sqlx::Error::Decode(
+                format!("invalid username in database :: {} :: {}", value, e).into(),
+            )
+        })
+    }
+}
+
 impl FromStr for Username {
     type Err = &'static str;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Username::try_from(s.to_string())
+        validate_username(s.to_string()).map(Self)
     }
 }
-
-const RE_USERNAME: LazyLock<Regex> = LazyLock::new(|| regex!(r#"^[A-Za-z0-9_]{2,30}$"#));
 
 impl TryFrom<String> for Username {
     type Error = &'static str;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        match RE_USERNAME.is_match(&value) {
-            true => Ok(Self(value)),
-            false => Err(
-                "username must be between 2-30 in length. must only contain `A-Z` `a-z` `0-9` and `_`",
-            ),
-        }
+        validate_username(value).map(Self)
     }
+}
+
+fn validate_username<T: AsRef<str>>(username: T) -> Result<T, &'static str> {
+    let username_ref = username.as_ref();
+
+    if username_ref.len() < 2 || username_ref.len() > 30 {
+        return Err("username must be between 2-30 in length");
+    }
+
+    if username_ref
+        .chars()
+        .any(|c| !c.is_ascii_alphanumeric() && c != '_')
+    {
+        return Err("username must only contain `A-Z` `a-z` `0-9` and `_`");
+    }
+
+    Ok(username)
 }
 
 impl<'de> Deserialize<'de> for Username {
@@ -54,6 +72,15 @@ impl sqlx::Encode<'_, Sqlite> for Username {
         buf: &mut <Sqlite as sqlx::Database>::ArgumentBuffer<'_>,
     ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
         <String as sqlx::Encode<Sqlite>>::encode_by_ref(&self.0, buf)
+    }
+}
+
+impl sqlx::Decode<'_, Sqlite> for Username {
+    fn decode(
+        value: <Sqlite as sqlx::Database>::ValueRef<'_>,
+    ) -> Result<Self, sqlx::error::BoxDynError> {
+        let value = <String as sqlx::Decode<Sqlite>>::decode(value)?;
+        Self::try_from(value).map_err(|err| err.into())
     }
 }
 

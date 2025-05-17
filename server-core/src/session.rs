@@ -11,7 +11,7 @@ use axum_extra::extract::{
 use sqlx::SqlitePool;
 use time::OffsetDateTime;
 
-use crate::{Base64DecodeError, Permissions, Principal, Token, UserId, Valid, error};
+use crate::{Base64DecodeError, Token, UserId, Valid, error};
 
 pub struct SessionId(Token<32>);
 
@@ -87,7 +87,7 @@ impl SessionInfo {
 }
 
 impl Valid<SessionInfo> {
-    pub async fn permissions(self, pool: &SqlitePool) -> Result<Permissions, sqlx::Error> {
+    pub async fn permissions(&self, pool: &SqlitePool) -> Result<Vec<String>, sqlx::Error> {
         let user_id = &self.0.user_id;
 
         let permissions = sqlx::query_scalar!(
@@ -99,10 +99,7 @@ impl Valid<SessionInfo> {
         .fetch_all(pool)
         .await?;
 
-        Ok(Permissions {
-            permissions,
-            principal: Principal::Session(self.0),
-        })
+        Ok(permissions)
     }
 }
 

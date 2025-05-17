@@ -7,13 +7,13 @@ use axum::{
 use crate::{
     AccessTokenInfo, AccessTokenValiationError, AppState, AuthorizationHeader,
     AuthorizationHeaderError, Base64DecodeError, Context, InternalError, SessionId, SessionInfo,
-    SessionValidationError, UserId, error,
+    SessionValidationError, UserId, UserInfo, error,
 };
 
-// TODO: include Basic auth in this
 pub enum Principal {
     Session(SessionInfo),
     AccessToken(AccessTokenInfo),
+    Basic(UserInfo),
 }
 
 pub struct Permissions {
@@ -40,6 +40,9 @@ pub enum Error {
 
     #[error("{0}")]
     SessionIdValidation(#[from] SessionValidationError),
+
+    #[error("invalid basic credentials")]
+    InvalidBasicCredentials,
 
     #[error("no credentials provided")]
     NoCredentialsProvided,
@@ -68,7 +71,28 @@ impl FromRequestParts<AppState> for Permissions {
                         .permissions(&state.pool)
                         .await
                         .context("Valid<AccessTokenInfo> -> Permissions")?;
-                    return Ok(permissions);
+                    return Ok(Permissions {
+                        permissions,
+                        principal: Principal::AccessToken(validated_info.inner()),
+                    });
+                }
+                AuthorizationHeader::Basic { username, password } => {
+                    let user_info = UserInfo::from_username(&username, &state.pool)
+                        .await
+                        .context("username -> UserInfo")?
+                        .ok_or(Error::InvalidBasicCredentials)?;
+                    let validated_info = user_info
+                        .verify_password(&password)
+                        .context("verify password hash")?
+                        .ok_or(Error::InvalidBasicCredentials)?;
+                    let permissions = validated_info
+                        .permissions(&state.pool)
+                        .await
+                        .context("Valid<UserInfo> -> Permissions")?;
+                    return Ok(Permissions {
+                        permissions,
+                        principal: Principal::Basic(validated_info.inner()),
+                    });
                 }
             }
         }
@@ -84,7 +108,10 @@ impl FromRequestParts<AppState> for Permissions {
                 .permissions(&state.pool)
                 .await
                 .context("Valid<SessionInfo> -> Permissions")?;
-            return Ok(permissions);
+            return Ok(Permissions {
+                permissions,
+                principal: Principal::Session(validated_info.inner()),
+            });
         }
 
         Err(Error::NoCredentialsProvided)
@@ -110,7 +137,8 @@ impl Permissions {
     pub fn user_id(&self) -> &UserId {
         match &self.principal {
             Principal::Session(SessionInfo { user_id, .. })
-            | Principal::AccessToken(AccessTokenInfo { user_id, .. }) => user_id,
+            | Principal::AccessToken(AccessTokenInfo { user_id, .. })
+            | Principal::Basic(UserInfo { user_id, .. }) => user_id,
         }
     }
 }
@@ -121,6 +149,7 @@ impl IntoResponse for Error {
             Error::AuthorizationHeader(err) => err.into_response(),
             Error::UnAssociatedAccessToken
             | Error::UnAssociatedSessionId
+            | Error::InvalidBasicCredentials
             | Error::Base64Decode(_) => {
                 tracing::info!("{:?}", self);
                 (StatusCode::UNAUTHORIZED, error(&self.to_string())).into_response()

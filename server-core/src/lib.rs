@@ -6,9 +6,9 @@ mod middleware;
 mod password;
 mod permissions;
 mod rate_limiter;
-mod session_id;
+mod session;
 mod token;
-mod user_id;
+mod user;
 mod username;
 
 pub use access_token::{AccessToken, AccessTokenInfo, AccessTokenValiationError};
@@ -19,9 +19,9 @@ pub use middleware::{mw_client_ip, mw_handle_leaked_5xx, mw_rate_limiter};
 pub use password::Password;
 pub use permissions::{InsufficientPermissionsError, Permissions, Principal};
 pub use rate_limiter::RateLimiter;
-pub use session_id::{SessionExt, SessionId, SessionInfo, SessionValidationError};
+pub use session::{SessionExt, SessionId, SessionInfo, SessionValidationError};
 pub use token::Token;
-pub use user_id::UserId;
+pub use user::{UserId, UserInfo};
 pub use username::Username;
 
 use std::{
@@ -106,6 +106,12 @@ pub fn client_ip<B>(request: &Request<B>) -> Option<IpAddr> {
 }
 
 pub struct Valid<T>(T);
+
+impl<T> Valid<T> {
+    pub fn inner(self) -> T {
+        self.0
+    }
+}
 
 #[derive(thiserror::Error, Debug)]
 #[error("cannot base64 decode :: {0}")]
