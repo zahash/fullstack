@@ -12,7 +12,7 @@ use time::OffsetDateTime;
 
 use server_core::{
     AccessToken, AccessTokenValiationError, AppState, AuthorizationHeader,
-    AuthorizationHeaderError, Context, InsufficientPermissionsError, InternalError, Permissions,
+    AuthorizationHeaderError, Context, InsufficientPermissionsError, InternalError, Principal,
     error,
 };
 
@@ -26,12 +26,17 @@ pub struct AccessTokenSettings {
 #[tracing::instrument(fields(user_id = tracing::field::Empty, ?settings), skip_all)]
 pub async fn generate_access_token(
     State(AppState { pool, .. }): State<AppState>,
-    permissions: Permissions,
+    principal: Principal,
     Form(settings): Form<AccessTokenSettings>,
 ) -> Result<(StatusCode, AccessToken), AccessTokenGenerationError> {
+    let permissions = principal
+        .permissions(&pool)
+        .await
+        .context("get permissions")?;
+
     permissions.require("access_token:create")?;
 
-    let user_id = permissions.user_id();
+    let user_id = principal.user_id();
     tracing::Span::current().record("user_id", &tracing::field::debug(user_id));
 
     let access_token = AccessToken::new();

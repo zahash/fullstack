@@ -1,7 +1,7 @@
 use bcrypt::verify;
 use sqlx::{Sqlite, SqlitePool, Type};
 
-use crate::{Email, Username, Valid};
+use crate::{Email, Permission, Username, Valid};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct UserId(i64);
@@ -73,11 +73,12 @@ impl UserInfo {
 }
 
 impl Valid<UserInfo> {
-    pub async fn permissions(&self, pool: &SqlitePool) -> Result<Vec<String>, sqlx::Error> {
+    pub async fn permissions(&self, pool: &SqlitePool) -> Result<Vec<Permission>, sqlx::Error> {
         let user_id = &self.0.user_id;
 
-        let permissions = sqlx::query_scalar!(
-            r#"SELECT p.permission FROM permissions p
+        let permissions = sqlx::query_as!(
+            Permission,
+            r#"SELECT p.permission, p.description FROM permissions p
               INNER JOIN user_permissions up ON up.permission_id = p.id
               WHERE up.user_id = ?"#,
             user_id

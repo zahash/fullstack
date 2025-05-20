@@ -1,10 +1,10 @@
 mod access_token;
+mod auth;
 mod authorization_header;
 mod email;
 mod error;
 mod middleware;
 mod password;
-mod permissions;
 mod rate_limiter;
 mod session;
 mod token;
@@ -12,12 +12,12 @@ mod user;
 mod username;
 
 pub use access_token::{AccessToken, AccessTokenInfo, AccessTokenValiationError};
+pub use auth::{InsufficientPermissionsError, Permission, Permissions, Principal};
 pub use authorization_header::{AuthorizationHeader, AuthorizationHeaderError};
 pub use email::Email;
 pub use error::{Context, InternalError, error};
 pub use middleware::{mw_client_ip, mw_handle_leaked_5xx, mw_rate_limiter};
 pub use password::Password;
-pub use permissions::{InsufficientPermissionsError, Permissions, Principal};
 pub use rate_limiter::RateLimiter;
 pub use session::{SessionExt, SessionId, SessionInfo, SessionValidationError};
 pub use token::Token;
@@ -27,6 +27,7 @@ pub use username::Username;
 use std::{
     fmt::Display,
     net::{IpAddr, SocketAddr},
+    ops::Deref,
     str::FromStr,
     sync::Arc,
 };
@@ -108,8 +109,25 @@ pub fn client_ip<B>(request: &Request<B>) -> Option<IpAddr> {
 pub struct Valid<T>(T);
 
 impl<T> Valid<T> {
+    #[inline]
     pub fn inner(self) -> T {
         self.0
+    }
+}
+
+impl<T> Deref for Valid<T> {
+    type Target = T;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> AsRef<T> for Valid<T> {
+    #[inline]
+    fn as_ref(&self) -> &T {
+        &self.0
     }
 }
 
