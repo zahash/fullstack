@@ -22,3 +22,5 @@ sqlx = { version = "0.8", features = ["sqlite", "time"] }
 thiserror = "2"
 time = { version = "0.3", features = ["serde"] }
 tracing = "0.1"
+
+validation = { path = "../validation" }

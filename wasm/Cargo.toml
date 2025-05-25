@@ -1,0 +1,16 @@
+[package]
+name = "wasm"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+validation = { path = "../validation" }
+
+# cargo install wasm-bindgen-cli
+
+# cargo build -p wasm --target wasm32-unknown-unknown --profile web
+# wasm-bindgen ./target/wasm32-unknown-unknown/web/wasm.wasm --out-dir ./ui/lib/shared --target web

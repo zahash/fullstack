@@ -2,6 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 use serde::Deserialize;
 use sqlx::{Sqlite, Type};
+use validation::validate_username;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Username(String);
@@ -30,23 +31,6 @@ impl TryFrom<String> for Username {
     fn try_from(value: String) -> Result<Self, Self::Error> {
         validate_username(value).map(Self)
     }
-}
-
-fn validate_username<T: AsRef<str>>(username: T) -> Result<T, &'static str> {
-    let username_ref = username.as_ref();
-
-    if username_ref.len() < 2 || username_ref.len() > 30 {
-        return Err("username must be between 2-30 in length");
-    }
-
-    if username_ref
-        .chars()
-        .any(|c| !c.is_ascii_alphanumeric() && c != '_')
-    {
-        return Err("username must only contain `A-Z` `a-z` `0-9` and `_`");
-    }
-
-    Ok(username)
 }
 
 impl<'de> Deserialize<'de> for Username {

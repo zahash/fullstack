@@ -1,29 +1,15 @@
 import signal, { merge } from "../../lib/signal.mjs";
 import debounce from "../../debounce.mjs";
 import { hooks } from "../../app.mjs";
-
-const re_special = /[!@#$%^&*()_+\-=\[\]{};':"\\|,\.<>\/?]/;
-const re_digit = /\d/;
-const re_lowercase = /[a-z]/;
-const re_uppercase = /[A-Z]/;
+import initWasm, { validate_password } from "../../lib/shared/wasm.js";
 
 let usernameStatus = signal({ status: undefined, message: undefined });
-let passwordStatus = signal({
-    length: false,
-    special: false,
-    digit: false,
-    upper: false,
-    lower: false
-});
+let passwordStatus = signal({ status: undefined, message: undefined });
 let emailStatus = signal({ status: undefined, message: undefined });
 
 let canSignup = merge({ usernameStatus, passwordStatus, emailStatus }).derive(obj =>
     obj.usernameStatus.status === "ok" &&
-    obj.passwordStatus.length &&
-    obj.passwordStatus.special &&
-    obj.passwordStatus.digit &&
-    obj.passwordStatus.upper &&
-    obj.passwordStatus.lower &&
+    obj.passwordStatus.status === "ok" &&
     obj.emailStatus.status === "ok"
 );
 
@@ -43,12 +29,20 @@ usernameStatus.effect(({ status, message }) => {
             ele_msg_username.style.display = "none";
     }
 });
-passwordStatus.effect(val => {
-    document.getElementById("signup-msg-password-length").style.display = val.length ? "none" : "block";
-    document.getElementById("signup-msg-password-special").style.display = val.special ? "none" : "block";
-    document.getElementById("signup-msg-password-digit").style.display = val.digit ? "none" : "block";
-    document.getElementById("signup-msg-password-lower").style.display = val.lower ? "none" : "block";
-    document.getElementById("signup-msg-password-upper").style.display = val.upper ? "none" : "block";
+passwordStatus.effect(({ status, message }) => {
+    const ele_msg_password = document.getElementById("signup-msg-password");
+
+    switch (status) {
+        case "weak":
+            ele_msg_password.textContent = message;
+            ele_msg_password.style.display = "block";
+            break;
+        case "ok":
+            ele_msg_password.style.display = "none";
+            break;
+        default:
+            ele_msg_password.style.display = "none";
+    }
 });
 emailStatus.effect(({ status, message }) => {
     const ele_msg_email = document.getElementById("signup-msg-email");
@@ -94,16 +88,12 @@ const debounced_checkEmailAvailability = debounce(async () => {
     else emailStatus({});
 }, 1000);
 
-// TODO: can this function be shared between frontend and backend as a wasm module?
 function checkPasswordStrength() {
     const password = document.getElementById("signup-password").value;
-
+    const { valid, error } = validate_password(password);
     passwordStatus({
-        length: password.length >= 8,
-        special: re_special.test(password),
-        digit: re_digit.test(password),
-        lower: re_lowercase.test(password),
-        upper: re_uppercase.test(password)
+        status: valid ? "ok" : "weak",
+        message: error
     });
 }
 
@@ -132,11 +122,12 @@ async function signup(event) {
     else alert(JSON.stringify(await response.json()));
 }
 
-hooks.onMount(() => {
+hooks.onMount(async () => {
     window.signup = signup;
     window.debounced_checkUsernameAvailability = debounced_checkUsernameAvailability;
     window.checkPasswordStrength = checkPasswordStrength;
     window.debounced_checkEmailAvailability = debounced_checkEmailAvailability;
+    await initWasm();
 });
 hooks.onUnmount(() => {
     delete window.signup;
