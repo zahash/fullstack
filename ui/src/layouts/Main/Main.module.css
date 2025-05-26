@@ -1,26 +1,30 @@
-header {
+.header {
     padding: 1.5rem 0;
-}
 
-header > * {
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
-header nav ul {
+.header nav ul {
     list-style: none;
     display: flex;
     gap: 1.5rem;
 }
 
-header a {
+.header a {
     text-decoration: none;
     color: var(--primary-text-color);
     font-weight: 600;
     transition: 0.1s;
 }
 
-header nav a:hover {
+.header nav a:hover {
     color: var(--primary-accent-color);
+}
+
+.content {
+    width: 90%;
+    margin: 0 auto;
+    padding: 2rem 0;
 }
