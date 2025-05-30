@@ -11,6 +11,7 @@ mod token;
 mod user;
 mod username;
 
+pub mod cache;
 pub use access_token::{AccessToken, AccessTokenInfo, AccessTokenValiationError};
 pub use auth::{InsufficientPermissionsError, Permission, Permissions, Principal};
 pub use authorization_header::{AuthorizationHeader, AuthorizationHeaderError};

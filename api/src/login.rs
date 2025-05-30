@@ -59,7 +59,7 @@ pub async fn login(
         false => Err(Error::InvalidCredentials),
         true => {
             let session_id = SessionId::new();
-            let session_id_hash = session_id.hash();
+            let session_id_hash = session_id.hash_sha256();
             let created_at = OffsetDateTime::now_utc();
             let expires_at = created_at + DURATION_30_DAYS;
             let user_agent = headers.get(USER_AGENT).and_then(|val| val.to_str().ok());

@@ -13,6 +13,7 @@ use time::OffsetDateTime;
 
 use crate::{Base64DecodeError, Permission, Token, UserId, Valid, error};
 
+#[derive(Debug)]
 pub struct SessionId(Token<32>);
 
 pub struct SessionInfo {
@@ -60,7 +61,7 @@ impl SessionId {
     }
 
     pub async fn info(&self, pool: &SqlitePool) -> Result<Option<SessionInfo>, sqlx::Error> {
-        let session_id_hash = self.hash();
+        let session_id_hash = self.hash_sha256();
 
         sqlx::query_as!(
             SessionInfo,

@@ -31,7 +31,7 @@ impl AccessToken {
     }
 
     pub async fn info(&self, pool: &SqlitePool) -> Result<Option<AccessTokenInfo>, sqlx::Error> {
-        let access_token_hash = self.hash();
+        let access_token_hash = self.hash_sha256();
 
         sqlx::query_as!(
             AccessTokenInfo,

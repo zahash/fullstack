@@ -40,7 +40,7 @@ pub async fn generate_access_token(
     tracing::Span::current().record("user_id", &tracing::field::debug(user_id));
 
     let access_token = AccessToken::new();
-    let access_token_hash = access_token.hash();
+    let access_token_hash = access_token.hash_sha256();
     let created_at = OffsetDateTime::now_utc();
     let expires_at = settings.ttl.map(|ttl| created_at + ttl);
 

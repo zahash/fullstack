@@ -13,7 +13,7 @@ impl<const N: usize> Token<N> {
         Self(buffer)
     }
 
-    pub fn hash(&self) -> Vec<u8> {
+    pub fn hash_sha256(&self) -> Vec<u8> {
         let mut hasher = Sha256::new();
         hasher.update(self.0);
         hasher.finalize().to_vec()

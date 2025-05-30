@@ -8,7 +8,7 @@ pub async fn logout(
     mut jar: CookieJar,
 ) -> Result<CookieJar, InternalError> {
     if let Ok(Some(session_id)) = SessionId::try_from_cookie_jar(&jar) {
-        let session_id_hash = session_id.hash();
+        let session_id_hash = session_id.hash_sha256();
         sqlx::query!(
             "DELETE FROM sessions WHERE session_id_hash = ?",
             session_id_hash

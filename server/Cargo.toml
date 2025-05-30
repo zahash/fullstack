@@ -10,5 +10,6 @@ sqlx = { version = "0.8", features = ["runtime-tokio-native-tls", "sqlite"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 tower-http = { version = "0.6", features = ["fs", "request-id", "trace"] }
 tracing = "0.1"
+
 api = { path = "../api" }
 server-core = { path = "../server-core" }

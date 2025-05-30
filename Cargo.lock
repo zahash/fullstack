@@ -311,6 +311,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
 
 [[package]]
+name = "cache"
+version = "0.1.0"
+dependencies = [
+ "dashmap",
+ "server-core",
+]
+
+[[package]]
 name = "cc"
 version = "1.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1862,7 +1870,6 @@ dependencies = [
  "axum-extra",
  "base64",
  "bcrypt",
- "compiletime",
  "dashmap",
  "forwarded-header-value",
  "lettre",

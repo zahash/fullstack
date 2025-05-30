@@ -1,7 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
-    "api",
+    "api", 
+    "cache",
     "cli",
     "compiletime",
     "server",
