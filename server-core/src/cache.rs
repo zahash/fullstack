@@ -1,7 +1,21 @@
-use std::{any::Any, collections::HashMap};
+use std::any::Any;
+
+use dashmap::DashMap;
 
 pub trait Tag {
     fn id(&self) -> &str;
+}
+
+impl Tag for String {
+    fn id(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl Tag for &str {
+    fn id(&self) -> &str {
+        self
+    }
 }
 
 pub trait Cache {
@@ -14,19 +28,19 @@ pub trait Cache {
 }
 
 pub struct CacheRegistry {
-    caches: HashMap<&'static str, Box<dyn CacheAny>>,
+    caches: DashMap<&'static str, Box<dyn CacheAny>>,
 }
 
 impl CacheRegistry {
     pub fn new() -> Self {
         Self {
-            caches: HashMap::new(),
+            caches: DashMap::new(),
         }
     }
 
     pub fn builder() -> CacheRegistryBuilder {
         CacheRegistryBuilder {
-            caches: HashMap::new(),
+            caches: DashMap::new(),
         }
     }
 
@@ -43,13 +57,13 @@ impl CacheRegistry {
             .map(|v| *v)
     }
 
-    pub fn put<K, V>(&mut self, namespace: &str, key: K, value: V, tags: Vec<Box<dyn Tag>>) -> bool
+    pub fn put<K, V>(&self, namespace: &str, key: K, value: V, tags: Vec<Box<dyn Tag>>) -> bool
     where
         K: 'static,
         V: 'static,
     {
         match self.caches.get_mut(namespace) {
-            Some(cache) => {
+            Some(mut cache) => {
                 cache.put_any(Box::new(key), Box::new(value), tags);
                 true
             }
@@ -57,9 +71,9 @@ impl CacheRegistry {
         }
     }
 
-    pub fn invalidate(&mut self, tag: &dyn Tag) {
-        for cache in self.caches.values_mut() {
-            cache.invalidate_any(tag);
+    pub fn invalidate(&self, tag: &dyn Tag) {
+        for mut ref_ in self.caches.iter_mut() {
+            ref_.value_mut().invalidate_any(tag);
         }
     }
 }
@@ -97,11 +111,11 @@ where
 }
 
 pub struct CacheRegistryBuilder {
-    caches: HashMap<&'static str, Box<dyn CacheAny>>,
+    caches: DashMap<&'static str, Box<dyn CacheAny>>,
 }
 
 impl CacheRegistryBuilder {
-    pub fn add<C>(mut self, namespace: &'static str, cache: C) -> Self
+    pub fn add<C>(self, namespace: &'static str, cache: C) -> Self
     where
         C: Cache + 'static,
     {
