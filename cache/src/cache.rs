@@ -28,7 +28,7 @@ pub trait Cache {
 }
 
 pub struct CacheRegistry {
-    caches: DashMap<&'static str, Box<dyn CacheAny>>,
+    caches: DashMap<&'static str, Box<dyn CacheAny + Send + Sync>>,
 }
 
 impl CacheRegistry {
@@ -38,9 +38,12 @@ impl CacheRegistry {
         }
     }
 
-    pub fn builder() -> CacheRegistryBuilder {
-        CacheRegistryBuilder {
-            caches: DashMap::new(),
+    pub fn ensure_cache<C>(&self, namespace: &'static str, cache_init: impl FnOnce() -> C)
+    where
+        C: Cache + Send + Sync + 'static,
+    {
+        if let dashmap::Entry::Vacant(entry) = self.caches.entry(namespace) {
+            entry.insert(Box::new(cache_init()));
         }
     }
 
@@ -107,25 +110,5 @@ where
 
     fn invalidate_any(&mut self, tag: &dyn Tag) {
         self.invalidate(tag);
-    }
-}
-
-pub struct CacheRegistryBuilder {
-    caches: DashMap<&'static str, Box<dyn CacheAny>>,
-}
-
-impl CacheRegistryBuilder {
-    pub fn add<C>(self, namespace: &'static str, cache: C) -> Self
-    where
-        C: Cache + 'static,
-    {
-        self.caches.insert(namespace, Box::new(cache));
-        self
-    }
-
-    pub fn build(self) -> CacheRegistry {
-        CacheRegistry {
-            caches: self.caches,
-        }
     }
 }

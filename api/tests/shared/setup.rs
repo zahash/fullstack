@@ -1,6 +1,8 @@
+use cache::CacheRegistry;
+use server_core::DataAccess;
 use sqlx::SqlitePool;
 
-pub async fn pool() -> SqlitePool {
+pub async fn data_access() -> DataAccess {
     let pool = SqlitePool::connect("sqlite::memory:")
         .await
         .expect("unable to connect to test db");
@@ -10,5 +12,5 @@ pub async fn pool() -> SqlitePool {
         .await
         .expect("unable to run migrations");
 
-    pool
+    DataAccess::new(pool, CacheRegistry::new())
 }

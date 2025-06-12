@@ -5,5 +5,3 @@ edition = "2024"
 
 [dependencies]
 dashmap = "6.1"
-
-server-core = { path = "../server-core" }

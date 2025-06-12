@@ -1,7 +1,8 @@
 use std::hash::Hash;
 
 use dashmap::DashMap;
-use server_core::cache::{Cache, Tag};
+
+use crate::{Cache, Tag};
 
 pub struct DashCache<K, V> {
     cache: DashMap<K, V>,
@@ -35,6 +36,18 @@ where
             for key in keys {
                 self.cache.remove(&key);
             }
+        }
+    }
+}
+
+impl<K, V> DashCache<K, V> {
+    pub fn new() -> Self
+    where
+        K: Hash + Eq,
+    {
+        Self {
+            cache: DashMap::new(),
+            tags: DashMap::new(),
         }
     }
 }

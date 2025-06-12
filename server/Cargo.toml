@@ -12,4 +12,5 @@ tower-http = { version = "0.6", features = ["fs", "request-id", "trace"] }
 tracing = "0.1"
 
 api = { path = "../api" }
+cache = { path = "../cache" }
 server-core = { path = "../server-core" }

@@ -16,9 +16,9 @@ macro_rules! request {
 
 #[macro_export]
 macro_rules! fixture {
-    ( $pool:ident ; $( $req:expr ; )* ) => {{
+    ( $data_access:ident ; $( $req:expr ; )* ) => {{
         $(
-            let resp = crate::send!( $pool $req );
+            let resp = crate::send!( $data_access $req );
             let status = resp.status();
             let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
 
@@ -29,10 +29,10 @@ macro_rules! fixture {
 
 #[macro_export]
 macro_rules! send {
-    ( $pool:ident $req:expr ) => {{
+    ( $data_access:ident $req:expr ) => {{
         use tower::ServiceExt;
         api::server(server_core::AppState {
-            pool: $pool.clone(),
+            data_access: $data_access.clone(),
             rate_limiter: std::sync::Arc::new(server_core::RateLimiter::nolimit()),
             // mailer: std::sync::Arc::new(lettre::FileTransport::new("/tmp")),
         })

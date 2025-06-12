@@ -2,7 +2,7 @@ mod shared;
 
 use shared::{
     request::{login, signup},
-    setup::pool,
+    setup::data_access,
 };
 use test_proc_macros::{email, password, username};
 
@@ -12,11 +12,11 @@ async fn onboarding_flow() {
     let email = email!("user1@test.com");
     let password = password!("Aa!1aaaa");
 
-    let pool = pool().await;
+    let data_access = data_access().await;
 
-    t!( send!(pool login(username, password))  => status!(401) );
-    t!( send!(pool signup(username, email, password)) => status!(201) );
-    t!( send!(pool login(username, password))  => status!(200) );
+    t!( send!(data_access login(username, password))  => status!(401) );
+    t!( send!(data_access signup(username, email, password)) => status!(201) );
+    t!( send!(data_access login(username, password))  => status!(200) );
 }
 
 #[tokio::test]
@@ -25,10 +25,10 @@ async fn double_signup() {
     let email = email!("user1@test.com");
     let password = password!("Aa!1aaaa");
 
-    let pool = pool().await;
+    let data_access = data_access().await;
 
-    t!( send!(pool signup(username, email, password)) => status!(201) );
-    t!( send!(pool signup(username, email, password)) => status!(409) );
+    t!( send!(data_access signup(username, email, password)) => status!(201) );
+    t!( send!(data_access signup(username, email, password)) => status!(409) );
 }
 
 #[tokio::test]
@@ -41,19 +41,19 @@ async fn username_taken() {
     let password1 = password!("Aa!1aaaa");
     let password2 = password!("Bb!2bbbb");
 
-    let pool = pool().await;
+    let data_access = data_access().await;
 
     fixture! {
-        pool;
+        data_access;
         signup(username, email1, password1);
     }
 
-    t!( send!(pool signup(username, email2, password2)) => status!(409) );
+    t!( send!(data_access signup(username, email2, password2)) => status!(409) );
 }
 
 #[tokio::test]
 async fn email_taken() {
-    let pool = pool().await;
+    let data_access = data_access().await;
 
     let email = email!("user3@test.com");
 
@@ -64,9 +64,9 @@ async fn email_taken() {
     let password2 = password!("Bb!2bbbb");
 
     fixture! {
-        pool;
+        data_access;
         signup(username1, email, password1);
     }
 
-    t!( send!(pool signup(username2, email, password2)) => status!(409) );
+    t!( send!(data_access signup(username2, email, password2)) => status!(409) );
 }

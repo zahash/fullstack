@@ -2,7 +2,7 @@ mod shared;
 
 use shared::{
     request::{login, signup},
-    setup::pool,
+    setup::data_access,
 };
 use test_proc_macros::{email, password, username};
 
@@ -14,14 +14,14 @@ async fn wrong_password() {
     let password = password!("Aa!1aaaa");
     let wrong_password = password!("Bb!2bbbb");
 
-    let pool = pool().await;
+    let data_access = data_access().await;
 
     fixture!(
-        pool;
+        data_access;
         signup(username, email, password);
     );
 
-    t!( send!(pool login(username, wrong_password)) => status!(401) );
+    t!( send!(data_access login(username, wrong_password)) => status!(401) );
 }
 
 #[tokio::test]
@@ -29,7 +29,7 @@ async fn user_not_found() {
     let username = username!("user1");
     let password = password!("Aa!1aaaa");
 
-    let pool = pool().await;
+    let data_access = data_access().await;
 
-    t!( send!(pool login(username, password)) => status!(401) );
+    t!( send!(data_access login(username, password)) => status!(401) );
 }

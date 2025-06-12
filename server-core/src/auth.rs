@@ -6,8 +6,8 @@ use axum::{
 
 use crate::{
     AccessTokenInfo, AccessTokenValiationError, AppState, AuthorizationHeader,
-    AuthorizationHeaderError, Base64DecodeError, Context, InternalError, SessionId, SessionInfo,
-    SessionValidationError, UserId, UserInfo, Valid, error,
+    AuthorizationHeaderError, Base64DecodeError, Context, DataAccess, InternalError, SessionId,
+    SessionInfo, SessionValidationError, UserInfo, Valid, error,
 };
 
 pub enum Principal {
@@ -20,7 +20,9 @@ pub struct Permissions {
     permissions: Vec<Permission>,
 }
 
+#[derive(Clone)]
 pub struct Permission {
+    pub id: i64,
     pub permission: String,
     pub description: Option<String>,
 }
@@ -60,26 +62,26 @@ pub enum PrincipalError {
 }
 
 impl Principal {
-    pub fn user_id(&self) -> &UserId {
+    pub fn user_id(&self) -> i64 {
         match self {
-            Principal::Session(info) => &info.user_id,
-            Principal::AccessToken(info) => &info.user_id,
-            Principal::Basic(info) => &info.user_id,
+            Principal::Session(info) => info.user_id,
+            Principal::AccessToken(info) => info.user_id,
+            Principal::Basic(info) => info.user_id,
         }
     }
 
-    pub async fn permissions(&self, pool: &sqlx::SqlitePool) -> Result<Permissions, sqlx::Error> {
+    pub async fn permissions(&self, data_access: &DataAccess) -> Result<Permissions, sqlx::Error> {
         match self {
             Principal::Session(info) => info
-                .permissions(pool)
+                .permissions(data_access)
                 .await
                 .map(|permissions| Permissions { permissions }),
             Principal::AccessToken(info) => info
-                .permissions(pool)
+                .permissions(data_access)
                 .await
                 .map(|permissions| Permissions { permissions }),
             Principal::Basic(info) => info
-                .permissions(pool)
+                .permissions(data_access)
                 .await
                 .map(|permissions| Permissions { permissions }),
         }
@@ -113,7 +115,7 @@ impl FromRequestParts<AppState> for Principal {
             match authorization_header {
                 AuthorizationHeader::AccessToken(access_token) => {
                     let info = access_token
-                        .info(&state.pool)
+                        .info(&state.data_access)
                         .await
                         .context("AccessToken -> AccessTokenInfo")?
                         .ok_or(PrincipalError::UnAssociatedAccessToken)?;
@@ -121,7 +123,7 @@ impl FromRequestParts<AppState> for Principal {
                     return Ok(Principal::AccessToken(validated_info));
                 }
                 AuthorizationHeader::Basic { username, password } => {
-                    let user_info = UserInfo::from_username(&username, &state.pool)
+                    let user_info = UserInfo::from_username(&username, &state.data_access)
                         .await
                         .context("username -> UserInfo")?
                         .ok_or(PrincipalError::InvalidBasicCredentials)?;
@@ -136,7 +138,7 @@ impl FromRequestParts<AppState> for Principal {
 
         if let Some(session_id) = SessionId::try_from_headers(&parts.headers)? {
             let info = session_id
-                .info(&state.pool)
+                .info(&state.data_access)
                 .await
                 .context("SessionId -> SessionInfo")?
                 .ok_or(PrincipalError::UnAssociatedSessionId)?;

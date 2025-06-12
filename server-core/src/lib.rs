@@ -5,14 +5,11 @@ mod data_access;
 mod email;
 mod error;
 mod middleware;
-mod password;
 mod rate_limiter;
 mod session;
 mod token;
 mod user;
-mod username;
 
-pub mod cache;
 pub use access_token::{AccessToken, AccessTokenInfo, AccessTokenValiationError};
 pub use auth::{InsufficientPermissionsError, Permission, Permissions, Principal};
 pub use authorization_header::{AuthorizationHeader, AuthorizationHeaderError};
@@ -20,12 +17,10 @@ pub use data_access::DataAccess;
 pub use email::Email;
 pub use error::{Context, InternalError, error};
 pub use middleware::{mw_client_ip, mw_handle_leaked_5xx, mw_rate_limiter};
-pub use password::Password;
 pub use rate_limiter::RateLimiter;
 pub use session::{SessionExt, SessionId, SessionInfo, SessionValidationError};
 pub use token::Token;
-pub use user::{UserId, UserInfo};
-pub use username::Username;
+pub use user::UserInfo;
 
 use std::{
     fmt::Display,
@@ -42,14 +37,13 @@ use axum::{
 use forwarded_header_value::{ForwardedHeaderValue, Identifier};
 use tracing::Span;
 // use lettre::SmtpTransport;
-use sqlx::SqlitePool;
 
 // TODO
 // email verification during signup
 // shared validation code between frontend and backend as wasm (is_strong_password)
 
 pub struct AppState {
-    pub pool: SqlitePool,
+    pub data_access: DataAccess,
     pub rate_limiter: Arc<RateLimiter>,
     // pub mailer: Arc<()>,
 }
@@ -141,7 +135,7 @@ pub struct Base64DecodeError(&'static str);
 impl Clone for AppState {
     fn clone(&self) -> Self {
         Self {
-            pool: self.pool.clone(),
+            data_access: self.data_access.clone(),
             rate_limiter: Arc::clone(&self.rate_limiter),
             // mailer: Arc::clone(&self.mailer),
         }

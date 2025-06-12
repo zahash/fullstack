@@ -1,61 +1,104 @@
 use bcrypt::verify;
-use sqlx::{Sqlite, SqlitePool, Type};
+use cache::{DashCache, Tag};
 
-use crate::{Email, Permission, Username, Valid};
+use crate::{DataAccess, Email, Permission, Valid};
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct UserId(i64);
-
-#[derive(Debug)]
 pub struct UserInfo {
-    pub user_id: UserId,
-    pub username: Username,
+    pub user_id: i64,
+    pub username: String,
     pub email: Email,
     password_hash: String,
 }
 
-impl UserId {
-    pub async fn info(&self, pool: &sqlx::SqlitePool) -> Result<Option<UserInfo>, sqlx::Error> {
-        let record = sqlx::query!(
-            r#"SELECT id as "user_id!", username, email, password_hash FROM users WHERE id = ?"#,
-            self.0
-        )
-        .fetch_optional(pool)
-        .await?;
+impl UserInfo {
+    pub async fn from_user_id(
+        user_id: i64,
+        data_access: &DataAccess,
+    ) -> Result<Option<UserInfo>, sqlx::Error> {
+        #[derive(Clone)]
+        struct Row {
+            user_id: i64,
+            username: String,
+            email: String,
+            password_hash: String,
+        }
+
+        let record = data_access
+            .read(
+                |pool| {
+                    sqlx::query_as!(
+                        Row,
+                        r#"
+                        SELECT id as "user_id!", username, email, password_hash
+                        FROM users WHERE id = ?
+                        "#,
+                        user_id
+                    )
+                    .fetch_optional(pool)
+                },
+                "user_info__from__user_id",
+                user_id,
+                |value| match value {
+                    Some(row) => vec![Box::new(format!("users:{}", row.user_id))],
+                    None => vec![Box::new("users")],
+                },
+                DashCache::new,
+            )
+            .await?;
 
         match record {
             Some(record) => Ok(Some(UserInfo {
-                user_id: UserId::from(record.user_id),
-                username: Username::try_from_sqlx(record.username)?,
+                user_id: record.user_id,
+                username: record.username,
                 email: Email::try_from_sqlx(record.email)?,
                 password_hash: record.password_hash,
             })),
             None => Ok(None),
         }
     }
-}
 
-impl UserInfo {
     pub async fn from_username(
         username: &str,
-        pool: &sqlx::SqlitePool,
+        data_access: &DataAccess,
     ) -> Result<Option<Self>, sqlx::Error> {
-        let record = sqlx::query!(            
-            r#"SELECT id as "user_id!", username, email, password_hash FROM users WHERE username = ?"#,
-            username
-        )
-        .fetch_optional(pool)
-        .await?;
+        #[derive(Clone)]
+        struct Row {
+            user_id: i64,
+            username: String,
+            email: String,
+            password_hash: String,
+        }
+
+        let record = data_access
+            .read(
+                |pool| {
+                    sqlx::query_as!(
+                        Row,
+                        r#"
+                        SELECT id as "user_id!", username, email, password_hash
+                        FROM users WHERE username = ?
+                        "#,
+                        username
+                    )
+                    .fetch_optional(pool)
+                },
+                "user_info__from__username",
+                username.to_string(),
+                |value| match value {
+                    Some(row) => vec![Box::new(format!("users:{}", row.user_id))],
+                    None => vec![Box::new("users")],
+                },
+                DashCache::new,
+            )
+            .await?;
 
         match record {
-            Some(record) => {
-                Ok(Some(UserInfo {
-                    user_id: UserId::from(record.user_id),
-                    username: Username::try_from_sqlx(record.username)?,
-                    email: Email::try_from_sqlx(record.email)?,
-                    password_hash: record.password_hash,
-                }))
-            }
+            Some(record) => Ok(Some(UserInfo {
+                user_id: record.user_id,
+                username: record.username,
+                email: Email::try_from_sqlx(record.email)?,
+                password_hash: record.password_hash,
+            })),
             None => Ok(None),
         }
     }
@@ -73,40 +116,38 @@ impl UserInfo {
 }
 
 impl Valid<UserInfo> {
-    pub async fn permissions(&self, pool: &SqlitePool) -> Result<Vec<Permission>, sqlx::Error> {
-        let user_id = &self.0.user_id;
-
-        let permissions = sqlx::query_as!(
-            Permission,
-            r#"SELECT p.permission, p.description FROM permissions p
-              INNER JOIN user_permissions up ON up.permission_id = p.id
-              WHERE up.user_id = ?"#,
-            user_id
-        )
-        .fetch_all(pool)
-        .await?;
-
-        Ok(permissions)
-    }
-}
-
-impl Type<Sqlite> for UserId {
-    fn type_info() -> <Sqlite as sqlx::Database>::TypeInfo {
-        <i64 as Type<Sqlite>>::type_info()
-    }
-}
-
-impl sqlx::Encode<'_, Sqlite> for UserId {
-    fn encode_by_ref(
+    pub async fn permissions(
         &self,
-        buf: &mut <Sqlite as sqlx::Database>::ArgumentBuffer<'_>,
-    ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
-        <i64 as sqlx::Encode<Sqlite>>::encode_by_ref(&self.0, buf)
-    }
-}
+        data_access: &DataAccess,
+    ) -> Result<Vec<Permission>, sqlx::Error> {
+        let user_id = self.0.user_id;
 
-impl From<i64> for UserId {
-    fn from(value: i64) -> Self {
-        UserId(value)
+        data_access
+            .read(
+                |pool| {
+                    sqlx::query_as!(
+                        Permission,
+                        r#"
+                        SELECT p.id as "id!", p.permission, p.description FROM permissions p
+                        INNER JOIN user_permissions up ON up.permission_id = p.id
+                        WHERE up.user_id = ?"#,
+                        user_id
+                    )
+                    .fetch_all(pool)
+                },
+                "user_permissions__from__user_id",
+                user_id,
+                |permissions| {
+                    let mut tags = permissions
+                        .into_iter()
+                        .map(|p| format!("permissions:{}", p.id))
+                        .map(|tag| Box::new(tag) as Box<dyn Tag>)
+                        .collect::<Vec<Box<dyn Tag + 'static>>>();
+                    tags.push(Box::new(format!("users:{}", user_id)));
+                    tags
+                },
+                DashCache::new,
+            )
+            .await
     }
 }

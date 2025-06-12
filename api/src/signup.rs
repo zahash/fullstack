@@ -1,32 +1,39 @@
 use axum::{
     Form,
-    extract::{State, rejection::FormRejection},
+    extract::State,
     http::StatusCode,
     response::{IntoResponse, Response},
 };
 use serde::Deserialize;
 
-use server_core::{AppState, Context, Email, InternalError, Password, Username, error};
+use server_core::{AppState, Context, Email, InternalError, error};
+use validation::{validate_password, validate_username};
 
 use crate::{email::email_exists, username::username_exists};
 
 #[derive(Deserialize)]
 pub struct SignUp {
-    pub username: Username,
-    pub email: Email,
-    pub password: Password,
+    pub username: String,
+    pub email: String,
+    pub password: String,
 }
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
+    #[error("{0}")]
+    InvalidUsername(&'static str),
+
     #[error("{0} is not available")]
-    UsernameExists(Username),
+    UsernameExists(String),
+
+    #[error("{0}")]
+    InvalidEmail(&'static str),
 
     #[error("{0} already linked to another account")]
     EmailExists(Email),
 
     #[error("{0}")]
-    FormRejection(FormRejection),
+    WeakPassword(&'static str),
 
     #[error("{0:?}")]
     Internal(#[from] InternalError),
@@ -34,55 +41,70 @@ pub enum Error {
 
 #[tracing::instrument(fields(username = tracing::field::Empty), skip_all, ret)]
 pub async fn signup(
-    State(AppState { pool, .. }): State<AppState>,
-    payload: Result<Form<SignUp>, FormRejection>,
-) -> Result<StatusCode, Error> {
-    let Form(SignUp {
+    State(AppState { data_access, .. }): State<AppState>,
+    Form(SignUp {
         username,
         email,
         password,
-    }) = payload.map_err(Error::from)?;
+    }): Form<SignUp>,
+) -> Result<StatusCode, Error> {
+    let username = validate_username(username).map_err(Error::InvalidUsername)?;
+    let password = validate_password(password).map_err(Error::WeakPassword)?;
+    let email = Email::try_from(email).map_err(Error::InvalidEmail)?;
 
     tracing::Span::current().record("username", &tracing::field::display(&username));
 
-    let password_hash = bcrypt::hash(password, bcrypt::DEFAULT_COST).context("hash password")?;
-
-    if username_exists(&pool, &username)
+    if username_exists(&data_access, &username)
         .await
         .context("username exists")?
     {
         return Err(Error::UsernameExists(username));
     }
 
-    if email_exists(&pool, &email).await.context("email exists")? {
+    if email_exists(&data_access, &email)
+        .await
+        .context("email exists")?
+    {
         return Err(Error::EmailExists(email));
     }
 
-    sqlx::query!(
-        "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
-        username,
-        email,
-        password_hash,
-    )
-    .execute(&pool)
-    .await
-    .context("insert user")?;
+    let password_hash = bcrypt::hash(password, bcrypt::DEFAULT_COST).context("hash password")?;
+
+    data_access
+        .write(
+            |pool| {
+                sqlx::query!(
+                    r#"
+                    INSERT INTO users
+                    (username, email, password_hash)
+                    VALUES (?, ?, ?)
+                    RETURNING id as "user_id!"
+                    "#,
+                    username,
+                    email,
+                    password_hash,
+                )
+                .fetch_one(pool)
+            },
+            |value| {
+                vec![
+                    Box::new("users"),
+                    Box::new(format!("users:{}", value.user_id)),
+                ]
+            },
+        )
+        .await
+        .context("insert user")?;
 
     Ok(StatusCode::CREATED)
-}
-
-impl From<FormRejection> for Error {
-    fn from(err: FormRejection) -> Self {
-        Error::FormRejection(err)
-    }
 }
 
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
         match self {
-            Error::FormRejection(err) => {
+            Error::InvalidUsername(err) | Error::InvalidEmail(err) | Error::WeakPassword(err) => {
                 tracing::info!("{:?}", err);
-                (err.status(), error(&err.body_text())).into_response()
+                (StatusCode::BAD_REQUEST, error(&err)).into_response()
             }
             Error::UsernameExists(_) | Error::EmailExists(_) => {
                 tracing::info!("{:?}", self);

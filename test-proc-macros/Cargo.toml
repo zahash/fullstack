@@ -11,10 +11,11 @@ syn = "2"
 quote = "1"
 
 server-core = { path = "../server-core", optional = true }
+validation = { path = "../validation", optional = true }
 
 [features]
-username = ["dep:server-core"]
-password = ["dep:server-core"]
+username = ["dep:validation"]
+password = ["dep:validation"]
 email = ["dep:server-core"]
 
 [dev-dependencies]

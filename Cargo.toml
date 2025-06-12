@@ -1,13 +1,13 @@
 [workspace]
 resolver = "2"
 members = [
-    "api", 
+    "api",
     "cache",
     "cli",
     "compiletime",
     "server",
     "server-core",
-    "test-proc-macros", 
+    "test-proc-macros",
     "validation",
     "wasm",
 ]

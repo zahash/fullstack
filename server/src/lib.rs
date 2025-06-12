@@ -1,12 +1,13 @@
 use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use anyhow::Context;
+use cache::CacheRegistry;
 use sqlx::SqlitePool;
 use tokio::net::TcpListener;
 use tower_http::services::ServeDir;
 
 use api::server;
-use server_core::{AppState, RateLimiter};
+use server_core::{AppState, DataAccess, RateLimiter};
 
 #[derive(Debug)]
 pub struct ServerOpts {
@@ -27,9 +28,12 @@ pub async fn serve(opts: ServerOpts) -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("{:?}", opts);
 
     let state = AppState {
-        pool: SqlitePool::connect(&opts.database_url)
-            .await
-            .with_context(|| format!("connect database :: {}", opts.database_url))?,
+        data_access: DataAccess::new(
+            SqlitePool::connect(&opts.database_url)
+                .await
+                .with_context(|| format!("connect database :: {}", opts.database_url))?,
+            CacheRegistry::new(),
+        ),
         rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
         // mailer: Arc::new(
         //     SmtpTransport::relay(&opts.smtp.relay)?

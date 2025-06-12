@@ -1,12 +1,9 @@
-use std::{
-    fmt::{Debug, Display},
-    str::FromStr,
-};
+use std::{fmt::Display, str::FromStr};
 
 use serde::Deserialize;
 use sqlx::{Sqlite, Type};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Email(lettre::Address);
 
 const MSG: &'static str = "email must conform to the HTML5 Specification https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address";
@@ -73,6 +70,6 @@ impl sqlx::Decode<'_, Sqlite> for Email {
 
 impl Display for Email {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Email({})", self.0)
+        write!(f, "{}", self.0)
     }
 }

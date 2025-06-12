@@ -3,10 +3,11 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use cache::DashCache;
 use serde::Deserialize;
 
-use server_core::{AppState, Context, InternalError, Username, error};
-use sqlx::SqlitePool;
+use server_core::{AppState, Context, DataAccess, InternalError, error};
+use validation::validate_username;
 
 #[derive(Deserialize)]
 pub struct CheckUsernameAvailabilityParams {
@@ -15,13 +16,13 @@ pub struct CheckUsernameAvailabilityParams {
 
 #[tracing::instrument(fields(?username), skip_all, ret)]
 pub async fn check_username_availability(
-    State(AppState { pool, .. }): State<AppState>,
+    State(AppState { data_access, .. }): State<AppState>,
     Query(CheckUsernameAvailabilityParams { username }): Query<CheckUsernameAvailabilityParams>,
 ) -> Result<StatusCode, CheckUsernameAvailabilityError> {
     let username =
-        Username::try_from(username).map_err(CheckUsernameAvailabilityError::InvalidParams)?;
+        validate_username(username).map_err(CheckUsernameAvailabilityError::InvalidParams)?;
 
-    match username_exists(&pool, &username)
+    match username_exists(&data_access, &username)
         .await
         .context("check username availability")?
     {
@@ -30,17 +31,38 @@ pub async fn check_username_availability(
     }
 }
 
-pub async fn username_exists(pool: &SqlitePool, username: &Username) -> Result<bool, sqlx::Error> {
-    match sqlx::query!(
-        "SELECT EXISTS(SELECT 1 FROM users WHERE username = ? LIMIT 1) as username_exists",
-        username
-    )
-    .fetch_one(pool)
-    .await?
-    .username_exists
-    {
-        0 => Ok(false),
-        _ => Ok(true),
+pub async fn username_exists(
+    data_access: &DataAccess,
+    username: &str,
+) -> Result<bool, sqlx::Error> {
+    #[derive(Clone)]
+    struct Row {
+        user_id: i64,
+    }
+
+    let row = data_access
+        .read(
+            |pool| {
+                sqlx::query_as!(
+                    Row,
+                    r#"SELECT id as "user_id!" FROM users WHERE username = ? LIMIT 1"#,
+                    username
+                )
+                .fetch_optional(pool)
+            },
+            "username_exists",
+            username.to_string(),
+            |value| match value {
+                Some(row) => vec![Box::new(format!("users:{}", row.user_id))],
+                None => vec![Box::new("users")],
+            },
+            DashCache::new,
+        )
+        .await?;
+
+    match row {
+        Some(_) => Ok(true),
+        None => Ok(false),
     }
 }
 

@@ -25,12 +25,12 @@ pub struct AccessTokenSettings {
 #[debug_handler]
 #[tracing::instrument(fields(user_id = tracing::field::Empty, ?settings), skip_all)]
 pub async fn generate_access_token(
-    State(AppState { pool, .. }): State<AppState>,
+    State(AppState { data_access, .. }): State<AppState>,
     principal: Principal,
     Form(settings): Form<AccessTokenSettings>,
 ) -> Result<(StatusCode, AccessToken), AccessTokenGenerationError> {
     let permissions = principal
-        .permissions(&pool)
+        .permissions(&data_access)
         .await
         .context("get permissions")?;
 
@@ -44,16 +44,33 @@ pub async fn generate_access_token(
     let created_at = OffsetDateTime::now_utc();
     let expires_at = settings.ttl.map(|ttl| created_at + ttl);
 
-    sqlx::query!(
-            "INSERT INTO access_tokens (name, access_token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
-            settings.name,
-            access_token_hash,
-            user_id,
-            created_at,
-            expires_at,
+    data_access
+        .write(
+            |pool| {
+                sqlx::query!(
+                    r#"
+                    INSERT INTO access_tokens
+                    (name, access_token_hash, user_id, created_at, expires_at)
+                    VALUES (?, ?, ?, ?, ?)
+                    RETURNING id as "id!"
+                    "#,
+                    settings.name,
+                    access_token_hash,
+                    user_id,
+                    created_at,
+                    expires_at,
+                )
+                .fetch_one(pool)
+            },
+            |value| {
+                vec![
+                    Box::new("access_tokens"),
+                    Box::new(format!("access_tokens:{}", value.id)),
+                ]
+            },
         )
-        .execute(&pool)
-        .await.context("insert access_token")?;
+        .await
+        .context("insert access token")?;
 
     tracing::info!(?expires_at, "access_token created");
 
@@ -62,7 +79,7 @@ pub async fn generate_access_token(
 
 #[debug_handler]
 pub async fn check_access_token(
-    State(AppState { pool, .. }): State<AppState>,
+    State(AppState { data_access, .. }): State<AppState>,
     headers: HeaderMap,
 ) -> Result<StatusCode, CheckAccessTokenError> {
     let Some(AuthorizationHeader::AccessToken(access_token)) =
@@ -72,7 +89,7 @@ pub async fn check_access_token(
     };
 
     let info = access_token
-        .info(&pool)
+        .info(&data_access)
         .await
         .context("AccessToken -> AccessTokenInfo")?
         .ok_or(CheckAccessTokenError::UnAssociatedAccessToken)?;

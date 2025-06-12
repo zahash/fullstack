@@ -23,7 +23,9 @@ tower = "0.5"
 tower-http = { version = "0.6", features = ["fs", "request-id", "trace"] }
 tracing = "0.1"
 
+cache = { path = "../cache" }
 server-core = { path = "../server-core" }
+validation = { path = "../validation" }
 
 [dev-dependencies]
 test-proc-macros = { path = "../test-proc-macros", features = [

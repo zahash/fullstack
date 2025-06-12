@@ -8,16 +8,16 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use bcrypt::verify;
+use cache::DashCache;
 use serde::Deserialize;
 use time::OffsetDateTime;
 
-use server_core::{AppState, Context, InternalError, SessionId, UserId};
+use server_core::{AppState, Context, InternalError, SessionId};
 
 const DURATION_30_DAYS: Duration = Duration::from_secs(3600 * 24 * 30);
 
 #[derive(Deserialize)]
 pub struct Login {
-    // `Username` and `Password` type not necessary because no checks are required
     pub username: String,
     pub password: String,
 }
@@ -33,25 +33,40 @@ pub enum Error {
 
 #[tracing::instrument(fields(?username), skip_all)]
 pub async fn login(
-    State(AppState { pool, .. }): State<AppState>,
+    State(AppState { data_access, .. }): State<AppState>,
     headers: HeaderMap,
     jar: CookieJar,
     Form(Login { username, password }): Form<Login>,
 ) -> Result<(CookieJar, StatusCode), Error> {
+    #[derive(Clone)]
     struct User {
-        id: UserId,
+        id: i64,
         password_hash: String,
     }
 
-    let user = sqlx::query_as!(
-        User,
-        r#"SELECT id as "id!", password_hash FROM users WHERE username = ?"#,
-        username
-    )
-    .fetch_optional(&pool)
-    .await
-    .context("username -> User { id, password_hash }")?
-    .ok_or(Error::InvalidCredentials)?;
+    let user = data_access
+        .read(
+            |pool| {
+                sqlx::query_as!(
+                    User,
+                    r#"SELECT id as "id!", password_hash FROM users WHERE username = ?"#,
+                    username
+                )
+                .fetch_optional(pool)
+            },
+            "login_user__from__username",
+            username.clone(),
+            |value| match value {
+                Some(user) => vec![Box::new(format!("users:{}", user.id))],
+                None => vec![Box::new("users")],
+            },
+            DashCache::new,
+        )
+        .await;
+
+    let user = user
+        .context("username -> User { id, password_hash }")?
+        .ok_or(Error::InvalidCredentials)?;
 
     tracing::info!("{:?}", user.id);
 
@@ -64,16 +79,33 @@ pub async fn login(
             let expires_at = created_at + DURATION_30_DAYS;
             let user_agent = headers.get(USER_AGENT).and_then(|val| val.to_str().ok());
 
-            sqlx::query!(
-                    "INSERT INTO sessions (session_id_hash, user_id, created_at, expires_at, user_agent) VALUES (?, ?, ?, ?, ?)",
-                    session_id_hash,
-                    user.id,
-                    created_at,
-                    expires_at,
-                    user_agent
+            data_access
+                .write(
+                    |pool| {
+                        sqlx::query!(
+                            r#"
+                            INSERT INTO sessions
+                            (session_id_hash, user_id, created_at, expires_at, user_agent)
+                            VALUES (?, ?, ?, ?, ?)
+                            RETURNING id as "id!"
+                            "#,
+                            session_id_hash,
+                            user.id,
+                            created_at,
+                            expires_at,
+                            user_agent
+                        )
+                        .fetch_one(pool)
+                    },
+                    |value| {
+                        vec![
+                            Box::new("sessions"),
+                            Box::new(format!("sessions:{}", value.id)),
+                        ]
+                    },
                 )
-                .execute(&pool)
-                .await.context("insert session")?;
+                .await
+                .context("insert session")?;
 
             tracing::info!(?expires_at, ?user_agent, "session created");
 

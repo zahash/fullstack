@@ -4,17 +4,18 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use sqlx::SqlitePool;
+use cache::{DashCache, Tag};
 use time::OffsetDateTime;
 
-use crate::{Permission, Token, UserId, Valid, error};
+use crate::{DataAccess, Permission, Token, Valid, error};
 
 pub struct AccessToken(Token<32>);
 
+#[derive(Clone)]
 pub struct AccessTokenInfo {
     id: i64,
     pub name: String,
-    pub user_id: UserId,
+    pub user_id: i64,
     pub created_at: OffsetDateTime,
     pub expires_at: OffsetDateTime,
 }
@@ -30,15 +31,28 @@ impl AccessToken {
         Self(Token::new())
     }
 
-    pub async fn info(&self, pool: &SqlitePool) -> Result<Option<AccessTokenInfo>, sqlx::Error> {
+    pub async fn info(
+        &self,
+        data_access: &DataAccess,
+    ) -> Result<Option<AccessTokenInfo>, sqlx::Error> {
         let access_token_hash = self.hash_sha256();
 
-        sqlx::query_as!(
-            AccessTokenInfo,
-            r#"SELECT id as "id!", name, user_id, created_at, expires_at FROM access_tokens WHERE access_token_hash = ?"#,
-            access_token_hash
-        ).fetch_optional(pool)
-        .await
+        data_access.read(
+            |pool| sqlx::query_as!(
+                    AccessTokenInfo,
+                    r#"SELECT id as "id!", name, user_id, created_at, expires_at FROM access_tokens WHERE access_token_hash = ?"#,
+                    access_token_hash
+                ).fetch_optional(pool),
+            "access_token_info__from__access_token_hash",
+            access_token_hash.clone(),
+            |value| {
+                match value {
+                    Some(access_token_info) => vec![Box::new(format!("access_tokens:{}", access_token_info.id))],
+                    None => vec![Box::new("access_tokens")],
+                }
+            },
+            DashCache::new
+        ).await
     }
 }
 
@@ -57,20 +71,38 @@ impl AccessTokenInfo {
 }
 
 impl Valid<AccessTokenInfo> {
-    pub async fn permissions(&self, pool: &SqlitePool) -> Result<Vec<Permission>, sqlx::Error> {
-        let access_token_id = &self.0.id;
+    pub async fn permissions(
+        &self,
+        data_access: &DataAccess,
+    ) -> Result<Vec<Permission>, sqlx::Error> {
+        let access_token_id = self.0.id;
 
-        let permissions = sqlx::query_as!(
-            Permission,
-            "SELECT p.permission, p.description from permissions p
-             INNER JOIN access_token_permissions atp ON atp.permission_id = p.id
-             WHERE atp.access_token_id = ?",
-            access_token_id
-        )
-        .fetch_all(pool)
-        .await?;
-
-        Ok(permissions)
+        data_access
+            .read(
+                |pool| {
+                    sqlx::query_as!(
+                        Permission,
+                        r#"SELECT p.id as "id!", p.permission, p.description from permissions p
+                        INNER JOIN access_token_permissions atp ON atp.permission_id = p.id
+                        WHERE atp.access_token_id = ?"#,
+                        access_token_id
+                    )
+                    .fetch_all(pool)
+                },
+                "access_token_permissions__from__access_token_id",
+                access_token_id,
+                |permissions| {
+                    let mut tags = permissions
+                        .into_iter()
+                        .map(|p| format!("permissions:{}", p.id))
+                        .map(|tag| Box::new(tag) as Box<dyn Tag>)
+                        .collect::<Vec<Box<dyn Tag + 'static>>>();
+                    tags.push(Box::new(format!("access_tokens:{}", access_token_id)));
+                    tags
+                },
+                DashCache::new,
+            )
+            .await
     }
 }
 

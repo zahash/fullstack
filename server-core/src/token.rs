@@ -2,7 +2,7 @@ use base64::{Engine, prelude::BASE64_STANDARD};
 use rand::RngCore;
 use sha2::{Digest, Sha256};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Token<const N: usize>([u8; N]);
 
 impl<const N: usize> Token<N> {
