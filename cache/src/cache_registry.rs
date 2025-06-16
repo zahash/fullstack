@@ -2,7 +2,7 @@ use std::any::Any;
 
 use dashmap::DashMap;
 
-use crate::{Cache, Tag, cache_any::CacheAny, cfg_debug::CfgDebug};
+use crate::{Cache, Tag, cache_any::CacheAny};
 
 pub struct CacheRegistry {
     caches: DashMap<&'static str, Box<dyn CacheAny + Send + Sync>>,
@@ -41,10 +41,19 @@ impl CacheRegistry {
         feature = "tracing",
         tracing::instrument(level = "debug", fields(?namespace, ?key), skip_all, ret)
     )]
-    pub fn get<K, V>(&self, namespace: &'static str, key: &K) -> Option<V>
+    pub fn get<
+        #[cfg(not(feature = "tracing"))] K,
+        #[cfg(not(feature = "tracing"))] V,
+        #[cfg(feature = "tracing")] K: std::fmt::Debug,
+        #[cfg(feature = "tracing")] V: std::fmt::Debug,
+    >(
+        &self,
+        namespace: &'static str,
+        key: &K,
+    ) -> Option<V>
     where
-        K: 'static + CfgDebug,
-        V: 'static + CfgDebug,
+        K: 'static,
+        V: 'static,
     {
         self.caches
             .get(namespace)
@@ -74,10 +83,21 @@ impl CacheRegistry {
         feature = "tracing",
         tracing::instrument(level = "debug", fields(?namespace, ?key, ?value, ?tags), skip_all, ret)
     )]
-    pub fn put<K, V>(&self, namespace: &str, key: K, value: V, tags: Vec<Box<dyn Tag>>) -> bool
+    pub fn put<
+        #[cfg(not(feature = "tracing"))] K,
+        #[cfg(not(feature = "tracing"))] V,
+        #[cfg(feature = "tracing")] K: std::fmt::Debug,
+        #[cfg(feature = "tracing")] V: std::fmt::Debug,
+    >(
+        &self,
+        namespace: &str,
+        key: K,
+        value: V,
+        tags: Vec<Box<dyn Tag>>,
+    ) -> bool
     where
-        K: 'static + CfgDebug,
-        V: 'static + CfgDebug,
+        K: 'static,
+        V: 'static,
     {
         match self.caches.get_mut(namespace) {
             Some(mut cache) => {

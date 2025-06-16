@@ -1,6 +1,10 @@
-use crate::cfg_debug::CfgDebug;
+#[cfg(feature = "tracing")]
+pub trait Tag: std::fmt::Debug {
+    fn id(&self) -> &str;
+}
 
-pub trait Tag: CfgDebug {
+#[cfg(not(feature = "tracing"))]
+pub trait Tag {
     fn id(&self) -> &str;
 }
 

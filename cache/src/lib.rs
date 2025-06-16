@@ -1,7 +1,6 @@
 mod cache;
 mod cache_any;
 mod cache_registry;
-mod cfg_debug;
 mod dashcache;
 mod tag;
 

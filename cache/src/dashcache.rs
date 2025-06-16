@@ -2,17 +2,22 @@ use std::hash::Hash;
 
 use dashmap::DashMap;
 
-use crate::{Cache, Tag, cfg_debug::CfgDebug};
+use crate::{Cache, Tag};
 
 pub struct DashCache<K, V> {
     cache: DashMap<K, V>,
     tags: DashMap<String, Vec<K>>,
 }
 
-impl<K, V> Cache for DashCache<K, V>
+impl<
+    #[cfg(not(feature = "tracing"))] K,
+    #[cfg(not(feature = "tracing"))] V,
+    #[cfg(feature = "tracing")] K: std::fmt::Debug,
+    #[cfg(feature = "tracing")] V: std::fmt::Debug,
+> Cache for DashCache<K, V>
 where
-    K: Hash + Eq + Clone + CfgDebug,
-    V: Clone + CfgDebug,
+    K: Hash + Eq + Clone,
+    V: Clone,
 {
     type Key = K;
     type Value = V;
