@@ -1,7 +1,6 @@
 mod access_token;
 mod auth;
 mod authorization_header;
-mod data_access;
 mod email;
 mod error;
 mod middleware;
@@ -13,7 +12,6 @@ mod user;
 pub use access_token::{AccessToken, AccessTokenInfo, AccessTokenValiationError};
 pub use auth::{InsufficientPermissionsError, Permission, Permissions, Principal};
 pub use authorization_header::{AuthorizationHeader, AuthorizationHeaderError};
-pub use data_access::DataAccess;
 pub use email::Email;
 pub use error::{Context, InternalError, error};
 pub use middleware::{mw_client_ip, mw_handle_leaked_5xx, mw_rate_limiter};
@@ -34,6 +32,7 @@ use axum::{
     extract::ConnectInfo,
     http::{Request, header},
 };
+use data_access::DataAccess;
 use forwarded_header_value::{ForwardedHeaderValue, Identifier};
 use tracing::Span;
 // use lettre::SmtpTransport;

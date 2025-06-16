@@ -2,12 +2,13 @@ use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
 use anyhow::Context;
 use cache::CacheRegistry;
+use data_access::DataAccess;
 use sqlx::SqlitePool;
 use tokio::net::TcpListener;
 use tower_http::services::ServeDir;
 
 use api::server;
-use server_core::{AppState, DataAccess, RateLimiter};
+use server_core::{AppState, RateLimiter};
 
 #[derive(Debug)]
 pub struct ServerOpts {

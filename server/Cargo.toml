@@ -13,4 +13,5 @@ tracing = "0.1"
 
 api = { path = "../api" }
 cache = { path = "../cache" }
+data-access = { path = "../data-access" }
 server-core = { path = "../server-core" }

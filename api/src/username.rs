@@ -4,9 +4,10 @@ use axum::{
     response::IntoResponse,
 };
 use cache::DashCache;
+use data_access::DataAccess;
 use serde::Deserialize;
 
-use server_core::{AppState, Context, DataAccess, InternalError, error};
+use server_core::{AppState, Context, InternalError, error};
 use validation::validate_username;
 
 #[derive(Deserialize)]

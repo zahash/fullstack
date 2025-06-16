@@ -24,6 +24,7 @@ tower-http = { version = "0.6", features = ["fs", "request-id", "trace"] }
 tracing = "0.1"
 
 cache = { path = "../cache" }
+data-access = { path = "../data-access" }
 server-core = { path = "../server-core" }
 validation = { path = "../validation" }
 

@@ -1,5 +1,5 @@
 use cache::CacheRegistry;
-use server_core::DataAccess;
+use data_access::DataAccess;
 use sqlx::SqlitePool;
 
 pub async fn data_access() -> DataAccess {

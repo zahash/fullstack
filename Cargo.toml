@@ -5,6 +5,7 @@ members = [
     "cache",
     "cli",
     "compiletime",
+    "data-access",
     "server",
     "server-core",
     "test-proc-macros",
