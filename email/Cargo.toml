@@ -1,0 +1,14 @@
+[package]
+name = "email"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+lettre = { version = "0.11" }
+serde = { version = "1", optional = true }
+sqlx = { version = "0.8", optional = true }
+
+[features]
+serde = ["dep:serde", "lettre/serde"]
+sqlx = ["dep:sqlx"]
+sqlite = ["sqlx/sqlite"]

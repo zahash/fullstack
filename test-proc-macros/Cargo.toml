@@ -14,9 +14,9 @@ server-core = { path = "../server-core", optional = true }
 validation = { path = "../validation", optional = true }
 
 [features]
-username = ["dep:validation"]
-password = ["dep:validation"]
 email = ["dep:server-core"]
+password = ["dep:validation"]
+username = ["dep:validation"]
 
 [dev-dependencies]
 syn = { version = "2", features = ["extra-traits"] }

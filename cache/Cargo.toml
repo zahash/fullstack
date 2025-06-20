@@ -8,4 +8,5 @@ dashmap = "6.1"
 tracing = { version = "0.1", optional = true }
 
 [features]
+dashcache = []
 tracing = ["dep:tracing"]

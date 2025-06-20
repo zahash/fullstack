@@ -1,0 +1,18 @@
+[package]
+name = "error"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = { version = "1", optional = true }
+axum = { version = "0.8", optional = true }
+serde_json = { version = "1", optional = true }
+thiserror = { version = "2", optional = true }
+time = { version = "0.3", optional = true }
+tracing = { version = "0.1", optional = true }
+
+[features]
+axum-error-response = ["dep:axum", "dep:serde_json", "dep:time", "dep:tracing"]
+context = ["internal-error"]
+internal-error = ["dep:anyhow", "dep:thiserror"]
+internal-error-axum = ["internal-error", "dep:axum", "dep:tracing"]

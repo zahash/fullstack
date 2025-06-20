@@ -1,0 +1,23 @@
+[package]
+name = "auth"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = { version = "0.8", optional = true }
+base64 = "0.22"
+bcrypt = "0.17"
+cookie = "0.18"
+http = "1"
+sqlx = "0.8"
+thiserror = "2"
+time = "0.3"
+
+error = { path = "../error", optional = true }
+cache = { path = "../cache" }
+data-access = { path = "../data-access" }
+email = { path = "../email", features = ["sqlx"] }
+token = { path = "../token" }
+
+[features]
+axum = ["dep:axum", "dep:error", "error/axum-error-response"]

@@ -22,6 +22,6 @@ thiserror = "2"
 time = { version = "0.3", features = ["serde"] }
 tracing = "0.1"
 
-cache = { path = "../cache" }
+cache = { path = "../cache", features = ["dashcache"] }
 data-access = { path = "../data-access" }
 validation = { path = "../validation" }

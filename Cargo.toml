@@ -2,13 +2,17 @@
 resolver = "2"
 members = [
     "api",
+    "auth",
     "cache",
     "cli",
     "compiletime",
     "data-access",
+    "email",
+    "error",
     "server",
     "server-core",
     "test-proc-macros",
+    "token",
     "validation",
     "wasm",
 ]
