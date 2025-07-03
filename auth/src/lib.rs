@@ -14,7 +14,7 @@ mod permission;
 pub use permission::{InsufficientPermissionsError, Permission, Permissions};
 
 mod session;
-pub use session::{SessionId, SessionInfo, SessionValidationError};
+pub use session::{SessionId, SessionInfo, SessionValidationError, expired_session_cookie};
 
 mod user;
 pub use user::UserInfo;

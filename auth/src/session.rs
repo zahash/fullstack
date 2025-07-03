@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use cache::{DashCache, Tag};
-use cookie::{Cookie, SameSite};
+use cookie::{Cookie, SameSite, time::Duration};
 use data_access::DataAccess;
 use http::header::COOKIE;
 use time::OffsetDateTime;
@@ -56,11 +56,11 @@ impl SessionId {
         Self(Token::random())
     }
 
-    pub fn into_cookie<'a>(self, expires_at: OffsetDateTime) -> Cookie<'a> {
+    pub fn into_cookie(self, max_age: Duration) -> Cookie<'static> {
         Cookie::build((SESSION_ID, self.base64encoded()))
             .path("/")
             .same_site(SameSite::Strict)
-            .expires(expires_at)
+            .max_age(max_age)
             .http_only(true)
             .secure(true)
             .build()
@@ -92,6 +92,16 @@ impl SessionId {
             )
             .await
     }
+}
+
+pub fn expired_session_cookie() -> Cookie<'static> {
+    Cookie::build((SESSION_ID, ""))
+        .path("/")
+        .same_site(SameSite::Strict)
+        .max_age(Duration::seconds(-3600)) // Expire 1 hour ago
+        .http_only(true)
+        .secure(true)
+        .build()
 }
 
 impl Default for SessionId {

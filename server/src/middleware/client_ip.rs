@@ -15,7 +15,7 @@ pub async fn mw_client_ip(mut request: Request<Body>, next: Next) -> Response<Bo
     next.run(request).await
 }
 
-pub fn client_ip<B>(request: &Request<B>) -> Option<IpAddr> {
+fn client_ip<B>(request: &Request<B>) -> Option<IpAddr> {
     request
         .headers()
         .get(FORWARDED)

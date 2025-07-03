@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use auth::SessionId;
 use axum::{
     Form,
@@ -13,11 +11,11 @@ use bcrypt::verify;
 use boxer::{Boxer, Context};
 use cache::DashCache;
 use serde::Deserialize;
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
 
 use crate::AppState;
 
-const DURATION_30_DAYS: Duration = Duration::from_secs(3600 * 24 * 30);
+const COOKIE_DURATION: Duration = Duration::days(30);
 
 #[derive(Deserialize)]
 pub struct Login {
@@ -81,7 +79,7 @@ pub async fn login(
     let session_id = SessionId::new();
     let session_id_hash = session_id.hash_sha256();
     let created_at = OffsetDateTime::now_utc();
-    let expires_at = created_at + DURATION_30_DAYS;
+    let expires_at = created_at + COOKIE_DURATION;
     let user_agent = headers.get(USER_AGENT).and_then(|val| val.to_str().ok());
 
     data_access
@@ -114,7 +112,7 @@ pub async fn login(
 
     tracing::info!(?expires_at, ?user_agent, "session created");
 
-    let session_cookie = session_id.into_cookie(expires_at);
+    let session_cookie = session_id.into_cookie(COOKIE_DURATION);
     let jar = jar.add(session_cookie);
 
     Ok((jar, StatusCode::OK))

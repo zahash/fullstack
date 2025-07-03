@@ -1,5 +1,6 @@
-use auth::{Credentials, SessionId};
+use auth::{Credentials, SessionId, expired_session_cookie};
 use axum::{extract::State, response::IntoResponse};
+use axum_extra::extract::CookieJar;
 use axum_macros::debug_handler;
 use boxer::{Boxer, Context};
 use http::{HeaderMap, StatusCode};
@@ -16,7 +17,8 @@ pub enum Error {
 pub async fn logout(
     State(AppState { data_access, .. }): State<AppState>,
     headers: HeaderMap,
-) -> Result<StatusCode, Error> {
+    jar: CookieJar,
+) -> Result<(StatusCode, CookieJar), Error> {
     if let Ok(Some(session_id)) = SessionId::try_from_headers(&headers) {
         let session_id_hash = session_id.hash_sha256();
 
@@ -43,7 +45,8 @@ pub async fn logout(
             .context("delete session")?;
     }
 
-    Ok(StatusCode::OK)
+    let jar = jar.add(expired_session_cookie());
+    Ok((StatusCode::OK, jar))
 }
 
 impl IntoResponse for Error {
