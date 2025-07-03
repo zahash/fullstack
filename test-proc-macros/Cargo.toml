@@ -10,11 +10,11 @@ proc-macro = true
 syn = "2"
 quote = "1"
 
-server-core = { path = "../server-core", optional = true }
+email = { path = "../email", optional = true }
 validation = { path = "../validation", optional = true }
 
 [features]
-email = ["dep:server-core"]
+email = ["dep:email"]
 password = ["dep:validation"]
 username = ["dep:validation"]
 

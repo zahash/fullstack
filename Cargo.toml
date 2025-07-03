@@ -1,16 +1,15 @@
 [workspace]
 resolver = "2"
 members = [
-    "api",
     "auth",
+    "boxer",
     "cache",
     "cli",
     "compiletime",
     "data-access",
     "email",
-    "error",
+    "extra",
     "server",
-    "server-core",
     "test-proc-macros",
     "token",
     "validation",

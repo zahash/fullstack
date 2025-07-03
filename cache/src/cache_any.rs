@@ -20,7 +20,7 @@ where
     )]
     fn get_any(&self, key: &dyn Any) -> Option<Box<dyn Any>> {
         key.downcast_ref::<C::Key>()
-            .or_else(|| {
+            .or({
                 #[cfg(feature = "tracing")]
                 tracing::debug!(
                     "failed to downcast_ref key to {}",

@@ -3,7 +3,7 @@ use std::{fmt::Display, str::FromStr};
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Email(lettre::Address);
 
-const MSG: &'static str = "email must conform to the HTML5 Specification https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address";
+const MSG: &str = "email must conform to the HTML5 Specification https://html.spec.whatwg.org/multipage/input.html#valid-e-mail-address";
 
 impl FromStr for Email {
     type Err = &'static str;
@@ -44,7 +44,7 @@ impl<'de> serde::Deserialize<'de> for Email {
 impl Email {
     pub fn try_from_sqlx(value: String) -> Result<Self, sqlx::Error> {
         Self::from_str(&value).map_err(|e| {
-            sqlx::Error::Decode(format!("invalid email in database :: {} :: {}", value, e).into())
+            sqlx::Error::Decode(format!("invalid email in database :: {value} :: {e}").into())
         })
     }
 }

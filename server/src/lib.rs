@@ -1,56 +1,113 @@
+mod api;
+mod middleware;
+mod principal;
+mod span;
+
+pub use middleware::RateLimiter;
+
 use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
 
-use anyhow::Context;
+use axum::{
+    Router,
+    middleware::{from_fn, from_fn_with_state},
+    routing::{get, post},
+};
+use boxer::{Boxer, Context};
 use cache::CacheRegistry;
 use data_access::DataAccess;
 use sqlx::SqlitePool;
 use tokio::net::TcpListener;
-use tower_http::services::ServeDir;
+use tower::ServiceBuilder;
+use tower_http::{
+    request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
+    services::ServeDir,
+    trace::TraceLayer,
+};
 
-use api::server;
-use server_core::{AppState, RateLimiter};
+use crate::{
+    api::{
+        check_access_token, check_email_availability, check_username_availability,
+        generate_access_token, health, login, logout, private, signup, sysinfo,
+    },
+    middleware::{mw_client_ip, mw_handle_leaked_5xx, mw_rate_limiter},
+    span::span,
+};
 
 #[derive(Debug)]
 pub struct ServerOpts {
     pub database_url: String,
     pub port: u16,
     pub ui_dir: PathBuf,
+    pub rate_limiter: RateLimiterConfig,
     // pub smtp: SMTPConfig,
 }
 
 #[derive(Debug)]
-pub struct SMTPConfig {
-    pub relay: String,
-    pub username: String,
-    pub password: String,
+pub struct RateLimiterConfig {
+    pub limit: usize,
+    pub interval: Duration,
 }
 
-pub async fn serve(opts: ServerOpts) -> Result<(), Box<dyn std::error::Error>> {
+// #[derive(Debug)]
+// pub struct SMTPConfig {
+//     pub relay: String,
+//     pub username: String,
+//     pub password: String,
+// }
+
+#[derive(Clone)]
+pub struct AppState {
+    pub data_access: DataAccess,
+}
+
+pub fn server(data_access: DataAccess, rate_limiter: RateLimiter) -> Router {
+    Router::new()
+        .nest(
+            "/check",
+            Router::new()
+                .route("/username-availability", get(check_username_availability))
+                .route("/email-availability", get(check_email_availability))
+                .route("/access-token", get(check_access_token)),
+        )
+        .route("/health", get(health))
+        .route("/sysinfo", get(sysinfo))
+        .route("/signup", post(signup))
+        .route("/login", post(login))
+        .route("/logout", get(logout))
+        .route("/access-token", post(generate_access_token))
+        .route("/private", get(private))
+        .with_state(AppState { data_access })
+        .layer(
+            ServiceBuilder::new()
+                .layer(from_fn(mw_handle_leaked_5xx))
+                .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
+                .layer(PropagateRequestIdLayer::x_request_id())
+                .layer(from_fn(mw_client_ip))
+                .layer(TraceLayer::new_for_http().make_span_with(span))
+                .layer(from_fn_with_state(Arc::new(rate_limiter), mw_rate_limiter)),
+        )
+}
+
+pub async fn serve(opts: ServerOpts) -> Result<(), Boxer> {
     tracing::info!("{:?}", opts);
 
-    let state = AppState {
-        data_access: DataAccess::new(
-            SqlitePool::connect(&opts.database_url)
-                .await
-                .with_context(|| format!("connect database :: {}", opts.database_url))?,
-            CacheRegistry::new(),
-        ),
-        rate_limiter: Arc::new(RateLimiter::new(100, Duration::from_secs(1))),
-        // mailer: Arc::new(
-        //     SmtpTransport::relay(&opts.smtp.relay)?
-        //         .credentials((opts.smtp.username, opts.smtp.password).into())
-        //         .build(),
-        // ),
-    };
+    let data_access = DataAccess::new(
+        SqlitePool::connect(&opts.database_url)
+            .await
+            .context(format!("connect database :: {}", opts.database_url))?,
+        CacheRegistry::new(),
+    );
 
-    let app = server(state)
+    let rate_limiter = RateLimiter::new(100, Duration::from_secs(1));
+
+    let app = server(data_access, rate_limiter)
         .fallback_service(ServeDir::new(&opts.ui_dir))
         .into_make_service_with_connect_info::<SocketAddr>();
 
     let addr = SocketAddr::from(([127, 0, 0, 1], opts.port));
     let listener = TcpListener::bind(addr)
         .await
-        .with_context(|| format!("bind :: {}", addr))?;
+        .context(format!("bind :: {addr}"))?;
     tracing::info!(
         "listening on {}",
         listener.local_addr().context("local_addr")?

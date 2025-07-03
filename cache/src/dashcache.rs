@@ -42,7 +42,7 @@ where
 
             self.tags
                 .entry(tag.id().to_string())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(key.clone());
         }
     }
@@ -68,6 +68,18 @@ impl<K, V> DashCache<K, V> {
     where
         K: Hash + Eq,
     {
+        Self {
+            cache: DashMap::new(),
+            tags: DashMap::new(),
+        }
+    }
+}
+
+impl<K, V> Default for DashCache<K, V>
+where
+    K: Hash + Eq,
+{
+    fn default() -> Self {
         Self {
             cache: DashMap::new(),
             tags: DashMap::new(),

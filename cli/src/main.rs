@@ -1,9 +1,10 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr, time::Duration};
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 
-use server::{ServerOpts, serve};
+use server::{RateLimiterConfig, ServerOpts, serve};
+use tracing_subscriber::filter::LevelFilter;
 
 #[derive(Debug, Parser)]
 struct Args {
@@ -30,6 +31,11 @@ enum Command {
         /// Example: `./ui` or `/var/www/html`
         #[arg(long)]
         ui_dir: PathBuf,
+
+        /// The rate limit in the form of a string, e.g. "1/s", "10/min", "100/hour".
+        /// Example: "10/min"
+        #[arg(long)]
+        rate_limit: String,
         // /// The SMTP relay server used for sending emails.
         // /// This should be a valid SMTP server address.
         // /// Example: `"smtp.gmail.com"`
@@ -47,6 +53,21 @@ enum Command {
         // #[arg(long)]
         // smtp_password: String,
     },
+}
+
+/// Parse a rate limit string like "10/s", "100/min", "1000/hour" into (limit, interval)
+fn parse_rate_limit(s: &str) -> Result<(usize, std::time::Duration), Box<dyn std::error::Error>> {
+    let Some((first, second)) = s.trim().split_once('/') else {
+        return Err("invalid rate limit format".into());
+    };
+    let limit = first.parse::<usize>()?;
+    let interval = match second.to_lowercase().as_str() {
+        "s" | "sec" | "second" | "seconds" => Duration::from_secs(1),
+        "m" | "min" | "minute" | "minutes" => Duration::from_secs(60),
+        "h" | "hr" | "hour" | "hours" => Duration::from_secs(60 * 60),
+        _ => return Err("invalid rate interval".into()),
+    };
+    Ok((limit, interval))
 }
 
 #[allow(dead_code)]
@@ -86,21 +107,32 @@ where
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    tracing_subscriber::fmt().init();
+    tracing_subscriber::fmt()
+        .with_max_level(LevelFilter::TRACE)
+        .init();
 
     match Args::parse().cmd {
         Command::Server {
             port,
             database_url,
             ui_dir,
+            rate_limit,
             // smtp_relay,
             // smtp_username,
             // smtp_password,
         } => {
-            serve(ServerOpts {
+            let (limit, interval) = match parse_rate_limit(&rate_limit) {
+                Ok(v) => v,
+                Err(e) => {
+                    eprintln!("Invalid rate limit string: {e}");
+                    std::process::exit(1);
+                }
+            };
+            return serve(ServerOpts {
                 database_url,
                 port,
                 ui_dir,
+                rate_limiter: RateLimiterConfig { limit, interval },
                 // smtp: server_core::SMTPConfig {
                 //     relay: smtp_relay,
                 //     username: smtp_username,
@@ -108,6 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // },
             })
             .await
+            .map_err(|e| e.into());
         }
     }
 }

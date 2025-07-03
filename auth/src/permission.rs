@@ -1,6 +1,6 @@
 pub struct Permissions(pub Vec<Permission>);
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Permission {
     pub id: i64,
     pub permission: String,
@@ -30,6 +30,12 @@ impl Permissions {
 #[cfg(feature = "axum")]
 impl axum::response::IntoResponse for InsufficientPermissionsError {
     fn into_response(self) -> axum::response::Response {
-        error::axum_error_response(axum::http::StatusCode::FORBIDDEN, self)
+        #[cfg(feature = "tracing")]
+        tracing::info!("{:?}", self);
+        (
+            axum::http::StatusCode::FORBIDDEN,
+            axum::Json(extra::json_error_response(self)),
+        )
+            .into_response()
     }
 }

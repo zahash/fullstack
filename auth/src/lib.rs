@@ -1,14 +1,20 @@
 mod access_token;
-pub use access_token::{AccessToken, AccessTokenInfo, AccessTokenValidationError};
+pub use access_token::{
+    AccessToken, AccessTokenAuthorizationExtractionError, AccessTokenInfo,
+    AccessTokenValidationError,
+};
 
-mod authorization_header;
-pub use authorization_header::{AuthorizationHeader, AuthorizationHeaderError};
+mod basic;
+pub use basic::{Basic, BasicAuthorizationExtractionError};
+
+mod credentials;
+pub use credentials::Credentials;
 
 mod permission;
 pub use permission::{InsufficientPermissionsError, Permission, Permissions};
 
 mod session;
-pub use session::{SessionExt, SessionId, SessionInfo, SessionValidationError};
+pub use session::{SessionId, SessionInfo, SessionValidationError};
 
 mod user;
 pub use user::UserInfo;
@@ -43,3 +49,16 @@ impl<T> AsRef<T> for Verified<T> {
 #[derive(thiserror::Error, Debug)]
 #[error("cannot base64 decode :: {0}")]
 pub struct Base64DecodeError(&'static str);
+
+#[cfg(feature = "axum")]
+impl axum::response::IntoResponse for Base64DecodeError {
+    fn into_response(self) -> axum::response::Response {
+        #[cfg(feature = "tracing")]
+        tracing::info!("{:?}", self);
+        (
+            axum::http::StatusCode::BAD_REQUEST,
+            axum::Json(extra::json_error_response(self)),
+        )
+            .into_response()
+    }
+}

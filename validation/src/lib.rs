@@ -30,7 +30,7 @@ pub fn validate_password<T: AsRef<str>>(password: T) -> Result<T, &'static str> 
         return Err("password must contain at least one uppercase letter");
     }
 
-    if !password_ref.chars().any(|c| c.is_digit(10)) {
+    if !password_ref.chars().any(|c| c.is_ascii_digit()) {
         return Err("password must contain at least one digit");
     }
 

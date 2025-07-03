@@ -1,0 +1,11 @@
+[package]
+name = "extra"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+serde_json = { version = "1", optional = true }
+time = { version = "0.3", optional = true }
+
+[features]
+json-error-response = ["dep:serde_json", "dep:time"]

@@ -4,14 +4,36 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-anyhow = "1"
 axum = "0.8"
-sqlx = { version = "0.8", features = ["runtime-tokio-native-tls", "sqlite"] }
+axum-extra = { version = "0.10", features = ["cookie"] }
+axum-macros = "0.5"
+bcrypt = "0.17"
+# lettre = { version = "0.11", features = ["smtp-transport", "serde"] }
+dashmap = "6.1"
+forwarded-header-value = "0.1.1"
+http = "1"
+serde = { version = "1", features = ["derive"] }
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "sqlite"] }
+sysinfo = { version = "0.35", features = ["serde"] }
+thiserror = "2"
+time = "0.3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tower = "0.5"
 tower-http = { version = "0.6", features = ["fs", "request-id", "trace"] }
 tracing = "0.1"
 
-api = { path = "../api" }
-cache = { path = "../cache" }
-data-access = { path = "../data-access" }
-server-core = { path = "../server-core" }
+auth = { path = "../auth", features = ["axum", "tracing"] }
+boxer = { path = "../boxer" }
+cache = { path = "../cache", features = ["tracing"] }
+data-access = { path = "../data-access", features = ["tracing"] }
+email = { path = "../email", features = ["sqlite"] }
+extra = { path = "../extra", features = ["json-error-response"] }
+validation = { path = "../validation" }
+
+[dev-dependencies]
+test-proc-macros = { path = "../test-proc-macros", features = [
+    "email",
+    "password",
+    "username",
+] }
+# lettre = { version = "0.11", features = ["file-transport"] }

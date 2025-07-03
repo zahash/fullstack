@@ -36,7 +36,7 @@ pub fn email(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let lit_str = syn::parse_macro_input!(input as syn::LitStr);
     let value = lit_str.value();
 
-    if let Err(err) = server_core::Email::from_str(&value) {
+    if let Err(err) = email::Email::from_str(&value) {
         return syn::Error::new(lit_str.span(), err)
             .to_compile_error()
             .into();

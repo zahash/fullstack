@@ -1,17 +1,42 @@
 use std::ops::Deref;
 
 use cache::{DashCache, Tag};
-use cookie::{Cookie, CookieJar, SameSite};
+use cookie::{Cookie, SameSite};
 use data_access::DataAccess;
-use http::HeaderMap;
+use http::header::COOKIE;
 use time::OffsetDateTime;
 use token::Token;
 
-use crate::{Base64DecodeError, Permission, Permissions, Verified};
+use crate::{Base64DecodeError, Credentials, Permission, Permissions, Verified};
+
+const SESSION_ID: &str = "session_id";
 
 pub struct SessionId(Token<32>);
 
-#[derive(Clone)]
+impl Credentials for SessionId {
+    type Error = Base64DecodeError;
+
+    fn try_from_headers(headers: &http::HeaderMap) -> Result<Option<Self>, Self::Error>
+    where
+        Self: Sized,
+    {
+        Ok(headers
+            .get_all(COOKIE)
+            .into_iter()
+            .filter_map(|value| value.to_str().ok())
+            .flat_map(|value| value.split(';'))
+            .map(|value| value.trim())
+            .filter_map(|cookie_str| Cookie::parse(cookie_str).ok())
+            .find(|cookie| cookie.name() == SESSION_ID)
+            .map(|cookie| {
+                Token::base64decode(cookie.value()).map_err(|_| Base64DecodeError("SessionId"))
+            })
+            .transpose()?
+            .map(SessionId))
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct SessionInfo {
     id: i64,
     pub user_id: i64,
@@ -32,38 +57,13 @@ impl SessionId {
     }
 
     pub fn into_cookie<'a>(self, expires_at: OffsetDateTime) -> Cookie<'a> {
-        Cookie::build(("session_id", self.base64encoded()))
+        Cookie::build((SESSION_ID, self.base64encoded()))
             .path("/")
             .same_site(SameSite::Strict)
             .expires(expires_at)
             .http_only(true)
             .secure(true)
             .build()
-    }
-
-    pub fn try_from_cookie_jar(jar: &CookieJar) -> Result<Option<SessionId>, Base64DecodeError> {
-        let Some(session_cookie) = jar.get("session_id") else {
-            return Ok(None);
-        };
-
-        let token = Token::base64decode(session_cookie.value())
-            .map_err(|_| Base64DecodeError("SessionId"))?;
-
-        Ok(Some(SessionId(token)))
-    }
-
-    pub fn try_from_headers(headers: &HeaderMap) -> Result<Option<SessionId>, Base64DecodeError> {
-        let mut jar = cookie::CookieJar::new();
-        for cookie in headers
-            .get_all("cookie")
-            .into_iter()
-            .filter_map(|value| value.to_str().ok())
-            .flat_map(|value| value.split(';'))
-            .filter_map(|cookie| Cookie::parse_encoded(cookie.to_owned()).ok())
-        {
-            jar.add_original(cookie);
-        }
-        SessionId::try_from_cookie_jar(&jar)
     }
 
     pub async fn info(&self, data_access: &DataAccess) -> Result<Option<SessionInfo>, sqlx::Error> {
@@ -91,6 +91,12 @@ impl SessionId {
                 DashCache::new,
             )
             .await
+    }
+}
+
+impl Default for SessionId {
+    fn default() -> Self {
+        Self(Token::random())
     }
 }
 
@@ -138,27 +144,17 @@ impl Verified<SessionInfo> {
                 user_id,
                 |permissions| {
                     let mut tags = permissions
-                        .into_iter()
+                        .iter()
                         .map(|p| format!("permissions:{}", p.id))
                         .map(|tag| Box::new(tag) as Box<dyn Tag>)
                         .collect::<Vec<Box<dyn Tag + 'static>>>();
-                    tags.push(Box::new(format!("users:{}", user_id)));
+                    tags.push(Box::new(format!("users:{user_id}")));
                     tags
                 },
                 DashCache::new,
             )
             .await
             .map(Permissions)
-    }
-}
-
-pub trait SessionExt {
-    fn remove_session_cookie(&mut self);
-}
-
-impl SessionExt for CookieJar {
-    fn remove_session_cookie(&mut self) {
-        self.remove("session_id");
     }
 }
 
@@ -175,7 +171,13 @@ impl axum::response::IntoResponse for SessionValidationError {
     fn into_response(self) -> axum::response::Response {
         match self {
             SessionValidationError::SessionExpired => {
-                error::axum_error_response(axum::http::StatusCode::UNAUTHORIZED, self)
+                #[cfg(feature = "tracing")]
+                tracing::info!("{:?}", self);
+                (
+                    axum::http::StatusCode::UNAUTHORIZED,
+                    axum::Json(extra::json_error_response(self)),
+                )
+                    .into_response()
             }
         }
     }

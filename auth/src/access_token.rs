@@ -5,11 +5,46 @@ use data_access::DataAccess;
 use time::OffsetDateTime;
 use token::Token;
 
-use crate::{Permission, Permissions, Verified};
+use crate::{Base64DecodeError, Credentials, Permission, Permissions, Verified};
 
 pub struct AccessToken(Token<32>);
 
-#[derive(Clone)]
+impl Credentials for AccessToken {
+    type Error = AccessTokenAuthorizationExtractionError;
+
+    fn try_from_headers(headers: &http::HeaderMap) -> Result<Option<Self>, Self::Error> {
+        let Some(header_value) = headers.get(http::header::AUTHORIZATION) else {
+            return Ok(None);
+        };
+
+        let header_value_str = header_value
+            .to_str()
+            .map_err(|_| AccessTokenAuthorizationExtractionError::NonUTF8HeaderValue)?;
+
+        let Some(token_value) = header_value_str.strip_prefix("Token ") else {
+            return Ok(None);
+        };
+
+        let token = Token::base64decode(token_value).map_err(|_| {
+            AccessTokenAuthorizationExtractionError::Base64DecodeError(Base64DecodeError(
+                "Authorization: Token xxx",
+            ))
+        })?;
+
+        Ok(Some(AccessToken::from(token)))
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum AccessTokenAuthorizationExtractionError {
+    #[error("Authorization header value must be utf-8")]
+    NonUTF8HeaderValue,
+
+    #[error("{0}")]
+    Base64DecodeError(Base64DecodeError),
+}
+
+#[derive(Debug, Clone)]
 pub struct AccessTokenInfo {
     id: i64,
     pub name: String,
@@ -51,6 +86,12 @@ impl AccessToken {
             },
             DashCache::new
         ).await
+    }
+}
+
+impl Default for AccessToken {
+    fn default() -> Self {
+        Self(Token::random())
     }
 }
 
@@ -96,11 +137,11 @@ impl Verified<AccessTokenInfo> {
                 access_token_id,
                 |permissions| {
                     let mut tags = permissions
-                        .into_iter()
+                        .iter()
                         .map(|p| format!("permissions:{}", p.id))
                         .map(|tag| Box::new(tag) as Box<dyn Tag>)
                         .collect::<Vec<Box<dyn Tag + 'static>>>();
-                    tags.push(Box::new(format!("access_tokens:{}", access_token_id)));
+                    tags.push(Box::new(format!("access_tokens:{access_token_id}")));
                     tags
                 },
                 DashCache::new,
@@ -136,8 +177,32 @@ impl axum::response::IntoResponse for AccessTokenValidationError {
     fn into_response(self) -> axum::response::Response {
         match self {
             AccessTokenValidationError::AccessTokenExpired => {
-                error::axum_error_response(axum::http::StatusCode::UNAUTHORIZED, self)
+                #[cfg(feature = "tracing")]
+                tracing::info!("{:?}", self);
+                (
+                    axum::http::StatusCode::UNAUTHORIZED,
+                    axum::Json(extra::json_error_response(self)),
+                )
+                    .into_response()
             }
+        }
+    }
+}
+
+#[cfg(feature = "axum")]
+impl axum::response::IntoResponse for AccessTokenAuthorizationExtractionError {
+    fn into_response(self) -> axum::response::Response {
+        match self {
+            AccessTokenAuthorizationExtractionError::NonUTF8HeaderValue => {
+                #[cfg(feature = "tracing")]
+                tracing::info!("{:?}", self);
+                (
+                    axum::http::StatusCode::BAD_REQUEST,
+                    axum::Json(extra::json_error_response(self)),
+                )
+                    .into_response()
+            }
+            AccessTokenAuthorizationExtractionError::Base64DecodeError(err) => err.into_response(),
         }
     }
 }

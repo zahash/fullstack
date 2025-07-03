@@ -17,7 +17,7 @@ impl UserInfo {
         user_id: i64,
         data_access: &DataAccess,
     ) -> Result<Option<UserInfo>, sqlx::Error> {
-        #[derive(Clone)]
+        #[derive(Debug, Clone)]
         struct Row {
             user_id: i64,
             username: String,
@@ -63,7 +63,7 @@ impl UserInfo {
         username: &str,
         data_access: &DataAccess,
     ) -> Result<Option<Self>, sqlx::Error> {
-        #[derive(Clone)]
+        #[derive(Debug, Clone)]
         struct Row {
             user_id: i64,
             username: String,
@@ -138,11 +138,11 @@ impl Verified<UserInfo> {
                 user_id,
                 |permissions| {
                     let mut tags = permissions
-                        .into_iter()
+                        .iter()
                         .map(|p| format!("permissions:{}", p.id))
                         .map(|tag| Box::new(tag) as Box<dyn Tag>)
                         .collect::<Vec<Box<dyn Tag + 'static>>>();
-                    tags.push(Box::new(format!("users:{}", user_id)));
+                    tags.push(Box::new(format!("users:{user_id}")));
                     tags
                 },
                 DashCache::new,

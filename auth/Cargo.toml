@@ -12,12 +12,15 @@ http = "1"
 sqlx = "0.8"
 thiserror = "2"
 time = "0.3"
+tracing = { version = "0.1", optional = true }
 
-error = { path = "../error", optional = true }
-cache = { path = "../cache" }
+cache = { path = "../cache", features = ["dashcache"] }
 data-access = { path = "../data-access" }
 email = { path = "../email", features = ["sqlx"] }
+extra = { path = "../extra", optional = true }
+# state = { path = "../state" }
 token = { path = "../token" }
 
 [features]
-axum = ["dep:axum", "dep:error", "error/axum-error-response"]
+axum = ["dep:axum", "dep:extra", "extra/json-error-response"]
+tracing = ["dep:tracing", "cache/tracing", "data-access/tracing"]

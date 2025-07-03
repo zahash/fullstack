@@ -123,3 +123,11 @@ impl CacheRegistry {
         }
     }
 }
+
+impl Default for CacheRegistry {
+    fn default() -> Self {
+        Self {
+            caches: DashMap::new(),
+        }
+    }
+}
