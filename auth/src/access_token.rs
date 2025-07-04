@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use cache::DashCache;
+use dashcache::DashCache;
 use data_access::DataAccess;
 use tag::Tag;
 use time::OffsetDateTime;

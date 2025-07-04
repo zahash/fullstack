@@ -1,4 +1,3 @@
-use cache::CacheRegistry;
 use data_access::DataAccess;
 use sqlx::SqlitePool;
 
@@ -12,5 +11,5 @@ pub async fn data_access() -> DataAccess {
         .await
         .expect("unable to run migrations");
 
-    DataAccess::new(pool, CacheRegistry::new())
+    DataAccess::new(pool)
 }

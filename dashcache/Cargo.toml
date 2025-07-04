@@ -1,5 +1,5 @@
 [package]
-name = "cache"
+name = "dashcache"
 version = "0.1.0"
 edition = "2024"
 
@@ -7,5 +7,7 @@ edition = "2024"
 dashmap = "6.1"
 tracing = { version = "0.1", optional = true }
 
+cache = { path = "../cache" }
+
 [features]
-tracing = ["dep:tracing"]
+tracing = ["dep:tracing", "cache/tracing"]

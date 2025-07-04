@@ -24,7 +24,7 @@ tracing = "0.1"
 
 auth = { path = "../auth", features = ["axum", "tracing"] }
 boxer = { path = "../boxer" }
-cache = { path = "../cache", features = ["tracing"] }
+dashcache = { path = "../dashcache", features = ["tracing"] }
 data-access = { path = "../data-access", features = ["tracing"] }
 email = { path = "../email", features = ["sqlite"] }
 extra = { path = "../extra", features = ["json-error-response"] }

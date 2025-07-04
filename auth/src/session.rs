@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use cache::DashCache;
+use dashcache::DashCache;
 use cookie::{Cookie, SameSite, time::Duration};
 use data_access::DataAccess;
 use http::header::COOKIE;

@@ -9,7 +9,7 @@ use axum_extra::extract::CookieJar;
 use axum_macros::debug_handler;
 use bcrypt::verify;
 use boxer::{Boxer, Context};
-use cache::DashCache;
+use dashcache::DashCache;
 use serde::Deserialize;
 use tag::Tag;
 use time::{Duration, OffsetDateTime};

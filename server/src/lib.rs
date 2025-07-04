@@ -13,7 +13,6 @@ use axum::{
     routing::{get, post},
 };
 use boxer::{Boxer, Context};
-use cache::CacheRegistry;
 use data_access::DataAccess;
 use sqlx::SqlitePool;
 use tokio::net::TcpListener;
@@ -95,7 +94,6 @@ pub async fn serve(opts: ServerOpts) -> Result<(), Boxer> {
         SqlitePool::connect(&opts.database_url)
             .await
             .context(format!("connect database :: {}", opts.database_url))?,
-        CacheRegistry::new(),
     );
 
     let rate_limiter = RateLimiter::new(100, Duration::from_secs(1));

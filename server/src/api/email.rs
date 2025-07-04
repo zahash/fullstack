@@ -5,7 +5,7 @@ use axum::{
     response::IntoResponse,
 };
 use boxer::{Boxer, Context};
-use cache::DashCache;
+use dashcache::DashCache;
 use data_access::DataAccess;
 use email::Email;
 use extra::json_error_response;

@@ -9,10 +9,10 @@ pub struct DataAccess {
 }
 
 impl DataAccess {
-    pub fn new(pool: SqlitePool, cache_registry: CacheRegistry) -> Self {
+    pub fn new(pool: SqlitePool) -> Self {
         Self {
             pool,
-            cache_registry: Arc::new(cache_registry),
+            cache_registry: Arc::new(CacheRegistry::new()),
         }
     }
 

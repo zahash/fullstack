@@ -1,5 +1,5 @@
 use bcrypt::verify;
-use cache::DashCache;
+use dashcache::DashCache;
 use data_access::DataAccess;
 use email::Email;
 use tag::Tag;

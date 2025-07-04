@@ -1,8 +1,7 @@
 use std::hash::Hash;
 
+use cache::Cache;
 use dashmap::DashMap;
-
-use crate::Cache;
 
 pub struct DashCache<K, V, T> {
     cache: DashMap<K, V>,

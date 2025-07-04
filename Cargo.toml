@@ -5,7 +5,7 @@ members = [
     "boxer",
     "cache",
     "cli",
-    "compiletime",
+    "compiletime", "dashcache",
     "data-access",
     "email",
     "extra",
