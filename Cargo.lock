@@ -123,6 +123,7 @@ dependencies = [
  "extra",
  "http",
  "sqlx",
+ "tag",
  "thiserror 2.0.12",
  "time",
  "token",
@@ -1956,6 +1957,7 @@ dependencies = [
  "serde",
  "sqlx",
  "sysinfo",
+ "tag",
  "test-proc-macros",
  "thiserror 2.0.12",
  "time",
@@ -2335,6 +2337,10 @@ dependencies = [
  "serde",
  "windows",
 ]
+
+[[package]]
+name = "tag"
+version = "0.1.0"
 
 [[package]]
 name = "tempfile"

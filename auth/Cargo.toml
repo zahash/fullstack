@@ -18,7 +18,7 @@ cache = { path = "../cache", features = ["dashcache"] }
 data-access = { path = "../data-access" }
 email = { path = "../email", features = ["sqlx"] }
 extra = { path = "../extra", optional = true }
-# state = { path = "../state" }
+tag = { path = "../tag" }
 token = { path = "../token" }
 
 [features]

@@ -14,6 +14,7 @@ use axum_macros::debug_handler;
 use boxer::{Boxer, Context};
 use extra::json_error_response;
 use serde::Deserialize;
+use tag::Tag;
 use time::OffsetDateTime;
 
 use crate::{AppState, principal::Principal};
@@ -66,8 +67,14 @@ pub async fn generate_access_token(
             },
             |value| {
                 vec![
-                    Box::new("access_tokens"),
-                    Box::new(format!("access_tokens:{}", value.id)),
+                    Tag {
+                        table: "access_tokens",
+                        primary_key: None,
+                    },
+                    Tag {
+                        table: "access_tokens",
+                        primary_key: Some(value.id),
+                    },
                 ]
             },
         )

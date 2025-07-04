@@ -9,6 +9,7 @@ use email::Email;
 use extra::json_error_response;
 use serde::Deserialize;
 
+use tag::Tag;
 use validation::{validate_password, validate_username};
 
 use super::{email::email_exists, username::username_exists};
@@ -91,8 +92,14 @@ pub async fn signup(
             },
             |value| {
                 vec![
-                    Box::new("users"),
-                    Box::new(format!("users:{}", value.user_id)),
+                    Tag {
+                        table: "users",
+                        primary_key: None,
+                    },
+                    Tag {
+                        table: "users",
+                        primary_key: Some(value.user_id),
+                    },
                 ]
             },
         )

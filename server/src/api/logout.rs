@@ -4,6 +4,7 @@ use axum_extra::extract::CookieJar;
 use axum_macros::debug_handler;
 use boxer::{Boxer, Context};
 use http::{HeaderMap, StatusCode};
+use tag::Tag;
 
 use crate::AppState;
 
@@ -36,8 +37,14 @@ pub async fn logout(
                 },
                 |value| {
                     vec![
-                        Box::new("sessions"),
-                        Box::new(format!("sessions:{}", value.id)),
+                        Tag {
+                            table: "sessions",
+                            primary_key: None,
+                        },
+                        Tag {
+                            table: "sessions",
+                            primary_key: Some(value.id),
+                        },
                     ]
                 },
             )

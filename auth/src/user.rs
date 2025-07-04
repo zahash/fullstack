@@ -1,7 +1,8 @@
 use bcrypt::verify;
-use cache::{DashCache, Tag};
+use cache::DashCache;
 use data_access::DataAccess;
 use email::Email;
+use tag::Tag;
 
 use crate::{Permission, Permissions, Verified};
 
@@ -41,8 +42,14 @@ impl UserInfo {
                 "user_info__from__user_id",
                 user_id,
                 |value| match value {
-                    Some(row) => vec![Box::new(format!("users:{}", row.user_id))],
-                    None => vec![Box::new("users")],
+                    Some(row) => vec![Tag {
+                        table: "users",
+                        primary_key: Some(row.user_id),
+                    }],
+                    None => vec![Tag {
+                        table: "users",
+                        primary_key: None,
+                    }],
                 },
                 DashCache::new,
             )
@@ -87,8 +94,14 @@ impl UserInfo {
                 "user_info__from__username",
                 username.to_string(),
                 |value| match value {
-                    Some(row) => vec![Box::new(format!("users:{}", row.user_id))],
-                    None => vec![Box::new("users")],
+                    Some(row) => vec![Tag {
+                        table: "users",
+                        primary_key: Some(row.user_id),
+                    }],
+                    None => vec![Tag {
+                        table: "users",
+                        primary_key: None,
+                    }],
                 },
                 DashCache::new,
             )
@@ -139,10 +152,15 @@ impl Verified<UserInfo> {
                 |permissions| {
                     let mut tags = permissions
                         .iter()
-                        .map(|p| format!("permissions:{}", p.id))
-                        .map(|tag| Box::new(tag) as Box<dyn Tag>)
-                        .collect::<Vec<Box<dyn Tag + 'static>>>();
-                    tags.push(Box::new(format!("users:{user_id}")));
+                        .map(|p| Tag {
+                            table: "permissions",
+                            primary_key: Some(p.id),
+                        })
+                        .collect::<Vec<Tag>>();
+                    tags.push(Tag {
+                        table: "users",
+                        primary_key: Some(user_id),
+                    });
                     tags
                 },
                 DashCache::new,

@@ -9,7 +9,7 @@ members = [
     "data-access",
     "email",
     "extra",
-    "server",
+    "server", "tag",
     "test-proc-macros",
     "token",
     "validation",

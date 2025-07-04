@@ -11,6 +11,7 @@ use bcrypt::verify;
 use boxer::{Boxer, Context};
 use cache::DashCache;
 use serde::Deserialize;
+use tag::Tag;
 use time::{Duration, OffsetDateTime};
 
 use crate::AppState;
@@ -59,8 +60,14 @@ pub async fn login(
             "login_user__from__username",
             username.clone(),
             |value| match value {
-                Some(user) => vec![Box::new(format!("users:{}", user.id))],
-                None => vec![Box::new("users")],
+                Some(user) => vec![Tag {
+                    table: "users",
+                    primary_key: Some(user.id),
+                }],
+                None => vec![Tag {
+                    table: "users",
+                    primary_key: None,
+                }],
             },
             DashCache::new,
         )
@@ -102,8 +109,14 @@ pub async fn login(
             },
             |value| {
                 vec![
-                    Box::new("sessions"),
-                    Box::new(format!("sessions:{}", value.id)),
+                    Tag {
+                        table: "sessions",
+                        primary_key: None,
+                    },
+                    Tag {
+                        table: "sessions",
+                        primary_key: Some(value.id),
+                    },
                 ]
             },
         )

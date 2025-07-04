@@ -2,25 +2,29 @@ use std::hash::Hash;
 
 use dashmap::DashMap;
 
-use crate::{Cache, Tag};
+use crate::Cache;
 
-pub struct DashCache<K, V> {
+pub struct DashCache<K, V, T> {
     cache: DashMap<K, V>,
-    tags: DashMap<String, Vec<K>>,
+    tags: DashMap<T, Vec<K>>,
 }
 
 impl<
     #[cfg(not(feature = "tracing"))] K,
     #[cfg(not(feature = "tracing"))] V,
+    #[cfg(not(feature = "tracing"))] T,
     #[cfg(feature = "tracing")] K: std::fmt::Debug,
     #[cfg(feature = "tracing")] V: std::fmt::Debug,
-> Cache for DashCache<K, V>
+    #[cfg(feature = "tracing")] T: std::fmt::Debug,
+> Cache for DashCache<K, V, T>
 where
     K: Hash + Eq + Clone,
     V: Clone,
+    T: Hash + Eq,
 {
     type Key = K;
     type Value = V;
+    type Tag = T;
 
     #[cfg_attr(
         feature = "tracing",
@@ -34,16 +38,13 @@ where
         feature = "tracing",
         tracing::instrument(level = "debug", fields(?key, ?value, ?tags), skip_all)
     )]
-    fn put(&mut self, key: Self::Key, value: Self::Value, tags: Vec<Box<dyn Tag>>) {
+    fn put(&mut self, key: Self::Key, value: Self::Value, tags: Vec<Self::Tag>) {
         self.cache.insert(key.clone(), value);
         for tag in tags {
             #[cfg(feature = "tracing")]
             tracing::trace!("inserting tag `{:?}`", tag);
 
-            self.tags
-                .entry(tag.id().to_string())
-                .or_default()
-                .push(key.clone());
+            self.tags.entry(tag).or_default().push(key.clone());
         }
     }
 
@@ -51,8 +52,8 @@ where
         feature = "tracing",
         tracing::instrument(level = "debug", fields(?tag), skip_all)
     )]
-    fn invalidate(&mut self, tag: &dyn Tag) {
-        if let Some((_, keys)) = self.tags.remove(tag.id()) {
+    fn invalidate(&mut self, tag: &Self::Tag) {
+        if let Some((_, keys)) = self.tags.remove(tag) {
             for key in keys {
                 #[cfg(feature = "tracing")]
                 tracing::trace!("removing key `{:?}`", key);
@@ -63,10 +64,11 @@ where
     }
 }
 
-impl<K, V> DashCache<K, V> {
+impl<K, V, T> DashCache<K, V, T> {
     pub fn new() -> Self
     where
         K: Hash + Eq,
+        T: Hash + Eq,
     {
         Self {
             cache: DashMap::new(),
@@ -75,9 +77,10 @@ impl<K, V> DashCache<K, V> {
     }
 }
 
-impl<K, V> Default for DashCache<K, V>
+impl<K, V, T> Default for DashCache<K, V, T>
 where
     K: Hash + Eq,
+    T: Hash + Eq,
 {
     fn default() -> Self {
         Self {

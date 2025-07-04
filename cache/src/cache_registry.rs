@@ -2,7 +2,7 @@ use std::any::Any;
 
 use dashmap::DashMap;
 
-use crate::{Cache, Tag, cache_any::CacheAny};
+use crate::{Cache, cache_any::CacheAny};
 
 pub struct CacheRegistry {
     caches: DashMap<&'static str, Box<dyn CacheAny + Send + Sync>>,
@@ -86,22 +86,31 @@ impl CacheRegistry {
     pub fn put<
         #[cfg(not(feature = "tracing"))] K,
         #[cfg(not(feature = "tracing"))] V,
+        #[cfg(not(feature = "tracing"))] T,
         #[cfg(feature = "tracing")] K: std::fmt::Debug,
         #[cfg(feature = "tracing")] V: std::fmt::Debug,
+        #[cfg(feature = "tracing")] T: std::fmt::Debug,
     >(
         &self,
         namespace: &str,
         key: K,
         value: V,
-        tags: Vec<Box<dyn Tag>>,
+        tags: Vec<T>,
     ) -> bool
     where
         K: 'static,
         V: 'static,
+        T: 'static,
     {
         match self.caches.get_mut(namespace) {
             Some(mut cache) => {
-                cache.put_any(Box::new(key), Box::new(value), tags);
+                cache.put_any(
+                    Box::new(key),
+                    Box::new(value),
+                    tags.into_iter()
+                        .map(|tag| Box::new(tag) as Box<dyn Any>)
+                        .collect(),
+                );
                 true
             }
             None => {
@@ -117,7 +126,15 @@ impl CacheRegistry {
         feature = "tracing",
         tracing::instrument(level = "debug", fields(?tag), skip_all)
     )]
-    pub fn invalidate(&self, tag: &dyn Tag) {
+    pub fn invalidate<
+        #[cfg(not(feature = "tracing"))] T,
+        #[cfg(feature = "tracing")] T: std::fmt::Debug,
+    >(
+        &self,
+        tag: &T,
+    ) where
+        T: 'static,
+    {
         for mut ref_ in self.caches.iter_mut() {
             ref_.value_mut().invalidate_any(tag);
         }

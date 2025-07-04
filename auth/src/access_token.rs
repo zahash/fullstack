@@ -1,7 +1,8 @@
 use std::ops::Deref;
 
-use cache::{DashCache, Tag};
+use cache::DashCache;
 use data_access::DataAccess;
+use tag::Tag;
 use time::OffsetDateTime;
 use token::Token;
 
@@ -70,22 +71,35 @@ impl AccessToken {
     ) -> Result<Option<AccessTokenInfo>, sqlx::Error> {
         let access_token_hash = self.hash_sha256();
 
-        data_access.read(
-            |pool| sqlx::query_as!(
-                    AccessTokenInfo,
-                    r#"SELECT id as "id!", name, user_id, created_at, expires_at FROM access_tokens WHERE access_token_hash = ?"#,
-                    access_token_hash
-                ).fetch_optional(pool),
-            "access_token_info__from__access_token_hash",
-            access_token_hash.clone(),
-            |value| {
-                match value {
-                    Some(access_token_info) => vec![Box::new(format!("access_tokens:{}", access_token_info.id))],
-                    None => vec![Box::new("access_tokens")],
-                }
-            },
-            DashCache::new
-        ).await
+        data_access
+            .read(
+                |pool| {
+                    sqlx::query_as!(
+                        AccessTokenInfo,
+                        r#"
+                        SELECT id as "id!", name, user_id, created_at, expires_at
+                        FROM access_tokens
+                        WHERE access_token_hash = ?
+                        "#,
+                        access_token_hash
+                    )
+                    .fetch_optional(pool)
+                },
+                "access_token_info__from__access_token_hash",
+                access_token_hash.clone(),
+                |value| match value {
+                    Some(access_token_info) => vec![Tag {
+                        table: "access_tokens",
+                        primary_key: Some(access_token_info.id),
+                    }],
+                    None => vec![Tag {
+                        table: "access_tokens",
+                        primary_key: None,
+                    }],
+                },
+                DashCache::new,
+            )
+            .await
     }
 }
 
@@ -138,10 +152,15 @@ impl Verified<AccessTokenInfo> {
                 |permissions| {
                     let mut tags = permissions
                         .iter()
-                        .map(|p| format!("permissions:{}", p.id))
-                        .map(|tag| Box::new(tag) as Box<dyn Tag>)
-                        .collect::<Vec<Box<dyn Tag + 'static>>>();
-                    tags.push(Box::new(format!("access_tokens:{access_token_id}")));
+                        .map(|p| Tag {
+                            table: "permissions",
+                            primary_key: Some(p.id),
+                        })
+                        .collect::<Vec<Tag>>();
+                    tags.push(Tag {
+                        table: "access_tokens",
+                        primary_key: Some(access_token_id),
+                    });
                     tags
                 },
                 DashCache::new,

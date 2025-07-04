@@ -10,6 +10,7 @@ use data_access::DataAccess;
 use extra::json_error_response;
 use serde::Deserialize;
 
+use tag::Tag;
 use validation::validate_username;
 
 use crate::AppState;
@@ -58,8 +59,14 @@ pub async fn username_exists(
             "username_exists",
             username.to_string(),
             |value| match value {
-                Some(row) => vec![Box::new(format!("users:{}", row.user_id))],
-                None => vec![Box::new("users")],
+                Some(row) => vec![Tag {
+                    table: "users",
+                    primary_key: Some(row.user_id),
+                }],
+                None => vec![Tag {
+                    table: "users",
+                    primary_key: None,
+                }],
             },
             DashCache::new,
         )

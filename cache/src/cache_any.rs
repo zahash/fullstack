@@ -1,11 +1,11 @@
 use std::any::Any;
 
-use crate::{Cache, Tag};
+use crate::Cache;
 
 pub trait CacheAny {
     fn get_any(&self, key: &dyn Any) -> Option<Box<dyn Any>>;
-    fn put_any(&mut self, key: Box<dyn Any>, value: Box<dyn Any>, tags: Vec<Box<dyn Tag>>);
-    fn invalidate_any(&mut self, tag: &dyn Tag);
+    fn put_any(&mut self, key: Box<dyn Any>, value: Box<dyn Any>, tags: Vec<Box<dyn Any>>);
+    fn invalidate_any(&mut self, tag: &dyn Any);
 }
 
 impl<C> CacheAny for C
@@ -13,6 +13,7 @@ where
     C: Cache,
     C::Key: 'static,
     C::Value: 'static,
+    C::Tag: 'static,
 {
     #[cfg_attr(
         feature = "tracing",
@@ -37,28 +38,37 @@ where
         feature = "tracing",
         tracing::instrument(level = "debug", fields(?key, ?value, ?tags), skip_all)
     )]
-    fn put_any(&mut self, key: Box<dyn Any>, value: Box<dyn Any>, tags: Vec<Box<dyn Tag>>) {
-        if let (Ok(k), Ok(v)) = (
-            key.downcast::<C::Key>()
-                .inspect_err(|_| {
+    fn put_any(&mut self, key: Box<dyn Any>, value: Box<dyn Any>, tags: Vec<Box<dyn Any>>) {
+        let key = key.downcast::<C::Key>().map(|b| *b).inspect_err(|_| {
+            #[cfg(feature = "tracing")]
+            tracing::debug!(
+                "failed to downcast key to {}",
+                std::any::type_name::<C::Key>()
+            );
+        });
+
+        let value = value.downcast::<C::Value>().map(|b| *b).inspect_err(|_| {
+            #[cfg(feature = "tracing")]
+            tracing::debug!(
+                "failed to downcast value to {}",
+                std::any::type_name::<C::Value>()
+            );
+        });
+
+        let tags = tags
+            .into_iter()
+            .map(|tag| {
+                tag.downcast::<C::Tag>().map(|b| *b).inspect_err(|_| {
                     #[cfg(feature = "tracing")]
                     tracing::debug!(
-                        "failed to downcast key to {}",
-                        std::any::type_name::<C::Key>()
+                        "failed to downcast tag to {}",
+                        std::any::type_name::<C::Tag>()
                     );
                 })
-                .map(|b| *b),
-            value
-                .downcast::<C::Value>()
-                .inspect_err(|_| {
-                    #[cfg(feature = "tracing")]
-                    tracing::debug!(
-                        "failed to downcast value to {}",
-                        std::any::type_name::<C::Value>()
-                    );
-                })
-                .map(|b| *b),
-        ) {
+            })
+            .collect();
+
+        if let (Ok(k), Ok(v), Ok(tags)) = (key, value, tags) {
             self.put(k, v, tags);
         }
     }
@@ -67,7 +77,16 @@ where
         feature = "tracing",
         tracing::instrument(level = "debug", fields(?tag), skip_all)
     )]
-    fn invalidate_any(&mut self, tag: &dyn Tag) {
-        self.invalidate(tag);
+    fn invalidate_any(&mut self, tag: &dyn Any) {
+        if let Some(tag) = tag.downcast_ref::<C::Tag>().or({
+            #[cfg(feature = "tracing")]
+            tracing::debug!(
+                "failed to downcast tag to {}",
+                std::any::type_name::<C::Tag>()
+            );
+            None
+        }) {
+            self.invalidate(tag);
+        }
     }
 }

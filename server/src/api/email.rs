@@ -10,6 +10,7 @@ use data_access::DataAccess;
 use email::Email;
 use extra::json_error_response;
 use serde::Deserialize;
+use tag::Tag;
 
 use crate::AppState;
 
@@ -53,8 +54,14 @@ pub async fn email_exists(data_access: &DataAccess, email: &Email) -> Result<boo
             "email_exists",
             email.clone(),
             |value| match value {
-                Some(row) => vec![Box::new(format!("users:{}", row.user_id))],
-                None => vec![Box::new("users")],
+                Some(row) => vec![Tag {
+                    table: "users",
+                    primary_key: Some(row.user_id),
+                }],
+                None => vec![Tag {
+                    table: "users",
+                    primary_key: None,
+                }],
             },
             DashCache::new,
         )

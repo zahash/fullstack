@@ -1,9 +1,10 @@
 use std::ops::Deref;
 
-use cache::{DashCache, Tag};
+use cache::DashCache;
 use cookie::{Cookie, SameSite, time::Duration};
 use data_access::DataAccess;
 use http::header::COOKIE;
+use tag::Tag;
 use time::OffsetDateTime;
 use token::Token;
 
@@ -85,8 +86,14 @@ impl SessionId {
                 "session_info__from__session_id",
                 session_id_hash.clone(),
                 |value| match value {
-                    Some(session_info) => vec![Box::new(format!("sessions:{}", session_info.id))],
-                    None => vec![Box::new("sessions")],
+                    Some(session_info) => vec![Tag {
+                        table: "sessions",
+                        primary_key: Some(session_info.id),
+                    }],
+                    None => vec![Tag {
+                        table: "sessions",
+                        primary_key: None,
+                    }],
                 },
                 DashCache::new,
             )
@@ -155,10 +162,15 @@ impl Verified<SessionInfo> {
                 |permissions| {
                     let mut tags = permissions
                         .iter()
-                        .map(|p| format!("permissions:{}", p.id))
-                        .map(|tag| Box::new(tag) as Box<dyn Tag>)
-                        .collect::<Vec<Box<dyn Tag + 'static>>>();
-                    tags.push(Box::new(format!("users:{user_id}")));
+                        .map(|p| Tag {
+                            table: "permissions",
+                            primary_key: Some(p.id),
+                        })
+                        .collect::<Vec<Tag>>();
+                    tags.push(Tag {
+                        table: "users",
+                        primary_key: Some(user_id),
+                    });
                     tags
                 },
                 DashCache::new,

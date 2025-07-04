@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use cache::{Cache, CacheRegistry, Tag};
+use cache::{Cache, CacheRegistry};
 use sqlx::SqlitePool;
 
 pub struct DataAccess {
@@ -20,8 +20,10 @@ impl DataAccess {
         'conn,
         #[cfg(not(feature = "tracing"))] K,
         #[cfg(not(feature = "tracing"))] V,
+        #[cfg(not(feature = "tracing"))] T,
         #[cfg(feature = "tracing")] K: std::fmt::Debug,
         #[cfg(feature = "tracing")] V: std::fmt::Debug,
+        #[cfg(feature = "tracing")] T: std::fmt::Debug,
         Fut,
         C,
     >(
@@ -29,14 +31,15 @@ impl DataAccess {
         query: impl FnOnce(&'conn SqlitePool) -> Fut,
         namespace: &'static str,
         key: K,
-        tagger: impl FnOnce(&V) -> Vec<Box<dyn Tag>>,
+        tagger: impl FnOnce(&V) -> Vec<T>,
         cache_init: impl FnOnce() -> C,
     ) -> Fut::Output
     where
         K: 'static,
         V: Clone + 'static,
+        T: 'static,
         Fut: Future<Output = Result<V, sqlx::Error>>,
-        C: Cache<Key = K, Value = V> + Send + Sync + 'static,
+        C: Cache<Key = K, Value = V, Tag = T> + Send + Sync + 'static,
     {
         self.cache_registry.ensure_cache(namespace, cache_init);
         match self.cache_registry.get::<K, V>(namespace, &key) {
@@ -50,18 +53,25 @@ impl DataAccess {
         }
     }
 
-    pub async fn write<'conn, V, Fut>(
+    pub async fn write<
+        'conn,
+        V,
+        #[cfg(not(feature = "tracing"))] T,
+        #[cfg(feature = "tracing")] T: std::fmt::Debug,
+        Fut,
+    >(
         &'conn self,
         query: impl FnOnce(&'conn SqlitePool) -> Fut,
-        tagger: impl FnOnce(&V) -> Vec<Box<dyn Tag>>,
+        tagger: impl FnOnce(&V) -> Vec<T>,
     ) -> Fut::Output
     where
         Fut: Future<Output = Result<V, sqlx::Error>>,
         V: 'static,
+        T: 'static,
     {
         let value = query(&self.pool).await?;
         for tag in tagger(&value) {
-            self.cache_registry.invalidate(&*tag);
+            self.cache_registry.invalidate(&tag);
         }
         Ok(value)
     }

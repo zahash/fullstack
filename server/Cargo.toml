@@ -28,6 +28,7 @@ cache = { path = "../cache", features = ["tracing"] }
 data-access = { path = "../data-access", features = ["tracing"] }
 email = { path = "../email", features = ["sqlite"] }
 extra = { path = "../extra", features = ["json-error-response"] }
+tag = { path = "../tag" }
 validation = { path = "../validation" }
 
 [dev-dependencies]
