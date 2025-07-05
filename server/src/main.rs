@@ -165,7 +165,7 @@ where
     use boxer::Context;
 
     std::env::var(name)
-        .context(format!("env var `{name}`"))?
+        .context(name)?
         .parse::<T>()
         .context(format!(
             "cannot parse env var `{name}` as {}",
@@ -195,6 +195,6 @@ where
             .map(Some)
             .map_err(|e| e.into()),
         Err(std::env::VarError::NotPresent) => Ok(None),
-        Err(e) => Err(Boxer::new(format!("env var `{name}`"), e).into()),
+        Err(e) => Err(Boxer::new(name.to_owned(), e).into()),
     }
 }
