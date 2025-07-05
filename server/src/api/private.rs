@@ -1,4 +1,4 @@
-use crate::principal::Principal;
+use auth::Principal;
 
 #[tracing::instrument(fields(user_id = tracing::field::Empty), skip_all, ret)]
 pub async fn private(principal: Principal) -> String {

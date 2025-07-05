@@ -14,6 +14,7 @@ thiserror = "2"
 time = "0.3"
 tracing = { version = "0.1", optional = true }
 
+boxer = { path = "../boxer" }
 dashcache = { path = "../dashcache" }
 data-access = { path = "../data-access" }
 email = { path = "../email", features = ["sqlx"] }

@@ -13,13 +13,14 @@ pub use credentials::Credentials;
 mod permission;
 pub use permission::{InsufficientPermissionsError, Permission, Permissions};
 
+mod principal;
+pub use principal::{Principal, PrincipalError};
+
 mod session;
 pub use session::{SessionId, SessionInfo, SessionValidationError, expired_session_cookie};
 
 mod user;
 pub use user::UserInfo;
-
-use std::ops::Deref;
 
 pub struct Verified<T>(T);
 
@@ -30,7 +31,7 @@ impl<T> Verified<T> {
     }
 }
 
-impl<T> Deref for Verified<T> {
+impl<T> std::ops::Deref for Verified<T> {
     type Target = T;
 
     #[inline]

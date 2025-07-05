@@ -1,13 +1,12 @@
-use auth::{
-    AccessToken, AccessTokenAuthorizationExtractionError, AccessTokenInfo,
-    AccessTokenValidationError, Base64DecodeError, Basic, BasicAuthorizationExtractionError,
-    Credentials, Permissions, SessionId, SessionInfo, SessionValidationError, UserInfo, Verified,
-};
 use boxer::{Boxer, Context};
 use data_access::DataAccess;
 use http::HeaderMap;
 
-use crate::AppState;
+use crate::{
+    AccessToken, AccessTokenAuthorizationExtractionError, AccessTokenInfo,
+    AccessTokenValidationError, Base64DecodeError, Basic, BasicAuthorizationExtractionError,
+    Credentials, Permissions, SessionId, SessionInfo, SessionValidationError, UserInfo, Verified,
+};
 
 pub enum Principal {
     Session(Verified<SessionInfo>),
@@ -108,17 +107,24 @@ impl Principal {
     }
 }
 
-impl axum::extract::FromRequestParts<AppState> for Principal {
+#[cfg(feature = "axum")]
+impl<S> axum::extract::FromRequestParts<S> for Principal
+where
+    S: Send + Sync,
+    DataAccess: axum::extract::FromRef<S>,
+{
     type Rejection = PrincipalError;
 
     async fn from_request_parts(
         axum::http::request::Parts { headers, .. }: &mut axum::http::request::Parts,
-        AppState { data_access, .. }: &AppState,
+        state: &S,
     ) -> Result<Self, Self::Rejection> {
-        Principal::from(headers, data_access).await
+        use axum::extract::FromRef;
+        Principal::from(headers, &DataAccess::from_ref(state)).await
     }
 }
 
+#[cfg(feature = "axum")]
 impl axum::response::IntoResponse for PrincipalError {
     fn into_response(self) -> axum::response::Response {
         match self {

@@ -1,12 +1,12 @@
 mod api;
 mod middleware;
-mod principal;
 mod span;
 
 use std::net::SocketAddr;
 
 use axum::{
     Router,
+    extract::FromRef,
     middleware::from_fn,
     routing::{get, post},
 };
@@ -62,6 +62,12 @@ pub struct SMTPConfig {
 #[derive(Clone)]
 pub struct AppState {
     pub data_access: DataAccess,
+}
+
+impl FromRef<AppState> for DataAccess {
+    fn from_ref(input: &AppState) -> Self {
+        input.data_access.clone()
+    }
 }
 
 pub fn server(

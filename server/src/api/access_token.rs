@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use auth::{
     AccessToken, AccessTokenAuthorizationExtractionError, AccessTokenValidationError, Credentials,
-    InsufficientPermissionsError,
+    InsufficientPermissionsError, Principal,
 };
 use axum::{
     Form, Json,
@@ -17,7 +17,7 @@ use serde::Deserialize;
 use tag::Tag;
 use time::OffsetDateTime;
 
-use crate::{AppState, principal::Principal};
+use crate::AppState;
 
 #[derive(Deserialize, Debug)]
 pub struct AccessTokenSettings {
