@@ -31,7 +31,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         #[cfg(feature = "ui")]
         let ui_dir = get_env_var::<std::path::PathBuf>("UI_DIR")?;
 
-        #[cfg(feature = "email")]
+        #[cfg(feature = "smtp")]
         let smtp = {
             let relay = get_env_var::<String>("SMTP_RELAY")?;
             let username = get_env_var::<String>("SMTP_USERNAME")?;
@@ -53,7 +53,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             #[cfg(feature = "ui")]
             ui_dir,
 
-            #[cfg(feature = "email")]
+            #[cfg(feature = "smtp")]
             smtp,
         }
     };
@@ -80,7 +80,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             #[cfg(feature = "ui")]
             ui_dir: args.ui_dir,
 
-            #[cfg(feature = "email")]
+            #[cfg(feature = "smtp")]
             smtp: server::SMTPConfig {
                 relay: args.smtp_relay,
                 username: args.smtp_username,
@@ -118,20 +118,20 @@ struct Args {
     #[arg(long)]
     rate_limit: String,
 
-    #[cfg(feature = "email")]
+    #[cfg(feature = "smtp")]
     /// The SMTP relay server used for sending emails.
     /// This should be a valid SMTP server address.
     /// Example: `"smtp.gmail.com"`
     #[arg(long)]
     smtp_relay: String,
 
-    #[cfg(feature = "email")]
+    #[cfg(feature = "smtp")]
     /// The username for authenticating with the SMTP server.
     /// Example: `"user@example.com"`
     #[arg(long)]
     smtp_username: String,
 
-    #[cfg(feature = "email")]
+    #[cfg(feature = "smtp")]
     /// The password for the SMTP server.
     /// This should be kept secure and **not logged**.
     /// Example: `"supersecretpassword"`

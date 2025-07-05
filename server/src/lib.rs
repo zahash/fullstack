@@ -40,7 +40,7 @@ pub struct ServerOpts {
     #[cfg(feature = "ui")]
     pub ui_dir: std::path::PathBuf,
 
-    #[cfg(feature = "email")]
+    #[cfg(feature = "smtp")]
     pub smtp: SMTPConfig,
 }
 
@@ -51,7 +51,7 @@ pub struct RateLimiterConfig {
     pub interval: std::time::Duration,
 }
 
-#[cfg(feature = "email")]
+#[cfg(feature = "smtp")]
 #[derive(Debug)]
 pub struct SMTPConfig {
     pub relay: String,

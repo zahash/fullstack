@@ -1971,6 +1971,7 @@ dependencies = [
  "extra",
  "forwarded-header-value",
  "http",
+ "lettre",
  "serde",
  "sqlx",
  "sysinfo",
