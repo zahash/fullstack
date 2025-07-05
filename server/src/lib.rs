@@ -3,7 +3,7 @@ mod middleware;
 mod principal;
 mod span;
 
-use std::{net::SocketAddr, time::Duration};
+use std::net::SocketAddr;
 
 use axum::{
     Router,
@@ -44,10 +44,11 @@ pub struct ServerOpts {
     pub smtp: SMTPConfig,
 }
 
+#[cfg(feature = "rate-limit")]
 #[derive(Debug)]
 pub struct RateLimiterConfig {
     pub limit: usize,
-    pub interval: Duration,
+    pub interval: std::time::Duration,
 }
 
 #[cfg(feature = "email")]
@@ -65,7 +66,7 @@ pub struct AppState {
 
 pub fn server(
     data_access: DataAccess,
-    #[cfg(feature = "rate-limit")] rate_limiter: RateLimiter,
+    #[cfg(feature = "rate-limit")] rate_limiter: crate::middleware::RateLimiter,
 ) -> Router {
     let middleware = ServiceBuilder::new()
         .layer(from_fn(mw_handle_leaked_5xx))
@@ -109,7 +110,8 @@ pub async fn serve(opts: ServerOpts) -> Result<(), Boxer> {
     );
 
     #[cfg(feature = "rate-limit")]
-    let rate_limiter = RateLimiter::new(100, Duration::from_secs(1));
+    let rate_limiter =
+        crate::middleware::RateLimiter::new(opts.rate_limiter.limit, opts.rate_limiter.interval);
 
     let server = server(
         data_access,
