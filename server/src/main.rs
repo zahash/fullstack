@@ -1,7 +1,7 @@
 #[cfg(all(feature = "cli", feature = "env"))]
 compile_error!("features `server/cli` and `server/env` are mutually exclusive");
 
-use tracing::level_filters::LevelFilter;
+use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() {
@@ -13,7 +13,7 @@ async fn main() {
 
 async fn run() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
-        .with_max_level(LevelFilter::TRACE)
+        .with_env_filter(EnvFilter::from_default_env(/* RUST_LOG env var sets logging level */))
         .init();
 
     #[cfg(feature = "env")]
