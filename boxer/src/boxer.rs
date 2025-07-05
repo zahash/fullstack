@@ -34,6 +34,13 @@ impl Error for Boxer {
 
 impl Display for Boxer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} :: {}", self.context, self.source)
+        writeln!(f, "Error:")?;
+        writeln!(f, "• {}", self.context)?;
+        let mut source = <Boxer as Error>::source(self);
+        while let Some(err) = source {
+            writeln!(f, "↳ {}", err)?;
+            source = err.source();
+        }
+        Ok(())
     }
 }

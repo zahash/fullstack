@@ -31,7 +31,7 @@ macro_rules! fixture {
 macro_rules! send {
     ( $data_access:ident $req:expr ) => {{
         use tower::ServiceExt;
-        server::server($data_access.clone(), server::RateLimiter::nolimit())
+        server::server($data_access.clone())
             .oneshot($req)
             .await
             .expect("failed to send request")

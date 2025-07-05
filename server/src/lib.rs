@@ -3,13 +3,11 @@ mod middleware;
 mod principal;
 mod span;
 
-pub use middleware::RateLimiter;
-
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use std::{net::SocketAddr, time::Duration};
 
 use axum::{
     Router,
-    middleware::{from_fn, from_fn_with_state},
+    middleware::from_fn,
     routing::{get, post},
 };
 use boxer::{Boxer, Context};
@@ -27,7 +25,7 @@ use crate::{
         check_access_token, check_email_availability, check_username_availability,
         generate_access_token, health, login, logout, private, signup, sysinfo,
     },
-    middleware::{mw_client_ip, mw_handle_leaked_5xx, mw_rate_limiter},
+    middleware::{mw_client_ip, mw_handle_leaked_5xx},
     span::span,
 };
 
@@ -35,6 +33,8 @@ use crate::{
 pub struct ServerOpts {
     pub database_url: String,
     pub port: u16,
+
+    #[cfg(feature = "rate-limit")]
     pub rate_limiter: RateLimiterConfig,
 
     #[cfg(feature = "ui")]
@@ -63,7 +63,23 @@ pub struct AppState {
     pub data_access: DataAccess,
 }
 
-pub fn server(data_access: DataAccess, rate_limiter: RateLimiter) -> Router {
+pub fn server(
+    data_access: DataAccess,
+    #[cfg(feature = "rate-limit")] rate_limiter: RateLimiter,
+) -> Router {
+    let middleware = ServiceBuilder::new()
+        .layer(from_fn(mw_handle_leaked_5xx))
+        .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
+        .layer(PropagateRequestIdLayer::x_request_id())
+        .layer(from_fn(mw_client_ip))
+        .layer(TraceLayer::new_for_http().make_span_with(span));
+
+    #[cfg(feature = "rate-limit")]
+    let middleware = middleware.layer(axum::middleware::from_fn_with_state(
+        std::sync::Arc::new(rate_limiter),
+        crate::middleware::mw_rate_limiter,
+    ));
+
     Router::new()
         .nest(
             "/check",
@@ -80,15 +96,7 @@ pub fn server(data_access: DataAccess, rate_limiter: RateLimiter) -> Router {
         .route("/access-token", post(generate_access_token))
         .route("/private", get(private))
         .with_state(AppState { data_access })
-        .layer(
-            ServiceBuilder::new()
-                .layer(from_fn(mw_handle_leaked_5xx))
-                .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
-                .layer(PropagateRequestIdLayer::x_request_id())
-                .layer(from_fn(mw_client_ip))
-                .layer(TraceLayer::new_for_http().make_span_with(span))
-                .layer(from_fn_with_state(Arc::new(rate_limiter), mw_rate_limiter)),
-        )
+        .layer(middleware)
 }
 
 pub async fn serve(opts: ServerOpts) -> Result<(), Boxer> {
@@ -100,9 +108,14 @@ pub async fn serve(opts: ServerOpts) -> Result<(), Boxer> {
             .context(format!("connect database :: {}", opts.database_url))?,
     );
 
+    #[cfg(feature = "rate-limit")]
     let rate_limiter = RateLimiter::new(100, Duration::from_secs(1));
 
-    let server = server(data_access, rate_limiter);
+    let server = server(
+        data_access,
+        #[cfg(feature = "rate-limit")]
+        rate_limiter,
+    );
 
     #[cfg(feature = "ui")]
     let server = server.fallback_service(tower_http::services::ServeDir::new(&opts.ui_dir));

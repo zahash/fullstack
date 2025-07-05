@@ -45,6 +45,7 @@ test-proc-macros = { path = "../test-proc-macros", features = [
 cli = ["dep:clap", "clap/derive"]
 email = []
 env = []
+rate-limit = []
 ui = []
 
 default = ["env"]

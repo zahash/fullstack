@@ -1,12 +1,17 @@
 #[cfg(all(feature = "cli", feature = "env"))]
 compile_error!("features `server/cli` and `server/env` are mutually exclusive");
 
-use std::time::Duration;
-
 use tracing::level_filters::LevelFilter;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() {
+    if let Err(e) = run().await {
+        eprintln!("{}", e);
+        std::process::exit(1);
+    }
+}
+
+async fn run() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
         .with_max_level(LevelFilter::TRACE)
         .init();
@@ -16,6 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let database_url = get_env_var::<String>("DATABASE_URL")?;
         let port = get_env_var::<u16>("PORT")?;
 
+        #[cfg(feature = "rate-limit")]
         let rate_limiter = {
             let rate_limit = get_env_var::<String>("RATE_LIMIT")?;
             let (limit, interval) = parse_rate_limit(&rate_limit)?;
@@ -40,6 +46,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         server::ServerOpts {
             database_url,
             port,
+
+            #[cfg(feature = "rate-limit")]
             rate_limiter,
 
             #[cfg(feature = "ui")]
@@ -56,6 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let args = Args::parse();
 
+        #[cfg(feature = "rate-limit")]
         let rate_limiter = {
             let (limit, interval) = parse_rate_limit(&args.rate_limit)?;
             server::RateLimiterConfig { limit, interval }
@@ -64,6 +73,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         server::ServerOpts {
             database_url: args.database_url,
             port: args.port,
+
+            #[cfg(feature = "rate-limit")]
             rate_limiter,
 
             #[cfg(feature = "ui")]
@@ -101,6 +112,7 @@ struct Args {
     #[arg(long)]
     ui_dir: std::path::PathBuf,
 
+    #[cfg(feature = "rate-limit")]
     /// The rate limit in the form of a string, e.g. "1/s", "10/min", "100/hour".
     /// Example: "10/min"
     #[arg(long)]
@@ -127,8 +139,11 @@ struct Args {
     smtp_password: String,
 }
 
+#[cfg(feature = "rate-limit")]
 /// Parse a rate limit string like "10/s", "100/min", "1000/hour" into (limit, interval)
 fn parse_rate_limit(s: &str) -> Result<(usize, std::time::Duration), Box<dyn std::error::Error>> {
+    use std::time::Duration;
+
     let Some((first, second)) = s.trim().split_once('/') else {
         return Err("invalid rate limit format".into());
     };
