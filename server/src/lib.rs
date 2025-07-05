@@ -38,7 +38,9 @@ pub struct ServerOpts {
     pub port: u16,
     pub ui_dir: PathBuf,
     pub rate_limiter: RateLimiterConfig,
-    // pub smtp: SMTPConfig,
+
+    #[cfg(feature = "email")]
+    pub smtp: SMTPConfig,
 }
 
 #[derive(Debug)]
@@ -47,12 +49,13 @@ pub struct RateLimiterConfig {
     pub interval: Duration,
 }
 
-// #[derive(Debug)]
-// pub struct SMTPConfig {
-//     pub relay: String,
-//     pub username: String,
-//     pub password: String,
-// }
+#[cfg(feature = "email")]
+#[derive(Debug)]
+pub struct SMTPConfig {
+    pub relay: String,
+    pub username: String,
+    pub password: String,
+}
 
 #[derive(Clone)]
 pub struct AppState {

@@ -95,12 +95,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anyhow"
-version = "1.0.98"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
-
-[[package]]
 name = "atoi"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -396,17 +390,6 @@ name = "clap_lex"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b94f61472cee1439c0b966b47e3aca9ae07e45d070759512cd390ea2bebc6675"
-
-[[package]]
-name = "cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "server",
- "tokio",
- "tracing-subscriber",
-]
 
 [[package]]
 name = "colorchoice"
@@ -1956,6 +1939,7 @@ dependencies = [
  "axum-macros",
  "bcrypt",
  "boxer",
+ "clap",
  "dashcache",
  "dashmap",
  "data-access",
@@ -1974,6 +1958,7 @@ dependencies = [
  "tower",
  "tower-http",
  "tracing",
+ "tracing-subscriber",
  "validation",
 ]
 
