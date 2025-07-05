@@ -5,7 +5,7 @@ mod span;
 
 pub use middleware::RateLimiter;
 
-use std::{net::SocketAddr, path::PathBuf, sync::Arc, time::Duration};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use axum::{
     Router,
@@ -19,7 +19,6 @@ use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{
     request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
-    services::ServeDir,
     trace::TraceLayer,
 };
 
@@ -36,8 +35,10 @@ use crate::{
 pub struct ServerOpts {
     pub database_url: String,
     pub port: u16,
-    pub ui_dir: PathBuf,
     pub rate_limiter: RateLimiterConfig,
+
+    #[cfg(feature = "ui")]
+    pub ui_dir: std::path::PathBuf,
 
     #[cfg(feature = "email")]
     pub smtp: SMTPConfig,
@@ -101,9 +102,12 @@ pub async fn serve(opts: ServerOpts) -> Result<(), Boxer> {
 
     let rate_limiter = RateLimiter::new(100, Duration::from_secs(1));
 
-    let app = server(data_access, rate_limiter)
-        .fallback_service(ServeDir::new(&opts.ui_dir))
-        .into_make_service_with_connect_info::<SocketAddr>();
+    let server = server(data_access, rate_limiter);
+
+    #[cfg(feature = "ui")]
+    let server = server.fallback_service(tower_http::services::ServeDir::new(&opts.ui_dir));
+
+    let app = server.into_make_service_with_connect_info::<SocketAddr>();
 
     let addr = SocketAddr::from(([127, 0, 0, 1], opts.port));
     let listener = TcpListener::bind(addr)
@@ -113,6 +117,5 @@ pub async fn serve(opts: ServerOpts) -> Result<(), Boxer> {
         "listening on {}",
         listener.local_addr().context("local_addr")?
     );
-    axum::serve(listener, app).await.context("axum::serve")?;
-    Ok(())
+    axum::serve(listener, app).await.context("axum::serve")
 }

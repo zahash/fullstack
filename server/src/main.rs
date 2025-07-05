@@ -15,13 +15,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server_opts = {
         let database_url = get_env_var::<String>("DATABASE_URL")?;
         let port = get_env_var::<u16>("PORT")?;
-        let ui_dir = get_env_var::<std::path::PathBuf>("UI_DIR")?;
 
         let rate_limiter = {
             let rate_limit = get_env_var::<String>("RATE_LIMIT")?;
             let (limit, interval) = parse_rate_limit(&rate_limit)?;
             server::RateLimiterConfig { limit, interval }
         };
+
+        #[cfg(feature = "ui")]
+        let ui_dir = get_env_var::<std::path::PathBuf>("UI_DIR")?;
 
         #[cfg(feature = "email")]
         let smtp = {
@@ -38,8 +40,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         server::ServerOpts {
             database_url,
             port,
-            ui_dir,
             rate_limiter,
+
+            #[cfg(feature = "ui")]
+            ui_dir,
 
             #[cfg(feature = "email")]
             smtp,
@@ -60,8 +64,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         server::ServerOpts {
             database_url: args.database_url,
             port: args.port,
-            ui_dir: args.ui_dir,
             rate_limiter,
+
+            #[cfg(feature = "ui")]
+            ui_dir: args.ui_dir,
 
             #[cfg(feature = "email")]
             smtp: server::SMTPConfig {
@@ -88,6 +94,7 @@ struct Args {
     #[arg(long)]
     database_url: String,
 
+    #[cfg(feature = "ui")]
     /// The directory where the server's UI files are located.
     /// This should point to a valid local path containing frontend assets.
     /// Example: `./ui` or `/var/www/html`
@@ -142,11 +149,11 @@ where
 {
     use boxer::Context;
 
-    std::env::var(name)?
+    std::env::var(name)
+        .context(format!("env var `{name}`"))?
         .parse::<T>()
         .context(format!(
-            "cannot parse env var `{}` as {}",
-            name,
+            "cannot parse env var `{name}` as {}",
             std::any::type_name::<T>()
         ))
         .map_err(|e| e.into())
@@ -160,7 +167,7 @@ fn get_opt_env_var<T: std::str::FromStr>(
 where
     T::Err: std::error::Error + Send + Sync + 'static,
 {
-    use boxer::Context;
+    use boxer::{Boxer, Context};
 
     match std::env::var(name) {
         Ok(val) => val
@@ -173,6 +180,6 @@ where
             .map(Some)
             .map_err(|e| e.into()),
         Err(std::env::VarError::NotPresent) => Ok(None),
-        Err(e) => Err(e.into()),
+        Err(e) => Err(Boxer::new(format!("env var `{name}`"), e).into()),
     }
 }
