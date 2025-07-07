@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use base64::{Engine, prelude::BASE64_STANDARD};
+use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use rand::RngCore;
 use sha2::{Digest, Sha256};
 
@@ -22,11 +22,11 @@ impl<const N: usize> Token<N> {
     }
 
     pub fn base64encoded(&self) -> String {
-        BASE64_STANDARD.encode(self.0)
+        BASE64_URL_SAFE_NO_PAD.encode(self.0)
     }
 
     pub fn base64decode(s: &str) -> Result<Self, &str> {
-        let bytes = BASE64_STANDARD.decode(s).map_err(|_| s)?;
+        let bytes = BASE64_URL_SAFE_NO_PAD.decode(s).map_err(|_| s)?;
         let bytes: [u8; N] = bytes.try_into().map_err(|_| s)?;
         Ok(Token(bytes))
     }

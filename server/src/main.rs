@@ -33,13 +33,17 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
 
         #[cfg(feature = "smtp")]
         let smtp = {
+            use std::path::PathBuf;
+
             let relay = get_env_var::<String>("SMTP_RELAY")?;
             let username = get_env_var::<String>("SMTP_USERNAME")?;
             let password = get_env_var::<String>("SMTP_PASSWORD")?;
+            let senders_dir = get_env_var::<PathBuf>("SMTP_SENDERS_DIR")?;
             server::SMTPConfig {
                 relay,
                 username,
                 password,
+                senders_dir,
             }
         };
 
@@ -162,7 +166,7 @@ fn get_env_var<T: std::str::FromStr>(name: &str) -> Result<T, Box<dyn std::error
 where
     T::Err: std::error::Error + Send + Sync + 'static,
 {
-    use boxer::Context;
+    use contextual::Context;
 
     std::env::var(name)
         .context(name)?
@@ -182,7 +186,7 @@ fn get_opt_env_var<T: std::str::FromStr>(
 where
     T::Err: std::error::Error + Send + Sync + 'static,
 {
-    use boxer::{Boxer, Context};
+    use contextual::Context;
 
     match std::env::var(name) {
         Ok(val) => val
@@ -195,6 +199,10 @@ where
             .map(Some)
             .map_err(|e| e.into()),
         Err(std::env::VarError::NotPresent) => Ok(None),
-        Err(e) => Err(Boxer::new(name.to_owned(), e).into()),
+        Err(e) => Err(contextual::Error {
+            context: name.to_owned(),
+            source: e,
+        }
+        .into()),
     }
 }

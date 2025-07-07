@@ -4,7 +4,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use boxer::{Boxer, Context};
+use contextual::Context;
 use email::Email;
 use extra::json_error_response;
 use serde::Deserialize;
@@ -40,12 +40,20 @@ pub enum Error {
     WeakPassword(&'static str),
 
     #[error("{0:?}")]
-    Internal(#[from] Boxer),
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
+
+    #[error("{0:?}")]
+    Bcrypt(#[from] contextual::Error<bcrypt::BcryptError>),
 }
 
 #[tracing::instrument(fields(username = tracing::field::Empty), skip_all, ret)]
 pub async fn signup(
-    State(AppState { data_access, .. }): State<AppState>,
+    State(AppState {
+        data_access,
+
+        #[cfg(feature = "smtp")]
+        smtp,
+    }): State<AppState>,
     Form(SignUp {
         username,
         email,
@@ -106,6 +114,15 @@ pub async fn signup(
         .await
         .context("insert user")?;
 
+    #[cfg(feature = "smtp")]
+    match crate::smtp::initiate_email_verification(&data_access, &smtp, &email)
+        .await
+        .context("signup")
+    {
+        Ok(response) => tracing::info!("initiate_email_verification response :: {response:?}"),
+        Err(err) => tracing::warn!("initiate_email_verification error :: {err:?}"),
+    }
+
     Ok(StatusCode::CREATED)
 }
 
@@ -120,8 +137,8 @@ impl IntoResponse for Error {
                 tracing::info!("{:?}", self);
                 (StatusCode::CONFLICT, Json(json_error_response(self))).into_response()
             }
-            Error::Internal(err) => {
-                tracing::error!("{:?}", err);
+            Error::Sqlx(_) | Error::Bcrypt(_) => {
+                tracing::error!("{:?}", self);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
         }

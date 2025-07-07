@@ -4,7 +4,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use boxer::{Boxer, Context};
+use contextual::Context;
 use dashcache::DashCache;
 use data_access::DataAccess;
 use email::Email;
@@ -79,7 +79,7 @@ pub enum CheckEmailAvailabilityError {
     InvalidParams(&'static str),
 
     #[error("{0:?}")]
-    Internal(#[from] Boxer),
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
 }
 
 impl IntoResponse for CheckEmailAvailabilityError {
@@ -89,7 +89,7 @@ impl IntoResponse for CheckEmailAvailabilityError {
                 tracing::info!("{:?}", self);
                 (StatusCode::BAD_REQUEST, Json(json_error_response(self))).into_response()
             }
-            CheckEmailAvailabilityError::Internal(err) => {
+            CheckEmailAvailabilityError::Sqlx(err) => {
                 tracing::error!("{:?}", err);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }

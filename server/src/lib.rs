@@ -2,6 +2,9 @@ mod api;
 mod middleware;
 mod span;
 
+#[cfg(feature = "smtp")]
+mod smtp;
+
 use std::net::SocketAddr;
 
 use axum::{
@@ -10,7 +13,7 @@ use axum::{
     middleware::from_fn,
     routing::{get, post},
 };
-use boxer::{Boxer, Context};
+use contextual::Context;
 use data_access::DataAccess;
 use sqlx::SqlitePool;
 use tokio::net::TcpListener;
@@ -57,21 +60,20 @@ pub struct SMTPConfig {
     pub relay: String,
     pub username: String,
     pub password: String,
+    pub senders_dir: std::path::PathBuf,
 }
 
 #[derive(Clone)]
 pub struct AppState {
     pub data_access: DataAccess,
-}
 
-impl FromRef<AppState> for DataAccess {
-    fn from_ref(input: &AppState) -> Self {
-        input.data_access.clone()
-    }
+    #[cfg(feature = "smtp")]
+    pub smtp: crate::smtp::Smtp,
 }
 
 pub fn server(
     data_access: DataAccess,
+    #[cfg(feature = "smtp")] smtp: crate::smtp::Smtp,
     #[cfg(feature = "rate-limit")] rate_limiter: crate::middleware::RateLimiter,
 ) -> Router {
     let middleware = ServiceBuilder::new()
@@ -102,11 +104,16 @@ pub fn server(
         .route("/logout", get(logout))
         .route("/access-token", post(generate_access_token))
         .route("/private", get(private))
-        .with_state(AppState { data_access })
+        .with_state(AppState {
+            data_access,
+
+            #[cfg(feature = "smtp")]
+            smtp,
+        })
         .layer(middleware)
 }
 
-pub async fn serve(opts: ServerOpts) -> Result<(), Boxer> {
+pub async fn serve(opts: ServerOpts) -> Result<(), ServerError> {
     tracing::info!("{:?}", opts);
 
     let data_access = DataAccess::new(
@@ -115,12 +122,26 @@ pub async fn serve(opts: ServerOpts) -> Result<(), Boxer> {
             .context(format!("connect database :: {}", opts.database_url))?,
     );
 
+    #[cfg(feature = "smtp")]
+    let smtp = crate::smtp::Smtp {
+        transport: lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::relay(&opts.smtp.relay)
+            .context("smtp relay")?
+            .credentials(lettre::transport::smtp::authentication::Credentials::new(
+                opts.smtp.username,
+                opts.smtp.password,
+            ))
+            .build(),
+        senders: std::sync::Arc::new(crate::smtp::SmtpSenders::new(opts.smtp.senders_dir)),
+    };
+
     #[cfg(feature = "rate-limit")]
     let rate_limiter =
         crate::middleware::RateLimiter::new(opts.rate_limiter.limit, opts.rate_limiter.interval);
 
     let server = server(
         data_access,
+        #[cfg(feature = "smtp")]
+        smtp,
         #[cfg(feature = "rate-limit")]
         rate_limiter,
     );
@@ -138,5 +159,27 @@ pub async fn serve(opts: ServerOpts) -> Result<(), Boxer> {
         "listening on {}",
         listener.local_addr().context("local_addr")?
     );
-    axum::serve(listener, app).await.context("axum::serve")
+    axum::serve(listener, app)
+        .await
+        .context("axum::serve")
+        .map_err(|e| e.into())
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum ServerError {
+    #[error("{0:?}")]
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
+
+    #[cfg(feature = "smtp")]
+    #[error("{0:?}")]
+    SmtpTransport(#[from] contextual::Error<lettre::transport::smtp::Error>),
+
+    #[error("{0:?}")]
+    Io(#[from] contextual::Error<std::io::Error>),
+}
+
+impl FromRef<AppState> for DataAccess {
+    fn from_ref(input: &AppState) -> Self {
+        input.data_access.clone()
+    }
 }

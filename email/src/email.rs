@@ -21,6 +21,12 @@ impl TryFrom<String> for Email {
     }
 }
 
+impl From<Email> for lettre::Address {
+    fn from(email: Email) -> Self {
+        email.0
+    }
+}
+
 impl Display for Email {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)

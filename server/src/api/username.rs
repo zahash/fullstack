@@ -4,7 +4,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use boxer::{Boxer, Context};
+use contextual::Context;
 use dashcache::DashCache;
 use data_access::DataAccess;
 use extra::json_error_response;
@@ -84,7 +84,7 @@ pub enum CheckUsernameAvailabilityError {
     InvalidParams(&'static str),
 
     #[error("{0:?}")]
-    Internal(#[from] Boxer),
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
 }
 
 impl IntoResponse for CheckUsernameAvailabilityError {
@@ -94,7 +94,7 @@ impl IntoResponse for CheckUsernameAvailabilityError {
                 tracing::info!("{:?}", self);
                 (StatusCode::BAD_REQUEST, Json(json_error_response(self))).into_response()
             }
-            CheckUsernameAvailabilityError::Internal(err) => {
+            CheckUsernameAvailabilityError::Sqlx(err) => {
                 tracing::error!("{:?}", err);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }

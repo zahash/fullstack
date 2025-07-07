@@ -2,14 +2,16 @@
 resolver = "2"
 members = [
     "auth",
-    "boxer",
     "cache",
     "compiletime",
+    "contextual",
     "dashcache",
     "data-access",
     "email",
     "extra",
-    "server", "tag",
+    "server",
+    "tag",
+    "templates",
     "test-proc-macros",
     "token",
     "validation",

@@ -31,7 +31,7 @@ impl DataAccess {
         query: impl FnOnce(&'conn SqlitePool) -> Fut,
         namespace: &'static str,
         key: K,
-        tagger: impl FnOnce(&V) -> Vec<T>,
+        tags: impl FnOnce(&V) -> Vec<T>,
         cache_init: impl FnOnce() -> C,
     ) -> Fut::Output
     where
@@ -47,7 +47,7 @@ impl DataAccess {
             None => {
                 let value = query(&self.pool).await?;
                 self.cache_registry
-                    .put(namespace, key, value.clone(), tagger(&value));
+                    .put(namespace, key, value.clone(), tags(&value));
                 Ok(value)
             }
         }
@@ -62,7 +62,7 @@ impl DataAccess {
     >(
         &'conn self,
         query: impl FnOnce(&'conn SqlitePool) -> Fut,
-        tagger: impl FnOnce(&V) -> Vec<T>,
+        tags_to_invalidate: impl FnOnce(&V) -> Vec<T>,
     ) -> Fut::Output
     where
         Fut: Future<Output = Result<V, sqlx::Error>>,
@@ -70,7 +70,7 @@ impl DataAccess {
         T: 'static,
     {
         let value = query(&self.pool).await?;
-        for tag in tagger(&value) {
+        for tag in tags_to_invalidate(&value) {
             self.cache_registry.invalidate(&tag);
         }
         Ok(value)

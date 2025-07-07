@@ -2,7 +2,7 @@ use auth::{Credentials, SessionId, expired_session_cookie};
 use axum::{extract::State, response::IntoResponse};
 use axum_extra::extract::CookieJar;
 use axum_macros::debug_handler;
-use boxer::{Boxer, Context};
+use contextual::Context;
 use http::{HeaderMap, StatusCode};
 use tag::Tag;
 
@@ -11,7 +11,7 @@ use crate::AppState;
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("{0:?}")]
-    Internal(#[from] Boxer),
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
 }
 
 #[debug_handler]
@@ -59,7 +59,7 @@ pub async fn logout(
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
-            Error::Internal(err) => {
+            Error::Sqlx(err) => {
                 tracing::error!("{:?}", err);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }

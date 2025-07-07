@@ -1,4 +1,4 @@
-use boxer::{Boxer, Context};
+use contextual::Context;
 use data_access::DataAccess;
 use http::HeaderMap;
 
@@ -47,7 +47,10 @@ pub enum PrincipalError {
     NoCredentialsProvided,
 
     #[error("{0:?}")]
-    Internal(#[from] Boxer),
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
+
+    #[error("{0:?}")]
+    Bcrypt(#[from] contextual::Error<bcrypt::BcryptError>),
 }
 
 impl Principal {
@@ -145,8 +148,8 @@ impl axum::response::IntoResponse for PrincipalError {
             PrincipalError::AccessTokenValidation(err) => err.into_response(),
             PrincipalError::SessionIdValidation(err) => err.into_response(),
             PrincipalError::Base64Decode(err) => err.into_response(),
-            PrincipalError::Internal(err) => {
-                tracing::error!("{:?}", err);
+            PrincipalError::Sqlx(_) | PrincipalError::Bcrypt(_) => {
+                tracing::error!("{:?}", self);
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
         }

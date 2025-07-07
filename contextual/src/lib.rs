@@ -1,5 +1,5 @@
-mod boxer;
 mod context;
+mod error;
 
-pub use boxer::Boxer;
 pub use context::Context;
+pub use error::Error;

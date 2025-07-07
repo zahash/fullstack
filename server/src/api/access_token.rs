@@ -11,7 +11,7 @@ use axum::{
     response::IntoResponse,
 };
 use axum_macros::debug_handler;
-use boxer::{Boxer, Context};
+use contextual::Context;
 use extra::json_error_response;
 use serde::Deserialize;
 use tag::Tag;
@@ -118,7 +118,7 @@ pub enum AccessTokenGenerationError {
     Permission(#[from] InsufficientPermissionsError),
 
     #[error("{0:?}")]
-    Internal(#[from] Boxer),
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -138,14 +138,14 @@ pub enum CheckAccessTokenError {
     AccessTokenValidation(#[from] AccessTokenValidationError),
 
     #[error("{0:?}")]
-    Internal(#[from] Boxer),
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
 }
 
 impl IntoResponse for AccessTokenGenerationError {
     fn into_response(self) -> axum::response::Response {
         match self {
             AccessTokenGenerationError::Permission(err) => err.into_response(),
-            AccessTokenGenerationError::Internal(err) => {
+            AccessTokenGenerationError::Sqlx(err) => {
                 tracing::error!("{:?}", err);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
@@ -165,7 +165,7 @@ impl IntoResponse for CheckAccessTokenError {
                 (StatusCode::UNAUTHORIZED, Json(json_error_response(self))).into_response()
             }
             CheckAccessTokenError::AccessTokenValidation(err) => err.into_response(),
-            CheckAccessTokenError::Internal(err) => {
+            CheckAccessTokenError::Sqlx(err) => {
                 tracing::error!("{:?}", err);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }

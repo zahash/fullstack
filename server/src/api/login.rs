@@ -8,7 +8,7 @@ use axum::{
 use axum_extra::extract::CookieJar;
 use axum_macros::debug_handler;
 use bcrypt::verify;
-use boxer::{Boxer, Context};
+use contextual::Context;
 use dashcache::DashCache;
 use serde::Deserialize;
 use tag::Tag;
@@ -30,7 +30,10 @@ pub enum Error {
     InvalidCredentials,
 
     #[error("{0:?}")]
-    Internal(#[from] Boxer),
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
+
+    #[error("{0:?}")]
+    Bcrypt(#[from] contextual::Error<bcrypt::BcryptError>),
 }
 
 #[debug_handler]
@@ -138,8 +141,8 @@ impl IntoResponse for Error {
                 tracing::info!("{:?}", self);
                 StatusCode::UNAUTHORIZED.into_response()
             }
-            Error::Internal(err) => {
-                tracing::error!("{:?}", err);
+            Error::Sqlx(_) | Error::Bcrypt(_) => {
+                tracing::error!("{:?}", self);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
         }
