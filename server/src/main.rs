@@ -47,6 +47,13 @@ struct Args {
     smtp_password: String,
 
     #[cfg(feature = "smtp")]
+    /// Directory containing files that define sender email addresses.
+    ///
+    /// Each file's basename (with or without an extension) represents
+    /// a logical sender identifier (e.g. `noreply`), and the file's
+    /// content is the actual email address to use (e.g. `noreply@yourdomain.com`).
+    ///
+    /// Example: senders/noreply.txt (contains: noreply@yourdomain.com)
     #[arg(long, env("SMTP_SENDERS_DIR"))]
     smtp_senders_dir: std::path::PathBuf,
 }
