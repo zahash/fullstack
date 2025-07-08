@@ -58,8 +58,9 @@ pub struct RateLimiterConfig {
 #[derive(Debug)]
 pub struct SMTPConfig {
     pub relay: String,
-    pub username: String,
-    pub password: String,
+    pub port: Option<u16>,
+    pub username: Option<String>,
+    pub password: Option<String>,
     pub senders_dir: std::path::PathBuf,
 }
 
@@ -124,13 +125,22 @@ pub async fn serve(opts: ServerOpts) -> Result<(), ServerError> {
 
     #[cfg(feature = "smtp")]
     let smtp = crate::smtp::Smtp {
-        transport: lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::relay(&opts.smtp.relay)
-            .context("smtp relay")?
-            .credentials(lettre::transport::smtp::authentication::Credentials::new(
-                opts.smtp.username,
-                opts.smtp.password,
-            ))
-            .build(),
+        transport: {
+            let mut transport =
+                lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::relay(&opts.smtp.relay)
+                    .context("smtp relay")?;
+
+            if let (Some(username), Some(password)) = (opts.smtp.username, opts.smtp.password) {
+                use lettre::transport::smtp::authentication::Credentials;
+                transport = transport.credentials(Credentials::new(username, password));
+            }
+
+            if let Some(port) = opts.smtp.port {
+                transport = transport.port(port);
+            }
+
+            transport.build()
+        },
         senders: std::sync::Arc::new(crate::smtp::SmtpSenders::new(opts.smtp.senders_dir)),
     };
 

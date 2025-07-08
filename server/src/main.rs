@@ -34,17 +34,24 @@ struct Args {
     smtp_relay: String,
 
     #[cfg(feature = "smtp")]
+    /// The port on which the SMTP relay server listens.
+    /// Common defaults are `587` for real providers or `1025` for local testing.
+    /// If unset, the default port for the relay host will be used.
+    #[arg(long, env("SMTP_PORT"))]
+    smtp_port: Option<u16>,
+
+    #[cfg(feature = "smtp")]
     /// The username for authenticating with the SMTP server.
     /// Example: `"user@example.com"`
     #[arg(long, env("SMTP_USERNAME"))]
-    smtp_username: String,
+    smtp_username: Option<String>,
 
     #[cfg(feature = "smtp")]
     /// The password for the SMTP server.
     /// This should be kept secure and **not logged**.
     /// Example: `"supersecretpassword"`
     #[arg(long, env("SMTP_PASSWORD"))]
-    smtp_password: String,
+    smtp_password: Option<String>,
 
     #[cfg(feature = "smtp")]
     /// Directory containing files that define sender email addresses.
@@ -79,6 +86,7 @@ async fn main() {
         #[cfg(feature = "smtp")]
         smtp: server::SMTPConfig {
             relay: args.smtp_relay,
+            port: args.smtp_port,
             username: args.smtp_username,
             password: args.smtp_password,
             senders_dir: args.smtp_senders_dir,
