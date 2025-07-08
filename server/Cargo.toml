@@ -8,7 +8,7 @@ axum = "0.8"
 axum-extra = { version = "0.10", features = ["cookie"] }
 axum-macros = "0.5"
 bcrypt = "0.17"
-clap = { version = "4", optional = true }
+clap = { version = "4", features = ["derive", "env"] }
 lettre = { version = "0.11", default-features = false, optional = true }
 dashmap = "6.1"
 forwarded-header-value = "0.1.1"
@@ -44,8 +44,6 @@ test-proc-macros = { path = "../test-proc-macros", features = [
 # lettre = { version = "0.11", features = ["file-transport"] }
 
 [features]
-cli = ["dep:clap", "clap/derive"]
-env = []
 rate-limit = []
 smtp = [
     "dep:lettre",
@@ -58,5 +56,3 @@ smtp = [
     "templates/verify-email",
 ]
 ui = []
-
-default = ["env"]

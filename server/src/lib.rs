@@ -48,7 +48,7 @@ pub struct ServerOpts {
 }
 
 #[cfg(feature = "rate-limit")]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RateLimiterConfig {
     pub limit: usize,
     pub interval: std::time::Duration,
@@ -182,4 +182,40 @@ impl FromRef<AppState> for DataAccess {
     fn from_ref(input: &AppState) -> Self {
         input.data_access.clone()
     }
+}
+
+#[cfg(feature = "rate-limit")]
+impl std::str::FromStr for RateLimiterConfig {
+    type Err = ParseRateLimiterConfigError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use std::time::Duration;
+
+        let Some((first, second)) = s.trim().split_once('/') else {
+            return Err(ParseRateLimiterConfigError::MissingForwardSlash);
+        };
+        let limit = first.parse::<usize>()?;
+        let interval = match second.to_lowercase().as_str() {
+            "s" | "sec" | "second" | "seconds" => Duration::from_secs(1),
+            "m" | "min" | "minute" | "minutes" => Duration::from_secs(60),
+            "h" | "hr" | "hour" | "hours" => Duration::from_secs(60 * 60),
+            _ => return Err(ParseRateLimiterConfigError::InvalidUnit),
+        };
+        Ok(Self { limit, interval })
+    }
+}
+
+#[cfg(feature = "rate-limit")]
+#[derive(thiserror::Error, Debug)]
+pub enum ParseRateLimiterConfigError {
+    #[error(
+        r#"missing forward slash :: expected <number>/<unit> :: "10/s", "100/min", "1000/hour", ..."#
+    )]
+    MissingForwardSlash,
+
+    #[error("invalid limit :: {0} :: expected <number>/<unit>")]
+    InvalidLimit(#[from] std::num::ParseIntError),
+
+    #[error(r#"invalid unit :: expected "s", "m", "h", "sec", "min", "hr", "second", "minute", "hour", "seconds", "minutes", "hours""#)]
+    InvalidUnit,
 }
