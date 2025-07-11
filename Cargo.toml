@@ -11,7 +11,6 @@ members = [
     "extra",
     "server",
     "tag",
-    "templates",
     "test-proc-macros",
     "token",
     "validation",
@@ -29,4 +28,5 @@ lto = true          # Enable Link Time Optimization (LTO)
 codegen-units = 1   # Forces the compiler to use a single code generation unit to improve optimizations
 panic = "abort"     # Remove panic support, reducing code size
 
-# mailtutan --maildir-path=/tmp
+# cargo install mailtutan
+# mailtutan --ip 127.0.0.1

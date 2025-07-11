@@ -16,6 +16,8 @@ use axum::{
 use contextual::Context;
 use data_access::DataAccess;
 use sqlx::SqlitePool;
+#[cfg(feature = "smtp")]
+use tera::Tera;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{
@@ -62,6 +64,7 @@ pub struct SMTPConfig {
     pub username: Option<String>,
     pub password: Option<String>,
     pub senders_dir: std::path::PathBuf,
+    pub templates_dir: std::path::PathBuf,
 }
 
 #[derive(Clone)]
@@ -126,9 +129,23 @@ pub async fn serve(opts: ServerOpts) -> Result<(), ServerError> {
     #[cfg(feature = "smtp")]
     let smtp = crate::smtp::Smtp {
         transport: {
+            #[cfg(not(feature = "smtp--no-tls"))]
             let mut transport =
-                lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::relay(&opts.smtp.relay)
-                    .context("smtp relay")?;
+                lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::starttls_relay(
+                    &opts.smtp.relay,
+                )
+                .context("smtp relay")?;
+
+            #[cfg(feature = "smtp--no-tls")]
+            let mut transport = {
+                tracing::warn!(
+                    "SMTP is running in insecure mode (smtp-no-tls). TLS certificate validation is disabled — only use for local testing!"
+                );
+
+                lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(
+                    &opts.smtp.relay,
+                )
+            };
 
             if let (Some(username), Some(password)) = (opts.smtp.username, opts.smtp.password) {
                 use lettre::transport::smtp::authentication::Credentials;
@@ -142,6 +159,12 @@ pub async fn serve(opts: ServerOpts) -> Result<(), ServerError> {
             transport.build()
         },
         senders: std::sync::Arc::new(crate::smtp::SmtpSenders::new(opts.smtp.senders_dir)),
+        tera: {
+            let glob = opts.smtp.templates_dir.join("*.html");
+            let glob_str = glob.to_string_lossy().to_string();
+            let tera = Tera::new(&glob_str).context("initialize Tera")?;
+            std::sync::Arc::new(tera)
+        },
     };
 
     #[cfg(feature = "rate-limit")]
@@ -183,6 +206,10 @@ pub enum ServerError {
     #[cfg(feature = "smtp")]
     #[error("{0:?}")]
     SmtpTransport(#[from] contextual::Error<lettre::transport::smtp::Error>),
+
+    #[cfg(feature = "smtp")]
+    #[error("{0:?}")]
+    Tera(#[from] contextual::Error<tera::Error>),
 
     #[error("{0:?}")]
     Io(#[from] contextual::Error<std::io::Error>),

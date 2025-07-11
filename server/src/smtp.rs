@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{path::PathBuf, str::FromStr, sync::Arc};
 
 use contextual::Context;
 use dashcache::DashCache;
@@ -10,7 +10,7 @@ use lettre::{
     transport::smtp::response::Response,
 };
 use tag::Tag;
-use templates::{Template, VerifyEmail};
+use tera::Tera;
 use time::OffsetDateTime;
 use token::Token;
 
@@ -22,6 +22,7 @@ pub type VerificationToken = Token<4>;
 pub struct Smtp {
     pub transport: AsyncSmtpTransport<Tokio1Executor>,
     pub senders: Arc<SmtpSenders>,
+    pub tera: Arc<Tera>,
 }
 
 pub struct SmtpSenders {
@@ -47,7 +48,7 @@ impl SmtpSenders {
             .or_else(|_| std::fs::read_to_string(self.dir.join(format!("{sender}.txt"))))
             .context(format!("smtp sender `{sender}`"))?;
 
-        Email::try_from(content).map_err(SmtpSendersError::EmailFormat)
+        Email::from_str(content.trim()).map_err(SmtpSendersError::EmailFormat)
     }
 }
 
@@ -63,19 +64,25 @@ pub async fn initiate_email_verification(
     let expires_at = created_at + EMAIL_VERIFICATION_TOKEN_TTL;
 
     let message = {
-        let noreply: Email = smtp.senders.get("noreply").await?;
+        let noreply: Email = smtp
+            .senders
+            .get("noreply")
+            .await
+            .context("SmtpSenders::get `noreply`")?;
 
-        let from = Mailbox::new(None, noreply.into());
+        let from = Mailbox::new(Some("noreply".into()), noreply.into());
         let to = Mailbox::new(None, email.clone().into());
 
         let subject = "Verify your Email";
 
         let plain_text_content = format!("verfication token: {verification_token_encoded}");
-        let html_content = VerifyEmail {
-            verification_token: &verification_token_encoded,
-        }
-        .render()
-        .context("render verify-email template")?;
+        let html_content = {
+            let mut context = tera::Context::new();
+            context.insert("verification_token", &verification_token_encoded);
+            smtp.tera
+                .render("verify-email.html", &context)
+                .context("render verify-email template")?
+        };
 
         Message::builder()
             .from(from)
@@ -175,13 +182,13 @@ pub enum InitiateEmailVerificationError {
     EmailDoesNotExist(Email),
 
     #[error("{0:?}")]
-    SmtpSenders(#[from] SmtpSendersError),
+    SmtpSenders(#[from] contextual::Error<SmtpSendersError>),
 
     #[error("{0:?}")]
     Sqlx(#[from] contextual::Error<sqlx::Error>),
 
     #[error("{0:?}")]
-    Templates(#[from] contextual::Error<templates::Error>),
+    EmailTemplate(#[from] contextual::Error<tera::Error>),
 
     #[error("{0:?}")]
     EmailContent(#[from] contextual::Error<lettre::error::Error>),

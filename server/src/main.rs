@@ -63,6 +63,10 @@ struct Args {
     /// Example: senders/noreply.txt (contains: noreply@yourdomain.com)
     #[arg(long, env("SMTP_SENDERS_DIR"))]
     smtp_senders_dir: std::path::PathBuf,
+
+    #[cfg(feature = "smtp")]
+    #[arg(long, env("SMTP_TEMPLATES_DIR"))]
+    smtp_templates_dir: std::path::PathBuf,
 }
 
 #[tokio::main]
@@ -90,6 +94,7 @@ async fn main() {
             username: args.smtp_username,
             password: args.smtp_password,
             senders_dir: args.smtp_senders_dir,
+            templates_dir: args.smtp_templates_dir,
         },
     };
 
