@@ -41,7 +41,6 @@ test-proc-macros = { path = "../test-proc-macros", features = [
     "password",
     "username",
 ] }
-# lettre = { version = "0.11", features = ["file-transport"] }
 
 [features]
 rate-limit = []
