@@ -4,8 +4,9 @@ use http::HeaderMap;
 
 use crate::{
     AccessToken, AccessTokenAuthorizationExtractionError, AccessTokenInfo,
-    AccessTokenValidationError, Base64DecodeError, Basic, BasicAuthorizationExtractionError,
-    Credentials, Permissions, SessionId, SessionInfo, SessionValidationError, UserInfo, Verified,
+    AccessTokenValidationError, Basic, BasicAuthorizationExtractionError, Credentials, Permissions,
+    SessionCookieExtractionError, SessionId, SessionInfo, SessionValidationError, UserInfo,
+    Verified,
 };
 
 pub enum Principal {
@@ -17,19 +18,19 @@ pub enum Principal {
 #[derive(thiserror::Error, Debug)]
 pub enum PrincipalError {
     #[error("{0}")]
-    AccessTokenAuthorizationExtractionError(#[from] AccessTokenAuthorizationExtractionError),
+    AccessTokenAuthorizationExtraction(#[from] AccessTokenAuthorizationExtractionError),
 
     #[error("{0}")]
-    BasicAuthorizationExtractionError(#[from] BasicAuthorizationExtractionError),
+    BasicAuthorizationExtraction(#[from] BasicAuthorizationExtractionError),
+
+    #[error("{0}")]
+    SessionCookieExtraction(#[from] SessionCookieExtractionError),
 
     #[error("access token not associated with any account")]
     UnAssociatedAccessToken,
 
     #[error("{0}")]
     AccessTokenValidation(#[from] AccessTokenValidationError),
-
-    #[error("{0}")]
-    Base64Decode(#[from] Base64DecodeError),
 
     #[error("session id not associated with any user")]
     UnAssociatedSessionId,
@@ -136,6 +137,7 @@ impl axum::response::IntoResponse for PrincipalError {
             | PrincipalError::InvalidBasicCredentials
             | PrincipalError::NoCredentialsProvided
             | PrincipalError::UsernameNotFound(_) => {
+                #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
                 (
                     axum::http::StatusCode::UNAUTHORIZED,
@@ -143,12 +145,13 @@ impl axum::response::IntoResponse for PrincipalError {
                 )
                     .into_response()
             }
-            PrincipalError::AccessTokenAuthorizationExtractionError(err) => err.into_response(),
-            PrincipalError::BasicAuthorizationExtractionError(err) => err.into_response(),
+            PrincipalError::AccessTokenAuthorizationExtraction(err) => err.into_response(),
+            PrincipalError::BasicAuthorizationExtraction(err) => err.into_response(),
+            PrincipalError::SessionCookieExtraction(err) => err.into_response(),
             PrincipalError::AccessTokenValidation(err) => err.into_response(),
             PrincipalError::SessionIdValidation(err) => err.into_response(),
-            PrincipalError::Base64Decode(err) => err.into_response(),
             PrincipalError::Sqlx(_) | PrincipalError::Bcrypt(_) => {
+                #[cfg(feature = "tracing")]
                 tracing::error!("{:?}", self);
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }

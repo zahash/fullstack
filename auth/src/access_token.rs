@@ -6,7 +6,7 @@ use tag::Tag;
 use time::OffsetDateTime;
 use token::Token;
 
-use crate::{Base64DecodeError, Credentials, Permission, Permissions, Verified};
+use crate::{Credentials, Permission, Permissions, Verified};
 
 pub struct AccessToken(Token<32>);
 
@@ -26,11 +26,8 @@ impl Credentials for AccessToken {
             return Ok(None);
         };
 
-        let token = Token::base64decode(token_value).map_err(|_| {
-            AccessTokenAuthorizationExtractionError::Base64DecodeError(Base64DecodeError(
-                "Authorization: Token xxx",
-            ))
-        })?;
+        let token = Token::base64decode(token_value)
+            .map_err(|_| AccessTokenAuthorizationExtractionError::Base64Decode)?;
 
         Ok(Some(AccessToken::from(token)))
     }
@@ -41,8 +38,8 @@ pub enum AccessTokenAuthorizationExtractionError {
     #[error("Authorization header value must be utf-8")]
     NonUTF8HeaderValue,
 
-    #[error("{0}")]
-    Base64DecodeError(Base64DecodeError),
+    #[error("cannot base64 decode :: Authorization: Token xxx")]
+    Base64Decode,
 }
 
 #[derive(Debug, Clone)]
@@ -212,7 +209,8 @@ impl axum::response::IntoResponse for AccessTokenValidationError {
 impl axum::response::IntoResponse for AccessTokenAuthorizationExtractionError {
     fn into_response(self) -> axum::response::Response {
         match self {
-            AccessTokenAuthorizationExtractionError::NonUTF8HeaderValue => {
+            AccessTokenAuthorizationExtractionError::NonUTF8HeaderValue
+            | AccessTokenAuthorizationExtractionError::Base64Decode => {
                 #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
                 (
@@ -221,7 +219,6 @@ impl axum::response::IntoResponse for AccessTokenAuthorizationExtractionError {
                 )
                     .into_response()
             }
-            AccessTokenAuthorizationExtractionError::Base64DecodeError(err) => err.into_response(),
         }
     }
 }

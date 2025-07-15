@@ -1,6 +1,6 @@
 use base64::{Engine, prelude::BASE64_STANDARD};
 
-use crate::{Base64DecodeError, Credentials};
+use crate::Credentials;
 
 pub struct Basic {
     pub username: String,
@@ -23,11 +23,9 @@ impl Credentials for Basic {
             return Ok(None);
         };
 
-        let bytes = BASE64_STANDARD.decode(basic_value).map_err(|_| {
-            BasicAuthorizationExtractionError::Base64DecodeError(Base64DecodeError(
-                "Authorization: Basic xxx",
-            ))
-        })?;
+        let bytes = BASE64_STANDARD
+            .decode(basic_value)
+            .map_err(|_| BasicAuthorizationExtractionError::Base64Decode)?;
 
         let creds = String::from_utf8(bytes)
             .map_err(|_| BasicAuthorizationExtractionError::NonUTF8Credentials)?;
@@ -47,8 +45,8 @@ pub enum BasicAuthorizationExtractionError {
     #[error("Authorization header value must be utf-8")]
     NonUTF8HeaderValue,
 
-    #[error("{0}")]
-    Base64DecodeError(Base64DecodeError),
+    #[error("cannot base64 decode :: Authorization: Basic xxx")]
+    Base64Decode,
 
     #[error("Basic Credentials in Authorization header must be utf-8")]
     NonUTF8Credentials,
@@ -63,7 +61,8 @@ impl axum::response::IntoResponse for BasicAuthorizationExtractionError {
         match self {
             BasicAuthorizationExtractionError::NonUTF8HeaderValue
             | BasicAuthorizationExtractionError::NonUTF8Credentials
-            | BasicAuthorizationExtractionError::InvalidBasicFormat => {
+            | BasicAuthorizationExtractionError::InvalidBasicFormat
+            | BasicAuthorizationExtractionError::Base64Decode => {
                 #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
                 (
@@ -72,7 +71,6 @@ impl axum::response::IntoResponse for BasicAuthorizationExtractionError {
                 )
                     .into_response()
             }
-            BasicAuthorizationExtractionError::Base64DecodeError(err) => err.into_response(),
         }
     }
 }

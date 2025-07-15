@@ -17,7 +17,10 @@ mod principal;
 pub use principal::{Principal, PrincipalError};
 
 mod session;
-pub use session::{SessionId, SessionInfo, SessionValidationError, expired_session_cookie};
+pub use session::{
+    SessionCookieExtractionError, SessionId, SessionInfo, SessionValidationError,
+    expired_session_cookie,
+};
 
 mod user;
 pub use user::UserInfo;
@@ -44,22 +47,5 @@ impl<T> AsRef<T> for Verified<T> {
     #[inline]
     fn as_ref(&self) -> &T {
         &self.0
-    }
-}
-
-#[derive(thiserror::Error, Debug)]
-#[error("cannot base64 decode :: {0}")]
-pub struct Base64DecodeError(&'static str);
-
-#[cfg(feature = "axum")]
-impl axum::response::IntoResponse for Base64DecodeError {
-    fn into_response(self) -> axum::response::Response {
-        #[cfg(feature = "tracing")]
-        tracing::info!("{:?}", self);
-        (
-            axum::http::StatusCode::BAD_REQUEST,
-            axum::Json(extra::json_error_response(self)),
-        )
-            .into_response()
     }
 }

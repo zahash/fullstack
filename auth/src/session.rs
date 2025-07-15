@@ -1,21 +1,21 @@
 use std::ops::Deref;
 
-use dashcache::DashCache;
 use cookie::{Cookie, SameSite, time::Duration};
+use dashcache::DashCache;
 use data_access::DataAccess;
 use http::header::COOKIE;
 use tag::Tag;
 use time::OffsetDateTime;
 use token::Token;
 
-use crate::{Base64DecodeError, Credentials, Permission, Permissions, Verified};
+use crate::{Credentials, Permission, Permissions, Verified};
 
 const SESSION_ID: &str = "session_id";
 
 pub struct SessionId(Token<32>);
 
 impl Credentials for SessionId {
-    type Error = Base64DecodeError;
+    type Error = SessionCookieExtractionError;
 
     fn try_from_headers(headers: &http::HeaderMap) -> Result<Option<Self>, Self::Error>
     where
@@ -30,11 +30,18 @@ impl Credentials for SessionId {
             .filter_map(|cookie_str| Cookie::parse(cookie_str).ok())
             .find(|cookie| cookie.name() == SESSION_ID)
             .map(|cookie| {
-                Token::base64decode(cookie.value()).map_err(|_| Base64DecodeError("SessionId"))
+                Token::base64decode(cookie.value())
+                    .map_err(|_| SessionCookieExtractionError::Base64Decode)
             })
             .transpose()?
             .map(SessionId))
     }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum SessionCookieExtractionError {
+    #[error("cannot base64 decode :: Session Cookie")]
+    Base64Decode,
 }
 
 #[derive(Debug, Clone)]
@@ -197,6 +204,23 @@ impl axum::response::IntoResponse for SessionValidationError {
                 tracing::info!("{:?}", self);
                 (
                     axum::http::StatusCode::UNAUTHORIZED,
+                    axum::Json(extra::json_error_response(self)),
+                )
+                    .into_response()
+            }
+        }
+    }
+}
+
+#[cfg(feature = "axum")]
+impl axum::response::IntoResponse for SessionCookieExtractionError {
+    fn into_response(self) -> axum::response::Response {
+        match self {
+            SessionCookieExtractionError::Base64Decode => {
+                #[cfg(feature = "tracing")]
+                tracing::info!("{:?}", self);
+                (
+                    axum::http::StatusCode::BAD_REQUEST,
                     axum::Json(extra::json_error_response(self)),
                 )
                     .into_response()
