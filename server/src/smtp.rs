@@ -1,9 +1,12 @@
 use std::{path::PathBuf, str::FromStr, sync::Arc};
 
+use axum::{Json, response::IntoResponse};
 use contextual::Context;
 use dashcache::DashCache;
 use data_access::DataAccess;
 use email::Email;
+use extra::json_error_response;
+use http::StatusCode;
 use lettre::{
     AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
     message::{Mailbox, MultiPart},
@@ -195,4 +198,23 @@ pub enum InitiateEmailVerificationError {
 
     #[error("{0:?}")]
     SmtpTransport(#[from] contextual::Error<lettre::transport::smtp::Error>),
+}
+
+impl IntoResponse for InitiateEmailVerificationError {
+    fn into_response(self) -> axum::response::Response {
+        match self {
+            InitiateEmailVerificationError::EmailDoesNotExist(_) => {
+                tracing::info!("{:?}", self);
+                (StatusCode::NOT_FOUND, Json(json_error_response(self))).into_response()
+            }
+            InitiateEmailVerificationError::SmtpSenders(_)
+            | InitiateEmailVerificationError::Sqlx(_)
+            | InitiateEmailVerificationError::EmailTemplate(_)
+            | InitiateEmailVerificationError::EmailContent(_)
+            | InitiateEmailVerificationError::SmtpTransport(_) => {
+                tracing::error!("{:?}", self);
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
+        }
+    }
 }

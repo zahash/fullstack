@@ -29,7 +29,7 @@ auth = { path = "../auth", features = ["axum", "tracing"] }
 contextual = { path = "../contextual" }
 dashcache = { path = "../dashcache", features = ["tracing"] }
 data-access = { path = "../data-access", features = ["tracing"] }
-email = { path = "../email", features = ["sqlite"] }
+email = { path = "../email", features = ["serde", "sqlite"] }
 extra = { path = "../extra", features = ["json-error-response"] }
 tag = { path = "../tag" }
 token = { path = "../token", optional = true }

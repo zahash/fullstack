@@ -93,7 +93,7 @@ pub fn server(
         crate::middleware::mw_rate_limiter,
     ));
 
-    Router::new()
+    let router = Router::new()
         .nest(
             "/check",
             Router::new()
@@ -107,7 +107,23 @@ pub fn server(
         .route("/login", post(login))
         .route("/logout", get(logout))
         .route("/access-token", post(generate_access_token))
-        .route("/private", get(private))
+        .route("/private", get(private));
+
+    #[cfg(feature = "smtp")]
+    let router = router
+        .nest(
+            "/check",
+            Router::new().route(
+                "/email-verification-token",
+                get(crate::api::check_email_verification_token),
+            ),
+        )
+        .route(
+            "/initiate-email-verification",
+            get(crate::api::initiate_email_verification),
+        );
+
+    router
         .with_state(AppState {
             data_access,
 

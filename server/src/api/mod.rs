@@ -15,3 +15,9 @@ pub use logout::logout;
 pub use private::private;
 pub use signup::signup;
 pub use username::check_username_availability;
+
+#[cfg(feature = "smtp")]
+mod verify_email;
+
+#[cfg(feature = "smtp")]
+pub use verify_email::{check_email_verification_token, initiate_email_verification};
