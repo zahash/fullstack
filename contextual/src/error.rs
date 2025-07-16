@@ -24,7 +24,7 @@ where
         writeln!(f, "• {}", self.context)?;
         let mut source = <Self as std::error::Error>::source(self);
         while let Some(err) = source {
-            writeln!(f, "↳ {}", err)?;
+            writeln!(f, "↳ {err}")?;
             source = err.source();
         }
         Ok(())

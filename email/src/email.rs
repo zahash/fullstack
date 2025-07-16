@@ -41,7 +41,7 @@ impl<'de> serde::Deserialize<'de> for Email {
     {
         let s = String::deserialize(deserializer)?;
         s.parse::<lettre::Address>()
-            .map(|address| Email(address))
+            .map(Email)
             .map_err(|_| serde::de::Error::invalid_value(serde::de::Unexpected::Str(&s), &MSG))
     }
 }

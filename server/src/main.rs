@@ -99,7 +99,7 @@ async fn main() {
     };
 
     if let Err(e) = server::serve(server_opts).await {
-        eprintln!("{}", e);
+        eprintln!("{e}");
         std::process::exit(1);
     }
 }
