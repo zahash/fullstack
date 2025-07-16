@@ -40,7 +40,7 @@ pub async fn check_username_availability(
 pub async fn username_exists(
     data_access: &DataAccess,
     username: &str,
-) -> Result<bool, sqlx::Error> {
+) -> Result<bool, data_access::Error> {
     #[derive(Debug, Clone)]
     struct Row {
         user_id: i64,
@@ -84,7 +84,7 @@ pub enum CheckUsernameAvailabilityError {
     InvalidParams(&'static str),
 
     #[error("{0:?}")]
-    Sqlx(#[from] contextual::Error<sqlx::Error>),
+    DataAccess(#[from] contextual::Error<data_access::Error>),
 }
 
 impl IntoResponse for CheckUsernameAvailabilityError {
@@ -94,7 +94,7 @@ impl IntoResponse for CheckUsernameAvailabilityError {
                 tracing::info!("{:?}", self);
                 (StatusCode::BAD_REQUEST, Json(json_error_response(self))).into_response()
             }
-            CheckUsernameAvailabilityError::Sqlx(err) => {
+            CheckUsernameAvailabilityError::DataAccess(err) => {
                 tracing::error!("{:?}", err);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }

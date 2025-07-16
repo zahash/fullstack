@@ -74,7 +74,10 @@ impl SessionId {
             .build()
     }
 
-    pub async fn info(&self, data_access: &DataAccess) -> Result<Option<SessionInfo>, sqlx::Error> {
+    pub async fn info(
+        &self,
+        data_access: &DataAccess,
+    ) -> Result<Option<SessionInfo>, data_access::Error> {
         let session_id_hash = self.hash_sha256();
 
         data_access
@@ -147,7 +150,10 @@ impl TryFrom<SessionInfo> for Verified<SessionInfo> {
 }
 
 impl Verified<SessionInfo> {
-    pub async fn permissions(&self, data_access: &DataAccess) -> Result<Permissions, sqlx::Error> {
+    pub async fn permissions(
+        &self,
+        data_access: &DataAccess,
+    ) -> Result<Permissions, data_access::Error> {
         let user_id = self.0.user_id;
 
         data_access

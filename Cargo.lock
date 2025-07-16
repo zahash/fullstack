@@ -346,6 +346,7 @@ name = "cache"
 version = "0.1.0"
 dependencies = [
  "dashmap",
+ "thiserror 2.0.12",
  "tracing",
 ]
 
@@ -606,6 +607,7 @@ version = "0.1.0"
 dependencies = [
  "cache",
  "sqlx",
+ "thiserror 2.0.12",
 ]
 
 [[package]]

@@ -118,7 +118,7 @@ pub enum AccessTokenGenerationError {
     Permission(#[from] InsufficientPermissionsError),
 
     #[error("{0:?}")]
-    Sqlx(#[from] contextual::Error<sqlx::Error>),
+    DataAccess(#[from] contextual::Error<data_access::Error>),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -138,14 +138,14 @@ pub enum CheckAccessTokenError {
     AccessTokenValidation(#[from] AccessTokenValidationError),
 
     #[error("{0:?}")]
-    Sqlx(#[from] contextual::Error<sqlx::Error>),
+    DataAccess(#[from] contextual::Error<data_access::Error>),
 }
 
 impl IntoResponse for AccessTokenGenerationError {
     fn into_response(self) -> axum::response::Response {
         match self {
             AccessTokenGenerationError::Permission(err) => err.into_response(),
-            AccessTokenGenerationError::Sqlx(err) => {
+            AccessTokenGenerationError::DataAccess(err) => {
                 tracing::error!("{:?}", err);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
@@ -165,7 +165,7 @@ impl IntoResponse for CheckAccessTokenError {
                 (StatusCode::UNAUTHORIZED, Json(json_error_response(self))).into_response()
             }
             CheckAccessTokenError::AccessTokenValidation(err) => err.into_response(),
-            CheckAccessTokenError::Sqlx(err) => {
+            CheckAccessTokenError::DataAccess(err) => {
                 tracing::error!("{:?}", err);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }

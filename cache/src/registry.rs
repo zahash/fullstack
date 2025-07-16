@@ -1,11 +1,19 @@
-use std::any::Any;
+use std::any::{Any, TypeId};
 
 use dashmap::DashMap;
 
 use crate::{Cache, cache_any::CacheAny};
 
+#[derive(thiserror::Error, Debug)]
+#[error("cache namespace `{namespace}` type conflict: existing={existing:?}, new={new:?}")]
+pub struct CacheTypeConflictError {
+    pub namespace: &'static str,
+    pub existing: TypeId,
+    pub new: TypeId,
+}
+
 pub struct CacheRegistry {
-    caches: DashMap<&'static str, Box<dyn CacheAny + Send + Sync>>,
+    caches: DashMap<&'static str, (TypeId, Box<dyn CacheAny + Send + Sync>)>,
 }
 
 impl CacheRegistry {
@@ -19,20 +27,41 @@ impl CacheRegistry {
         feature = "tracing",
         tracing::instrument(level = "debug", fields(?namespace), skip_all)
     )]
-    pub fn ensure_cache<C>(&self, namespace: &'static str, cache_init: impl FnOnce() -> C)
+    pub fn ensure_cache<C>(
+        &self,
+        namespace: &'static str,
+        cache_init: impl FnOnce() -> C,
+    ) -> Result<(), CacheTypeConflictError>
     where
         C: Cache + Send + Sync + 'static,
     {
+        let new_id = TypeId::of::<C>();
+
         match self.caches.entry(namespace) {
-            dashmap::Entry::Occupied(_) => {
-                #[cfg(feature = "tracing")]
-                tracing::debug!("cache already exists");
+            dashmap::Entry::Occupied(entry) => {
+                let (existing_id, _) = entry.get();
+
+                match *existing_id == new_id {
+                    true => {
+                        #[cfg(feature = "tracing")]
+                        tracing::debug!("cache already exists");
+
+                        Ok(())
+                    }
+                    false => Err(CacheTypeConflictError {
+                        namespace,
+                        existing: *existing_id,
+                        new: new_id,
+                    }),
+                }
             }
             dashmap::Entry::Vacant(entry) => {
-                entry.insert(Box::new(cache_init()));
+                entry.insert((new_id, Box::new(cache_init())));
 
                 #[cfg(feature = "tracing")]
                 tracing::debug!("new cache initialized");
+
+                Ok(())
             }
         }
     }
@@ -63,6 +92,7 @@ impl CacheRegistry {
 
                 None
             })?
+            .1
             .get_any(key as &dyn Any)
             .or_else(|| {
                 #[cfg(feature = "tracing")]
@@ -104,7 +134,7 @@ impl CacheRegistry {
     {
         match self.caches.get_mut(namespace) {
             Some(mut cache) => {
-                cache.put_any(
+                cache.1.put_any(
                     Box::new(key),
                     Box::new(value),
                     tags.into_iter()
@@ -136,7 +166,7 @@ impl CacheRegistry {
         T: 'static,
     {
         for mut ref_ in self.caches.iter_mut() {
-            ref_.value_mut().invalidate_any(tag);
+            ref_.value_mut().1.invalidate_any(tag);
         }
     }
 }

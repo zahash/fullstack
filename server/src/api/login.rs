@@ -30,7 +30,7 @@ pub enum Error {
     InvalidCredentials,
 
     #[error("{0:?}")]
-    Sqlx(#[from] contextual::Error<sqlx::Error>),
+    DataAccess(#[from] contextual::Error<data_access::Error>),
 
     #[error("{0:?}")]
     Bcrypt(#[from] contextual::Error<bcrypt::BcryptError>),
@@ -141,7 +141,7 @@ impl IntoResponse for Error {
                 tracing::info!("{:?}", self);
                 StatusCode::UNAUTHORIZED.into_response()
             }
-            Error::Sqlx(_) | Error::Bcrypt(_) => {
+            Error::DataAccess(_) | Error::Bcrypt(_) => {
                 tracing::error!("{:?}", self);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }

@@ -65,7 +65,7 @@ impl AccessToken {
     pub async fn info(
         &self,
         data_access: &DataAccess,
-    ) -> Result<Option<AccessTokenInfo>, sqlx::Error> {
+    ) -> Result<Option<AccessTokenInfo>, data_access::Error> {
         let access_token_hash = self.hash_sha256();
 
         data_access
@@ -129,7 +129,10 @@ impl TryFrom<AccessTokenInfo> for Verified<AccessTokenInfo> {
 }
 
 impl Verified<AccessTokenInfo> {
-    pub async fn permissions(&self, data_access: &DataAccess) -> Result<Permissions, sqlx::Error> {
+    pub async fn permissions(
+        &self,
+        data_access: &DataAccess,
+    ) -> Result<Permissions, data_access::Error> {
         let access_token_id = self.0.id;
 
         data_access

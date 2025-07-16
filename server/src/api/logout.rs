@@ -11,7 +11,7 @@ use crate::AppState;
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("{0:?}")]
-    Sqlx(#[from] contextual::Error<sqlx::Error>),
+    DataAccess(#[from] contextual::Error<data_access::Error>),
 }
 
 #[debug_handler]
@@ -59,7 +59,7 @@ pub async fn logout(
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
-            Error::Sqlx(err) => {
+            Error::DataAccess(err) => {
                 tracing::error!("{:?}", err);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }

@@ -48,7 +48,7 @@ pub enum PrincipalError {
     NoCredentialsProvided,
 
     #[error("{0:?}")]
-    Sqlx(#[from] contextual::Error<sqlx::Error>),
+    DataAccess(#[from] contextual::Error<data_access::Error>),
 
     #[error("{0:?}")]
     Bcrypt(#[from] contextual::Error<bcrypt::BcryptError>),
@@ -63,7 +63,10 @@ impl Principal {
         }
     }
 
-    pub async fn permissions(&self, data_access: &DataAccess) -> Result<Permissions, sqlx::Error> {
+    pub async fn permissions(
+        &self,
+        data_access: &DataAccess,
+    ) -> Result<Permissions, data_access::Error> {
         match self {
             Principal::Session(info) => info.permissions(data_access).await,
             Principal::AccessToken(info) => info.permissions(data_access).await,
@@ -150,7 +153,7 @@ impl axum::response::IntoResponse for PrincipalError {
             PrincipalError::SessionCookieExtraction(err) => err.into_response(),
             PrincipalError::AccessTokenValidation(err) => err.into_response(),
             PrincipalError::SessionIdValidation(err) => err.into_response(),
-            PrincipalError::Sqlx(_) | PrincipalError::Bcrypt(_) => {
+            PrincipalError::DataAccess(_) | PrincipalError::Bcrypt(_) => {
                 #[cfg(feature = "tracing")]
                 tracing::error!("{:?}", self);
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()

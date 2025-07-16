@@ -35,7 +35,10 @@ pub async fn check_email_availability(
     }
 }
 
-pub async fn email_exists(data_access: &DataAccess, email: &Email) -> Result<bool, sqlx::Error> {
+pub async fn email_exists(
+    data_access: &DataAccess,
+    email: &Email,
+) -> Result<bool, data_access::Error> {
     #[derive(Debug, Clone)]
     struct Row {
         user_id: i64,
@@ -79,7 +82,7 @@ pub enum CheckEmailAvailabilityError {
     InvalidParams(&'static str),
 
     #[error("{0:?}")]
-    Sqlx(#[from] contextual::Error<sqlx::Error>),
+    DataAccess(#[from] contextual::Error<data_access::Error>),
 }
 
 impl IntoResponse for CheckEmailAvailabilityError {
@@ -89,7 +92,7 @@ impl IntoResponse for CheckEmailAvailabilityError {
                 tracing::info!("{:?}", self);
                 (StatusCode::BAD_REQUEST, Json(json_error_response(self))).into_response()
             }
-            CheckEmailAvailabilityError::Sqlx(err) => {
+            CheckEmailAvailabilityError::DataAccess(err) => {
                 tracing::error!("{:?}", err);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }

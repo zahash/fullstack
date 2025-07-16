@@ -17,7 +17,7 @@ impl UserInfo {
     pub async fn from_user_id(
         user_id: i64,
         data_access: &DataAccess,
-    ) -> Result<Option<UserInfo>, sqlx::Error> {
+    ) -> Result<Option<UserInfo>, data_access::Error> {
         #[derive(Debug, Clone)]
         struct Row {
             user_id: i64,
@@ -69,7 +69,7 @@ impl UserInfo {
     pub async fn from_username(
         username: &str,
         data_access: &DataAccess,
-    ) -> Result<Option<Self>, sqlx::Error> {
+    ) -> Result<Option<Self>, data_access::Error> {
         #[derive(Debug, Clone)]
         struct Row {
             user_id: i64,
@@ -131,7 +131,10 @@ impl UserInfo {
 }
 
 impl Verified<UserInfo> {
-    pub async fn permissions(&self, data_access: &DataAccess) -> Result<Permissions, sqlx::Error> {
+    pub async fn permissions(
+        &self,
+        data_access: &DataAccess,
+    ) -> Result<Permissions, data_access::Error> {
         let user_id = self.0.user_id;
 
         data_access

@@ -1,11 +1,20 @@
 use std::sync::Arc;
 
-use cache::{Cache, CacheRegistry};
+use cache::{Cache, CacheRegistry, CacheTypeConflictError};
 use sqlx::SqlitePool;
 
 pub struct DataAccess {
     pool: SqlitePool,
     cache_registry: Arc<CacheRegistry>,
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("{0:?}")]
+    Cache(#[from] CacheTypeConflictError),
+
+    #[error("{0:?}")]
+    Sqlx(#[from] sqlx::Error),
 }
 
 impl DataAccess {
@@ -33,7 +42,7 @@ impl DataAccess {
         key: K,
         tags: impl FnOnce(&V) -> Vec<T>,
         cache_init: impl FnOnce() -> C,
-    ) -> Fut::Output
+    ) -> Result<V, Error>
     where
         K: 'static,
         V: Clone + 'static,
@@ -41,7 +50,7 @@ impl DataAccess {
         Fut: Future<Output = Result<V, sqlx::Error>>,
         C: Cache<Key = K, Value = V, Tag = T> + Send + Sync + 'static,
     {
-        self.cache_registry.ensure_cache(namespace, cache_init);
+        self.cache_registry.ensure_cache(namespace, cache_init)?;
         match self.cache_registry.get::<K, V>(namespace, &key) {
             Some(value) => Ok(value),
             None => {
@@ -63,7 +72,7 @@ impl DataAccess {
         &'conn self,
         query: impl FnOnce(&'conn SqlitePool) -> Fut,
         tags_to_invalidate: impl FnOnce(&V) -> Vec<T>,
-    ) -> Fut::Output
+    ) -> Result<V, Error>
     where
         Fut: Future<Output = Result<V, sqlx::Error>>,
         V: 'static,

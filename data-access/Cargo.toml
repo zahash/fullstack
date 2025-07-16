@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 sqlx = { version = "0.8", features = ["sqlite", "time"] }
+thiserror = "2"
 
 cache = { path = "../cache" }
 
