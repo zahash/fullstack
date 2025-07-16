@@ -21,7 +21,7 @@ where
     )]
     fn get_any(&self, key: &dyn Any) -> Option<Box<dyn Any>> {
         key.downcast_ref::<C::Key>()
-            .or({
+            .or_else(|| {
                 #[cfg(feature = "tracing")]
                 tracing::debug!(
                     "failed to downcast_ref key to {}",
@@ -78,7 +78,7 @@ where
         tracing::instrument(level = "debug", fields(?tag), skip_all)
     )]
     fn invalidate_any(&mut self, tag: &dyn Any) {
-        if let Some(tag) = tag.downcast_ref::<C::Tag>().or({
+        if let Some(tag) = tag.downcast_ref::<C::Tag>().or_else(|| {
             #[cfg(feature = "tracing")]
             tracing::debug!(
                 "failed to downcast tag to {}",
