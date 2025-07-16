@@ -27,6 +27,3 @@ opt-level = "z"     # Optimize for size
 lto = true          # Enable Link Time Optimization (LTO)
 codegen-units = 1   # Forces the compiler to use a single code generation unit to improve optimizations
 panic = "abort"     # Remove panic support, reducing code size
-
-# cargo install mailtutan
-# mailtutan --ip 127.0.0.1
