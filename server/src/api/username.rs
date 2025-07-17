@@ -83,7 +83,7 @@ pub enum CheckUsernameAvailabilityError {
     #[error("{0}")]
     InvalidParams(&'static str),
 
-    #[error("{0:?}")]
+    #[error("{0}")]
     DataAccess(#[from] contextual::Error<data_access::Error>),
 }
 

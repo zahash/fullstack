@@ -216,18 +216,18 @@ pub async fn serve(opts: ServerOpts) -> Result<(), ServerError> {
 
 #[derive(thiserror::Error, Debug)]
 pub enum ServerError {
-    #[error("{0:?}")]
+    #[error("{0}")]
     Sqlx(#[from] contextual::Error<sqlx::Error>),
 
     #[cfg(feature = "smtp")]
-    #[error("{0:?}")]
+    #[error("{0}")]
     SmtpTransport(#[from] contextual::Error<lettre::transport::smtp::Error>),
 
     #[cfg(feature = "smtp")]
-    #[error("{0:?}")]
+    #[error("{0}")]
     Tera(#[from] contextual::Error<tera::Error>),
 
-    #[error("{0:?}")]
+    #[error("{0}")]
     Io(#[from] contextual::Error<std::io::Error>),
 }
 

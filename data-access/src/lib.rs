@@ -10,10 +10,10 @@ pub struct DataAccess {
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("{0:?}")]
+    #[error("{0}")]
     Cache(#[from] CacheTypeConflictError),
 
-    #[error("{0:?}")]
+    #[error("{0}")]
     Sqlx(#[from] sqlx::Error),
 }
 

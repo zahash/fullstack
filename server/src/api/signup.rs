@@ -27,26 +27,26 @@ pub enum Error {
     #[error("{0}")]
     InvalidUsername(&'static str),
 
-    #[error("{0} is not available")]
+    #[error("username `{0}` is not available")]
     UsernameExists(String),
 
     #[error("{0}")]
     InvalidEmail(&'static str),
 
-    #[error("{0} already linked to another account")]
+    #[error("email `{0}` already linked to another account")]
     EmailExists(Email),
 
     #[error("{0}")]
     WeakPassword(&'static str),
 
-    #[error("{0:?}")]
+    #[error("{0}")]
     DataAccess(#[from] contextual::Error<data_access::Error>),
 
-    #[error("{0:?}")]
+    #[error("{0}")]
     Bcrypt(#[from] contextual::Error<bcrypt::BcryptError>),
 }
 
-#[tracing::instrument(fields(username = tracing::field::Empty), skip_all, ret)]
+#[tracing::instrument(fields(username, email), skip_all, ret)]
 pub async fn signup(
     State(AppState {
         data_access,
@@ -63,8 +63,6 @@ pub async fn signup(
     let username = validate_username(username).map_err(Error::InvalidUsername)?;
     let password = validate_password(password).map_err(Error::WeakPassword)?;
     let email = Email::try_from(email).map_err(Error::InvalidEmail)?;
-
-    tracing::Span::current().record("username", tracing::field::display(&username));
 
     if username_exists(&data_access, &username)
         .await
@@ -115,18 +113,22 @@ pub async fn signup(
         .context("insert user")?;
 
     #[cfg(feature = "smtp")]
-    tokio::spawn(async move {
+    tokio::spawn({
+        use tracing::Instrument;
         tracing::info!("spawn task to initiate email verification for {email}");
 
-        match crate::smtp::initiate_email_verification(&data_access, &smtp, &email)
-            .await
-            .context("signup")
-        {
-            Ok(response) => {
-                tracing::info!("initiate_email_verification response :: {response:?}")
+        async move {
+            match crate::smtp::initiate_email_verification(&data_access, &smtp, &email)
+                .await
+                .context("signup")
+            {
+                Ok(response) => {
+                    tracing::info!("initiate_email_verification response :: {response:?}")
+                }
+                Err(err) => tracing::error!("initiate_email_verification error :: {err:?}"),
             }
-            Err(err) => tracing::error!("initiate_email_verification error :: {err:?}"),
         }
+        .instrument(tracing::Span::current())
     });
 
     Ok(StatusCode::CREATED)

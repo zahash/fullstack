@@ -29,10 +29,10 @@ pub enum Error {
     #[error("invalid credentials")]
     InvalidCredentials,
 
-    #[error("{0:?}")]
+    #[error("{0}")]
     DataAccess(#[from] contextual::Error<data_access::Error>),
 
-    #[error("{0:?}")]
+    #[error("{0}")]
     Bcrypt(#[from] contextual::Error<bcrypt::BcryptError>),
 }
 

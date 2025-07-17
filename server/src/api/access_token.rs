@@ -117,7 +117,7 @@ pub enum AccessTokenGenerationError {
     #[error("{0}")]
     Permission(#[from] InsufficientPermissionsError),
 
-    #[error("{0:?}")]
+    #[error("{0}")]
     DataAccess(#[from] contextual::Error<data_access::Error>),
 }
 
@@ -137,7 +137,7 @@ pub enum CheckAccessTokenError {
     #[error("{0}")]
     AccessTokenValidation(#[from] AccessTokenValidationError),
 
-    #[error("{0:?}")]
+    #[error("{0}")]
     DataAccess(#[from] contextual::Error<data_access::Error>),
 }
 

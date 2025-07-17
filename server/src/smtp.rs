@@ -37,7 +37,7 @@ pub enum SmtpSendersError {
     #[error("{0}")]
     EmailFormat(&'static str),
 
-    #[error("{0:?}")]
+    #[error("{0}")]
     Io(#[from] contextual::Error<std::io::Error>),
 }
 
@@ -184,19 +184,19 @@ pub enum InitiateEmailVerificationError {
     #[error("email does not exist :: {0}")]
     EmailDoesNotExist(Email),
 
-    #[error("{0:?}")]
+    #[error("{0}")]
     SmtpSenders(#[from] contextual::Error<SmtpSendersError>),
 
-    #[error("{0:?}")]
+    #[error("{0}")]
     DataAccess(#[from] contextual::Error<data_access::Error>),
 
-    #[error("{0:?}")]
+    #[error("{0}")]
     EmailTemplate(#[from] contextual::Error<tera::Error>),
 
-    #[error("{0:?}")]
+    #[error("{0}")]
     EmailContent(#[from] contextual::Error<lettre::error::Error>),
 
-    #[error("{0:?}")]
+    #[error("{0}")]
     SmtpTransport(#[from] contextual::Error<lettre::transport::smtp::Error>),
 }
 

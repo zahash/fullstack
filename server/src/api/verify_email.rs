@@ -119,7 +119,7 @@ pub enum CheckEmailVerificationTokenError {
     #[error("email verification token expired")]
     TokenExpired,
 
-    #[error("{0:?}")]
+    #[error("{0}")]
     DataAccess(#[from] contextual::Error<data_access::Error>),
 }
 

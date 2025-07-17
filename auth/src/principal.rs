@@ -47,10 +47,10 @@ pub enum PrincipalError {
     #[error("no credentials provided")]
     NoCredentialsProvided,
 
-    #[error("{0:?}")]
+    #[error("{0}")]
     DataAccess(#[from] contextual::Error<data_access::Error>),
 
-    #[error("{0:?}")]
+    #[error("{0}")]
     Bcrypt(#[from] contextual::Error<bcrypt::BcryptError>),
 }
 
