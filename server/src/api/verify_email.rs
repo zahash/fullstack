@@ -120,7 +120,7 @@ pub enum CheckEmailVerificationTokenError {
     TokenExpired,
 
     #[error("{0:?}")]
-    Sqlx(#[from] contextual::Error<sqlx::Error>),
+    DataAccess(#[from] contextual::Error<data_access::Error>),
 }
 
 impl IntoResponse for CheckEmailVerificationTokenError {
@@ -146,7 +146,7 @@ impl IntoResponse for CheckEmailVerificationTokenError {
                 tracing::info!("{:?}", self);
                 (StatusCode::GONE, Json(extra::json_error_response(self))).into_response()
             }
-            CheckEmailVerificationTokenError::Sqlx(_) => {
+            CheckEmailVerificationTokenError::DataAccess(_) => {
                 tracing::error!("{:?}", self);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }

@@ -73,7 +73,7 @@ pub async fn mw_rate_limiter(
         .copied()
         .flatten()
         .or_else(|| {
-            tracing::warn!("unable to get client_ip while rate limiting");
+            tracing::error!("unable to get client_ip while rate limiting");
             None
         })
     {

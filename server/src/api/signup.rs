@@ -115,13 +115,19 @@ pub async fn signup(
         .context("insert user")?;
 
     #[cfg(feature = "smtp")]
-    match crate::smtp::initiate_email_verification(&data_access, &smtp, &email)
-        .await
-        .context("signup")
-    {
-        Ok(response) => tracing::info!("initiate_email_verification response :: {response:?}"),
-        Err(err) => tracing::warn!("initiate_email_verification error :: {err:?}"),
-    }
+    tokio::spawn(async move {
+        tracing::info!("spawn task to initiate email verification for {email}");
+
+        match crate::smtp::initiate_email_verification(&data_access, &smtp, &email)
+            .await
+            .context("signup")
+        {
+            Ok(response) => {
+                tracing::info!("initiate_email_verification response :: {response:?}")
+            }
+            Err(err) => tracing::error!("initiate_email_verification error :: {err:?}"),
+        }
+    });
 
     Ok(StatusCode::CREATED)
 }

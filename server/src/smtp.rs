@@ -188,7 +188,7 @@ pub enum InitiateEmailVerificationError {
     SmtpSenders(#[from] contextual::Error<SmtpSendersError>),
 
     #[error("{0:?}")]
-    Sqlx(#[from] contextual::Error<sqlx::Error>),
+    DataAccess(#[from] contextual::Error<data_access::Error>),
 
     #[error("{0:?}")]
     EmailTemplate(#[from] contextual::Error<tera::Error>),
@@ -208,7 +208,7 @@ impl IntoResponse for InitiateEmailVerificationError {
                 (StatusCode::NOT_FOUND, Json(json_error_response(self))).into_response()
             }
             InitiateEmailVerificationError::SmtpSenders(_)
-            | InitiateEmailVerificationError::Sqlx(_)
+            | InitiateEmailVerificationError::DataAccess(_)
             | InitiateEmailVerificationError::EmailTemplate(_)
             | InitiateEmailVerificationError::EmailContent(_)
             | InitiateEmailVerificationError::SmtpTransport(_) => {
