@@ -24,6 +24,8 @@ tower = "0.5"
 tower-http = { version = "0.6", features = ["fs", "request-id", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+utoipa = { version = "5", optional = true }
+utoipa-scalar = { version = "0.3", optional = true }
 
 auth = { path = "../auth", features = ["axum", "tracing"] }
 contextual = { path = "../contextual" }
@@ -43,7 +45,9 @@ test-proc-macros = { path = "../test-proc-macros", features = [
 ] }
 
 [features]
+openapi = ["dep:utoipa"]
 rate-limit = []
+scalar = ["dep:utoipa-scalar", "openapi"]
 smtp = [
     "dep:lettre",
     "dep:tera",

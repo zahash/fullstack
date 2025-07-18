@@ -123,6 +123,28 @@ pub fn server(
             get(crate::api::initiate_email_verification),
         );
 
+    #[cfg(feature = "openapi")]
+    let router = {
+        use crate::api::OpenApiDoc;
+        use axum::Json;
+        use utoipa::OpenApi;
+
+        router.route("/api-doc/openapi.json", get(Json(OpenApiDoc::openapi())))
+    };
+
+    #[cfg(feature = "scalar")]
+    let router = {
+        use crate::api::OpenApiDoc;
+        use axum::response::Html;
+        use utoipa::OpenApi;
+        use utoipa_scalar::Scalar;
+
+        router.route(
+            "/scalar",
+            get(Html(Scalar::new(OpenApiDoc::openapi()).to_html())),
+        )
+    };
+
     router
         .with_state(AppState {
             data_access,

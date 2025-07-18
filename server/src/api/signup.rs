@@ -15,6 +15,7 @@ use validation::{validate_password, validate_username};
 use super::{email::email_exists, username::username_exists};
 use crate::AppState;
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Deserialize)]
 pub struct SignUp {
     pub username: String,
@@ -46,6 +47,20 @@ pub enum Error {
     Bcrypt(#[from] contextual::Error<bcrypt::BcryptError>),
 }
 
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = "/signup",
+    request_body(
+        content = SignUp,
+        content_type = "application/x-www-form-urlencoded",
+    ),
+    responses(
+        (status = 201, description = "User created"),
+        (status = 400, description = "Invalid input"),
+        (status = 409, description = "Username or email already exists"),
+        (status = 500, description = "Internal server error"),
+    )
+))]
 #[tracing::instrument(fields(username, email), skip_all, ret)]
 pub async fn signup(
     State(AppState {
