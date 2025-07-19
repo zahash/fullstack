@@ -16,8 +16,6 @@ use axum::{
 use contextual::Context;
 use data_access::DataAccess;
 use sqlx::SqlitePool;
-#[cfg(feature = "smtp")]
-use tera::Tera;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::{
@@ -200,7 +198,7 @@ pub async fn serve(opts: ServerOpts) -> Result<(), ServerError> {
         tera: {
             let glob = opts.smtp.templates_dir.join("*.html");
             let glob_str = glob.to_string_lossy().to_string();
-            let tera = Tera::new(&glob_str).context("initialize Tera")?;
+            let tera = tera::Tera::new(&glob_str).context("initialize Tera")?;
             std::sync::Arc::new(tera)
         },
     };
