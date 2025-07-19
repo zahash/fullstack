@@ -101,7 +101,7 @@ pub fn server(
         )
         .route("/health", get(health))
         .route("/sysinfo", get(sysinfo))
-        .route("/signup", post(signup))
+        .route(signup::PATH, post(signup::handler))
         .route("/login", post(login))
         .route("/logout", get(logout))
         .route("/access-token", post(generate_access_token))

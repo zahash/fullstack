@@ -4,7 +4,7 @@ mod health;
 mod login;
 mod logout;
 mod private;
-mod signup;
+pub mod signup;
 mod username;
 
 pub use access_token::{check_access_token, generate_access_token};
@@ -13,7 +13,6 @@ pub use health::{health, sysinfo};
 pub use login::login;
 pub use logout::logout;
 pub use private::private;
-pub use signup::signup;
 pub use username::check_username_availability;
 
 #[cfg(feature = "smtp")]
@@ -24,5 +23,5 @@ pub use verify_email::{check_email_verification_token, initiate_email_verificati
 
 #[cfg(feature = "openapi")]
 #[derive(utoipa::OpenApi)]
-#[openapi(paths(signup::signup), components(schemas(signup::SignUp)))]
+#[openapi(paths(signup::handler), components(schemas(signup::RequestBody)))]
 pub struct OpenApiDoc;

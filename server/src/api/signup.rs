@@ -15,11 +15,19 @@ use validation::{validate_password, validate_username};
 use super::{email::email_exists, username::username_exists};
 use crate::AppState;
 
+pub const PATH: &str = "/signup";
+
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "openapi", schema(as = signup::RequestBody))]
 #[derive(Deserialize)]
-pub struct SignUp {
+pub struct RequestBody {
+    #[cfg_attr(feature = "openapi", schema(examples("joe")))]
     pub username: String,
+
+    #[cfg_attr(feature = "openapi", schema(examples("joe@smith.com")))]
     pub email: String,
+
+    #[cfg_attr(feature = "openapi", schema(examples("supersecretpassword")))]
     pub password: String,
 }
 
@@ -49,9 +57,9 @@ pub enum Error {
 
 #[cfg_attr(feature = "openapi", utoipa::path(
     post,
-    path = "/signup",
+    path = PATH,
     request_body(
-        content = SignUp,
+        content = RequestBody,
         content_type = "application/x-www-form-urlencoded",
     ),
     responses(
@@ -62,18 +70,18 @@ pub enum Error {
     )
 ))]
 #[tracing::instrument(fields(username, email), skip_all, ret)]
-pub async fn signup(
+pub async fn handler(
     State(AppState {
         data_access,
 
         #[cfg(feature = "smtp")]
         smtp,
     }): State<AppState>,
-    Form(SignUp {
+    Form(RequestBody {
         username,
         email,
         password,
-    }): Form<SignUp>,
+    }): Form<RequestBody>,
 ) -> Result<StatusCode, Error> {
     let username = validate_username(username).map_err(Error::InvalidUsername)?;
     let password = validate_password(password).map_err(Error::WeakPassword)?;
