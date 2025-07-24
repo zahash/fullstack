@@ -40,7 +40,7 @@ pub async fn generate_access_token(
     permissions.require("access_token:create")?;
 
     let user_id = principal.user_id();
-    tracing::Span::current().record("user_id", tracing::field::debug(user_id));
+    tracing::Span::current().record("user_id", tracing::field::display(user_id));
 
     let access_token = AccessToken::new();
     let access_token_hash = access_token.hash_sha256();

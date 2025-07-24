@@ -69,7 +69,7 @@ pub enum Error {
         (status = 500, description = "Internal server error"),
     )
 ))]
-#[tracing::instrument(fields(username, email), skip_all, ret)]
+#[tracing::instrument(fields(%username, %email), skip_all, ret)]
 pub async fn handler(
     State(AppState {
         data_access,

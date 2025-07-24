@@ -37,7 +37,7 @@ pub enum Error {
 }
 
 #[debug_handler]
-#[tracing::instrument(fields(?username), skip_all)]
+#[tracing::instrument(fields(%username), skip_all)]
 pub async fn login(
     State(AppState { data_access, .. }): State<AppState>,
     headers: HeaderMap,
@@ -80,7 +80,7 @@ pub async fn login(
         .context("username -> User { id, password_hash }")?
         .ok_or(Error::InvalidCredentials)?;
 
-    tracing::info!("{:?}", user.id);
+    tracing::info!("user_id={}", user.id);
 
     if !verify(password, &user.password_hash).context("verify password hash")? {
         return Err(Error::InvalidCredentials);

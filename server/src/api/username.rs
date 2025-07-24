@@ -20,7 +20,7 @@ pub struct CheckUsernameAvailabilityParams {
     pub username: String,
 }
 
-#[tracing::instrument(fields(?username), skip_all, ret)]
+#[tracing::instrument(fields(%username), skip_all, ret)]
 pub async fn check_username_availability(
     State(AppState { data_access, .. }): State<AppState>,
     Query(CheckUsernameAvailabilityParams { username }): Query<CheckUsernameAvailabilityParams>,

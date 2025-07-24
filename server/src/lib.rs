@@ -28,7 +28,7 @@ use crate::{
         check_access_token, check_email_availability, check_username_availability,
         generate_access_token, health, login, logout, private, signup, sysinfo,
     },
-    middleware::{mw_client_ip, mw_handle_leaked_5xx},
+    middleware::{latency_ms, mw_client_ip, mw_handle_leaked_5xx},
     span::span,
 };
 
@@ -79,11 +79,12 @@ pub fn server(
     #[cfg(feature = "rate-limit")] rate_limiter: crate::middleware::RateLimiter,
 ) -> Router {
     let middleware = ServiceBuilder::new()
-        .layer(from_fn(mw_handle_leaked_5xx))
         .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
         .layer(PropagateRequestIdLayer::x_request_id())
         .layer(from_fn(mw_client_ip))
-        .layer(TraceLayer::new_for_http().make_span_with(span));
+        .layer(TraceLayer::new_for_http().make_span_with(span))
+        .layer(from_fn(latency_ms))
+        .layer(from_fn(mw_handle_leaked_5xx));
 
     #[cfg(feature = "rate-limit")]
     let middleware = middleware.layer(axum::middleware::from_fn_with_state(

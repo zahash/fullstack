@@ -19,7 +19,7 @@ pub struct CheckEmailAvailabilityParams {
     pub email: String,
 }
 
-#[tracing::instrument(fields(?email), skip_all, ret)]
+#[tracing::instrument(fields(%email), skip_all, ret)]
 pub async fn check_email_availability(
     State(AppState { data_access, .. }): State<AppState>,
     Query(CheckEmailAvailabilityParams { email }): Query<CheckEmailAvailabilityParams>,
