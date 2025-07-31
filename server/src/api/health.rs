@@ -1,15 +1,10 @@
-use axum::{Json, http::StatusCode};
+use axum::http::StatusCode;
 use axum_macros::debug_handler;
-use sysinfo::System;
+
+pub const PATH: &str = "/health";
 
 #[debug_handler]
 #[tracing::instrument(ret)]
-pub async fn health() -> StatusCode {
+pub async fn handler() -> StatusCode {
     StatusCode::OK
-}
-
-#[debug_handler]
-#[tracing::instrument(ret)]
-pub async fn sysinfo() -> Json<System> {
-    Json(System::new_all())
 }

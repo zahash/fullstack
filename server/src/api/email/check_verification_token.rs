@@ -6,35 +6,21 @@ use axum::{
 use axum_macros::debug_handler;
 use contextual::Context;
 use dashcache::DashCache;
-use email::Email;
 use http::StatusCode;
-use lettre::transport::smtp::response::Response;
 use tag::Tag;
 use time::OffsetDateTime;
 
-use crate::{
-    AppState,
-    smtp::{InitiateEmailVerificationError, VerificationToken},
-};
+use crate::{AppState, smtp::VerificationToken};
+
+pub const PATH: &str = "/check/email-verification-token";
 
 #[debug_handler]
-#[tracing::instrument(fields(?email), skip_all, ret)]
-pub async fn initiate_email_verification(
-    State(AppState { data_access, smtp }): State<AppState>,
-    Query(email): Query<Email>,
-) -> Result<Json<Response>, InitiateEmailVerificationError> {
-    crate::smtp::initiate_email_verification(&data_access, &smtp, &email)
-        .await
-        .map(Json)
-}
-
-#[debug_handler]
-pub async fn check_email_verification_token(
+pub async fn handler(
     State(AppState { data_access, .. }): State<AppState>,
     Query(token_b64encoded): Query<String>,
-) -> Result<StatusCode, CheckEmailVerificationTokenError> {
-    let token = VerificationToken::base64decode(&token_b64encoded)
-        .map_err(|_| CheckEmailVerificationTokenError::Base64decode)?;
+) -> Result<StatusCode, Error> {
+    let token =
+        VerificationToken::base64decode(&token_b64encoded).map_err(|_| Error::Base64decode)?;
     let token_hash = token.hash_sha256();
 
     #[derive(Debug, Clone)]
@@ -74,10 +60,10 @@ pub async fn check_email_verification_token(
         )
         .await
         .context("select Email VerificationToken")?
-        .ok_or(CheckEmailVerificationTokenError::TokenNotFound)?;
+        .ok_or(Error::TokenNotFound)?;
 
     if OffsetDateTime::now_utc() > row.expires_at {
-        return Err(CheckEmailVerificationTokenError::TokenExpired);
+        return Err(Error::TokenExpired);
     }
 
     data_access
@@ -109,7 +95,7 @@ pub async fn check_email_verification_token(
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum CheckEmailVerificationTokenError {
+pub enum Error {
     #[error("cannot base64 decode :: Email VerificationToken")]
     Base64decode,
 
@@ -123,10 +109,10 @@ pub enum CheckEmailVerificationTokenError {
     DataAccess(#[from] contextual::Error<data_access::Error>),
 }
 
-impl IntoResponse for CheckEmailVerificationTokenError {
+impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
-            CheckEmailVerificationTokenError::Base64decode => {
+            Error::Base64decode => {
                 tracing::info!("{:?}", self);
                 (
                     StatusCode::BAD_REQUEST,
@@ -134,7 +120,7 @@ impl IntoResponse for CheckEmailVerificationTokenError {
                 )
                     .into_response()
             }
-            CheckEmailVerificationTokenError::TokenNotFound => {
+            Error::TokenNotFound => {
                 tracing::info!("{:?}", self);
                 (
                     StatusCode::NOT_FOUND,
@@ -142,11 +128,11 @@ impl IntoResponse for CheckEmailVerificationTokenError {
                 )
                     .into_response()
             }
-            CheckEmailVerificationTokenError::TokenExpired => {
+            Error::TokenExpired => {
                 tracing::info!("{:?}", self);
                 (StatusCode::GONE, Json(extra::json_error_response(self))).into_response()
             }
-            CheckEmailVerificationTokenError::DataAccess(_) => {
+            Error::DataAccess(_) => {
                 tracing::error!("{:?}", self);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }

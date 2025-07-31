@@ -12,7 +12,6 @@ use serde::Deserialize;
 use tag::Tag;
 use validation::{validate_password, validate_username};
 
-use super::{email::email_exists, username::username_exists};
 use crate::AppState;
 
 pub const PATH: &str = "/signup";
@@ -87,14 +86,14 @@ pub async fn handler(
     let password = validate_password(password).map_err(Error::WeakPassword)?;
     let email = Email::try_from(email).map_err(Error::InvalidEmail)?;
 
-    if username_exists(&data_access, &username)
+    if super::username::exists(&data_access, &username)
         .await
         .context("username exists")?
     {
         return Err(Error::UsernameExists(username));
     }
 
-    if email_exists(&data_access, &email)
+    if super::email::exists(&data_access, &email)
         .await
         .context("email exists")?
     {

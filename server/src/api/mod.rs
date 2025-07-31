@@ -1,25 +1,12 @@
-mod access_token;
-mod email;
-mod health;
-mod login;
-mod logout;
-mod private;
+pub mod access_token;
+pub mod email;
+pub mod health;
+pub mod login;
+pub mod logout;
+pub mod private;
 pub mod signup;
-mod username;
-
-pub use access_token::{check_access_token, generate_access_token};
-pub use email::check_email_availability;
-pub use health::{health, sysinfo};
-pub use login::login;
-pub use logout::logout;
-pub use private::private;
-pub use username::check_username_availability;
-
-#[cfg(feature = "smtp")]
-mod verify_email;
-
-#[cfg(feature = "smtp")]
-pub use verify_email::{check_email_verification_token, initiate_email_verification};
+pub mod sysinfo;
+pub mod username;
 
 #[cfg(feature = "openapi")]
 #[derive(utoipa::OpenApi)]

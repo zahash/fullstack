@@ -8,6 +8,8 @@ use tag::Tag;
 
 use crate::AppState;
 
+pub const PATH: &str = "/logout";
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("{0}")]
@@ -15,7 +17,7 @@ pub enum Error {
 }
 
 #[debug_handler]
-pub async fn logout(
+pub async fn handler(
     State(AppState { data_access, .. }): State<AppState>,
     headers: HeaderMap,
     jar: CookieJar,

@@ -23,15 +23,6 @@ use tower_http::{
     trace::TraceLayer,
 };
 
-use crate::{
-    api::{
-        check_access_token, check_email_availability, check_username_availability,
-        generate_access_token, health, login, logout, private, signup, sysinfo,
-    },
-    middleware::{latency_ms, mw_client_ip, mw_handle_leaked_5xx},
-    span::span,
-};
-
 #[derive(Debug)]
 pub struct ServerOpts {
     pub database_url: String,
@@ -81,10 +72,10 @@ pub fn server(
     let middleware = ServiceBuilder::new()
         .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
         .layer(PropagateRequestIdLayer::x_request_id())
-        .layer(from_fn(mw_client_ip))
-        .layer(TraceLayer::new_for_http().make_span_with(span))
-        .layer(from_fn(latency_ms))
-        .layer(from_fn(mw_handle_leaked_5xx));
+        .layer(from_fn(middleware::mw_client_ip))
+        .layer(TraceLayer::new_for_http().make_span_with(span::span))
+        .layer(from_fn(middleware::latency_ms))
+        .layer(from_fn(middleware::mw_handle_leaked_5xx));
 
     #[cfg(feature = "rate-limit")]
     let middleware = middleware.layer(axum::middleware::from_fn_with_state(
@@ -93,33 +84,38 @@ pub fn server(
     ));
 
     let router = Router::new()
-        .nest(
-            "/check",
-            Router::new()
-                .route("/username-availability", get(check_username_availability))
-                .route("/email-availability", get(check_email_availability))
-                .route("/access-token", get(check_access_token)),
+        .route(
+            api::username::check_availability::PATH,
+            get(api::username::check_availability::handler),
         )
-        .route("/health", get(health))
-        .route("/sysinfo", get(sysinfo))
-        .route(signup::PATH, post(signup::handler))
-        .route("/login", post(login))
-        .route("/logout", get(logout))
-        .route("/access-token", post(generate_access_token))
-        .route("/private", get(private));
+        .route(
+            api::email::check_availability::PATH,
+            get(api::email::check_availability::handler),
+        )
+        .route(api::health::PATH, get(api::health::handler))
+        .route(api::sysinfo::PATH, get(api::sysinfo::handler))
+        .route(api::signup::PATH, post(api::signup::handler))
+        .route(api::login::PATH, post(api::login::handler))
+        .route(api::logout::PATH, get(api::logout::handler))
+        .route(
+            api::access_token::generate::PATH,
+            post(api::access_token::generate::handler),
+        )
+        .route(
+            api::access_token::verify::PATH,
+            get(api::access_token::verify::handler),
+        )
+        .route(api::private::PATH, get(api::private::handler));
 
     #[cfg(feature = "smtp")]
     let router = router
-        .nest(
-            "/check",
-            Router::new().route(
-                "/email-verification-token",
-                get(crate::api::check_email_verification_token),
-            ),
+        .route(
+            api::email::initiate_verification::PATH,
+            get(api::email::initiate_verification::handler),
         )
         .route(
-            "/initiate-email-verification",
-            get(crate::api::initiate_email_verification),
+            api::email::check_verification_token::PATH,
+            get(api::email::check_verification_token::handler),
         );
 
     #[cfg(feature = "openapi")]

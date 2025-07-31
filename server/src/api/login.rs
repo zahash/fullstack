@@ -16,6 +16,7 @@ use time::{Duration, OffsetDateTime};
 
 use crate::AppState;
 
+pub const PATH: &str = "/login";
 const COOKIE_DURATION: Duration = Duration::days(30);
 
 #[derive(Deserialize)]
@@ -38,7 +39,7 @@ pub enum Error {
 
 #[debug_handler]
 #[tracing::instrument(fields(%username), skip_all)]
-pub async fn login(
+pub async fn handler(
     State(AppState { data_access, .. }): State<AppState>,
     headers: HeaderMap,
     jar: CookieJar,
