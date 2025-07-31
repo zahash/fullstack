@@ -15,6 +15,7 @@ pub struct ResponseBody {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "openapi", schema(as = sysinfo::SystemInfo))]
 #[derive(Debug, Serialize)]
 pub struct SystemInfo {
     #[cfg_attr(
@@ -40,6 +41,7 @@ pub struct SystemInfo {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "openapi", schema(as = sysinfo::MemoryInfo))]
 #[derive(Debug, Serialize)]
 pub struct MemoryInfo {
     #[cfg_attr(feature = "openapi", schema(examples(16873545728u64)))]
@@ -50,6 +52,7 @@ pub struct MemoryInfo {
 }
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "openapi", schema(as = sysinfo::DiskInfo))]
 #[derive(Debug, Serialize)]
 pub struct DiskInfo {
     #[cfg_attr(feature = "openapi", schema(examples("nvme0n1p1", "Windows-SSD")))]
