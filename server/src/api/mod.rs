@@ -11,7 +11,7 @@ pub mod username;
 #[cfg(feature = "openapi")]
 #[derive(utoipa::OpenApi)]
 #[openapi(
-    paths(signup::handler, sysinfo::handler),
+    paths(health::handler, signup::handler, sysinfo::handler),
     components(schemas(signup::RequestBody, sysinfo::ResponseBody))
 )]
 pub struct OpenApiDoc;
