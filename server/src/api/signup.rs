@@ -26,7 +26,7 @@ pub struct RequestBody {
     #[cfg_attr(feature = "openapi", schema(examples("joe@smith.com")))]
     pub email: String,
 
-    #[cfg_attr(feature = "openapi", schema(examples("supersecretpassword")))]
+    #[cfg_attr(feature = "openapi", schema(examples("h?P7o]37")))]
     pub password: String,
 }
 
