@@ -114,7 +114,8 @@ impl Default for ResponseBody {
     path = PATH,
     responses(
         (status = 200, description = "System Information", body = ResponseBody),
-    )
+    ),
+    tag = "probe"
 ))]
 #[debug_handler]
 #[tracing::instrument(ret)]
