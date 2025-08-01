@@ -32,7 +32,7 @@ contextual = { path = "../contextual" }
 dashcache = { path = "../dashcache", features = ["tracing"] }
 data-access = { path = "../data-access", features = ["tracing"] }
 email = { path = "../email", features = ["serde", "sqlite"] }
-extra = { path = "../extra", features = ["json-error-response"] }
+extra = { path = "../extra", features = ["error-response"] }
 tag = { path = "../tag" }
 token = { path = "../token", optional = true }
 validation = { path = "../validation" }
@@ -45,7 +45,7 @@ test-proc-macros = { path = "../test-proc-macros", features = [
 ] }
 
 [features]
-openapi = ["dep:utoipa"]
+openapi = ["dep:utoipa", "extra/openapi"]
 rate-limit = []
 scalar = ["dep:utoipa-scalar", "openapi"]
 smtp = [

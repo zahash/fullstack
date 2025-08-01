@@ -6,7 +6,7 @@ use axum::{
 };
 use contextual::Context;
 use email::Email;
-use extra::json_error_response;
+use extra::ErrorResponse;
 use serde::Deserialize;
 
 use crate::AppState;
@@ -48,7 +48,7 @@ impl IntoResponse for CheckEmailAvailabilityError {
         match self {
             CheckEmailAvailabilityError::InvalidParams(_) => {
                 tracing::info!("{:?}", self);
-                (StatusCode::BAD_REQUEST, Json(json_error_response(self))).into_response()
+                (StatusCode::BAD_REQUEST, Json(ErrorResponse::from(self))).into_response()
             }
             CheckEmailAvailabilityError::DataAccess(err) => {
                 tracing::error!("{:?}", err);

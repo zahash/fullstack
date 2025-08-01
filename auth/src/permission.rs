@@ -34,7 +34,7 @@ impl axum::response::IntoResponse for InsufficientPermissionsError {
         tracing::info!("{:?}", self);
         (
             axum::http::StatusCode::FORBIDDEN,
-            axum::Json(extra::json_error_response(self)),
+            axum::Json(extra::ErrorResponse::from(self)),
         )
             .into_response()
     }

@@ -144,7 +144,7 @@ impl axum::response::IntoResponse for PrincipalError {
                 tracing::info!("{:?}", self);
                 (
                     axum::http::StatusCode::UNAUTHORIZED,
-                    axum::Json(extra::json_error_response(self)),
+                    axum::Json(extra::ErrorResponse::from(self)),
                 )
                     .into_response()
             }

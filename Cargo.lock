@@ -731,8 +731,9 @@ dependencies = [
 name = "extra"
 version = "0.1.0"
 dependencies = [
- "serde_json",
+ "serde",
  "time",
+ "utoipa",
 ]
 
 [[package]]

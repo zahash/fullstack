@@ -23,5 +23,5 @@ tag = { path = "../tag" }
 token = { path = "../token" }
 
 [features]
-axum = ["dep:axum", "dep:extra", "extra/json-error-response"]
+axum = ["dep:axum", "dep:extra", "extra/error-response"]
 tracing = ["dep:tracing", "dashcache/tracing", "data-access/tracing"]

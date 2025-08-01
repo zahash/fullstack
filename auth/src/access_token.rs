@@ -200,7 +200,7 @@ impl axum::response::IntoResponse for AccessTokenValidationError {
                 tracing::info!("{:?}", self);
                 (
                     axum::http::StatusCode::UNAUTHORIZED,
-                    axum::Json(extra::json_error_response(self)),
+                    axum::Json(extra::ErrorResponse::from(self)),
                 )
                     .into_response()
             }
@@ -218,7 +218,7 @@ impl axum::response::IntoResponse for AccessTokenAuthorizationExtractionError {
                 tracing::info!("{:?}", self);
                 (
                     axum::http::StatusCode::BAD_REQUEST,
-                    axum::Json(extra::json_error_response(self)),
+                    axum::Json(extra::ErrorResponse::from(self)),
                 )
                     .into_response()
             }

@@ -6,7 +6,7 @@ use axum::{
 };
 use contextual::Context;
 use email::Email;
-use extra::json_error_response;
+use extra::ErrorResponse;
 use serde::Deserialize;
 
 use tag::Tag;
@@ -161,11 +161,11 @@ impl IntoResponse for Error {
         match self {
             Error::InvalidUsername(_) | Error::InvalidEmail(_) | Error::WeakPassword(_) => {
                 tracing::info!("{:?}", self);
-                (StatusCode::BAD_REQUEST, Json(json_error_response(self))).into_response()
+                (StatusCode::BAD_REQUEST, Json(ErrorResponse::from(self))).into_response()
             }
             Error::UsernameExists(_) | Error::EmailExists(_) => {
                 tracing::info!("{:?}", self);
-                (StatusCode::CONFLICT, Json(json_error_response(self))).into_response()
+                (StatusCode::CONFLICT, Json(ErrorResponse::from(self))).into_response()
             }
             Error::DataAccess(_) | Error::Bcrypt(_) => {
                 tracing::error!("{:?}", self);

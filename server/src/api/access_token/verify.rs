@@ -8,7 +8,7 @@ use axum::{
     response::IntoResponse,
 };
 use contextual::Context;
-use extra::json_error_response;
+use extra::ErrorResponse;
 
 use crate::AppState;
 
@@ -65,7 +65,7 @@ impl IntoResponse for Error {
             Error::AccessTokenAuthorizationExtractionError(err) => err.into_response(),
             Error::AccessTokenHeaderNotFound | Error::UnAssociatedAccessToken => {
                 tracing::info!("{:?}", self);
-                (StatusCode::UNAUTHORIZED, Json(json_error_response(self))).into_response()
+                (StatusCode::UNAUTHORIZED, Json(ErrorResponse::from(self))).into_response()
             }
             Error::AccessTokenValidation(err) => err.into_response(),
             Error::DataAccess(err) => {
