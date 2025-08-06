@@ -1,0 +1,24 @@
+{
+    "name": "Rust + SolidJs Dev Container",
+    "dockerFile": "Dockerfile",
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "terminal.integrated.shell.linux": "/bin/bash"
+            },
+            "extensions": [
+                "rust-lang.rust-analyzer",
+                "fill-labs.dependi",
+                "tamasfe.even-better-toml",
+                "ms-vscode.vscode-typescript-next",
+                "esbenp.prettier-vscode",
+                "davidanson.vscode-markdownlint"
+            ]
+        }
+    },
+    "forwardPorts": [
+        3000,
+        8080
+    ],
+    "postCreateCommand": "sqlx database create && sqlx migrate run --source migrations"
+}
