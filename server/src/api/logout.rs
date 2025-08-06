@@ -16,6 +16,12 @@ pub enum Error {
     DataAccess(#[from] contextual::Error<data_access::Error>),
 }
 
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = PATH,
+    responses((status = 200, description = "Session invalidated and Cookie removed")),
+    tag = "auth"
+))]
 #[debug_handler]
 pub async fn handler(
     State(AppState { data_access, .. }): State<AppState>,
