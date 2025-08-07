@@ -19,8 +19,10 @@ use crate::AppState;
 pub const PATH: &str = "/login";
 const COOKIE_DURATION: Duration = Duration::days(30);
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "openapi", schema(as = login::Credentials))]
 #[derive(Deserialize)]
-pub struct Login {
+pub struct Credentials {
     pub username: String,
     pub password: String,
 }
@@ -37,13 +39,27 @@ pub enum Error {
     Bcrypt(#[from] contextual::Error<bcrypt::BcryptError>),
 }
 
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = PATH,
+    request_body(
+        content = Credentials,
+        content_type = "application/x-www-form-urlencoded",
+    ),
+    responses(
+        (status = 200, description = "Login successful, session cookie set"),
+        (status = 401, description = "Invalid credentials"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "auth"
+))]
 #[debug_handler]
 #[tracing::instrument(fields(%username), skip_all)]
 pub async fn handler(
     State(AppState { data_access, .. }): State<AppState>,
     headers: HeaderMap,
     jar: CookieJar,
-    Form(Login { username, password }): Form<Login>,
+    Form(Credentials { username, password }): Form<Credentials>,
 ) -> Result<(CookieJar, StatusCode), Error> {
     #[derive(Debug, Clone)]
     struct User {

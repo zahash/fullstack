@@ -63,10 +63,11 @@ pub enum Error {
     ),
     responses(
         (status = 201, description = "User created"),
-        (status = 400, description = "Invalid input"),
-        (status = 409, description = "Username or email already exists"),
+        (status = 400, description = "Invalid input", body = ErrorResponse),
+        (status = 409, description = "Username or email already exists", body = ErrorResponse),
         (status = 500, description = "Internal server error"),
-    )
+    ),
+    tag = "auth"
 ))]
 #[tracing::instrument(fields(%username, %email), skip_all, ret)]
 pub async fn handler(

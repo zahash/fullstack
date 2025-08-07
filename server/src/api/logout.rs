@@ -17,7 +17,7 @@ pub enum Error {
 }
 
 #[cfg_attr(feature = "openapi", utoipa::path(
-    post,
+    get,
     path = PATH,
     responses((status = 200, description = "Session invalidated and Cookie removed")),
     tag = "auth"
