@@ -18,6 +18,7 @@ pub const PATH: &str = "/check/username-availability";
 #[cfg_attr(feature = "openapi", into_params(parameter_in = Query))]
 #[derive(Deserialize)]
 pub struct QueryParams {
+    #[cfg_attr(feature = "openapi", param(example = "joe"))]
     pub username: String,
 }
 

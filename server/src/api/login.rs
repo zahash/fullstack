@@ -23,7 +23,10 @@ const COOKIE_DURATION: Duration = Duration::days(30);
 #[cfg_attr(feature = "openapi", schema(as = login::Credentials))]
 #[derive(Deserialize)]
 pub struct Credentials {
+    #[cfg_attr(feature = "openapi", schema(examples("joe")))]
     pub username: String,
+
+    #[cfg_attr(feature = "openapi", schema(examples("h?P7o]37")))]
     pub password: String,
 }
 
