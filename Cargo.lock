@@ -2107,6 +2107,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "utoipa",
+ "utoipa-rapidoc",
  "utoipa-scalar",
  "validation",
 ]
@@ -2972,6 +2973,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "utoipa-rapidoc"
+version = "6.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5f8f5abd341cce16bb4f09a8bafc087d4884a004f25fb980e538d51d6501dab"
+dependencies = [
+ "serde",
+ "serde_json",
+ "utoipa",
 ]
 
 [[package]]

@@ -120,11 +120,24 @@ pub fn server(
 
     #[cfg(feature = "openapi")]
     let router = {
-        use crate::api::OpenApiDoc;
+        use crate::api::{OPEN_API_DOCS_PATH, OpenApiDoc};
         use axum::Json;
         use utoipa::OpenApi;
 
-        router.route("/api-doc/openapi.json", get(Json(OpenApiDoc::openapi())))
+        router.route(OPEN_API_DOCS_PATH, get(Json(OpenApiDoc::openapi())))
+    };
+
+    #[cfg(feature = "rapidoc")]
+    let router = {
+        use axum::response::Html;
+        use utoipa_rapidoc::RapiDoc;
+
+        use crate::api::OPEN_API_DOCS_PATH;
+
+        router.route(
+            "/rapidoc",
+            get(Html(RapiDoc::new(OPEN_API_DOCS_PATH).to_html())),
+        )
     };
 
     #[cfg(feature = "scalar")]

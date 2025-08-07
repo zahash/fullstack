@@ -9,6 +9,9 @@ pub mod sysinfo;
 pub mod username;
 
 #[cfg(feature = "openapi")]
+pub const OPEN_API_DOCS_PATH: &str = "/api-docs/openapi.json";
+
+#[cfg(feature = "openapi")]
 #[derive(utoipa::OpenApi)]
 #[openapi(
     paths(
