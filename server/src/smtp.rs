@@ -5,7 +5,7 @@ use contextual::Context;
 use dashcache::DashCache;
 use data_access::DataAccess;
 use email::Email;
-use extra::json_error_response;
+use extra::ErrorResponse;
 use http::StatusCode;
 use lettre::{
     AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
@@ -205,7 +205,7 @@ impl IntoResponse for InitiateEmailVerificationError {
         match self {
             InitiateEmailVerificationError::EmailDoesNotExist(_) => {
                 tracing::info!("{:?}", self);
-                (StatusCode::NOT_FOUND, Json(json_error_response(self))).into_response()
+                (StatusCode::NOT_FOUND, Json(ErrorResponse::from(self))).into_response()
             }
             InitiateEmailVerificationError::SmtpSenders(_)
             | InitiateEmailVerificationError::DataAccess(_)

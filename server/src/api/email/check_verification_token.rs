@@ -6,6 +6,7 @@ use axum::{
 use axum_macros::debug_handler;
 use contextual::Context;
 use dashcache::DashCache;
+use extra::ErrorResponse;
 use http::StatusCode;
 use tag::Tag;
 use time::OffsetDateTime;
@@ -114,23 +115,15 @@ impl IntoResponse for Error {
         match self {
             Error::Base64decode => {
                 tracing::info!("{:?}", self);
-                (
-                    StatusCode::BAD_REQUEST,
-                    Json(extra::json_error_response(self)),
-                )
-                    .into_response()
+                (StatusCode::BAD_REQUEST, Json(ErrorResponse::from(self))).into_response()
             }
             Error::TokenNotFound => {
                 tracing::info!("{:?}", self);
-                (
-                    StatusCode::NOT_FOUND,
-                    Json(extra::json_error_response(self)),
-                )
-                    .into_response()
+                (StatusCode::NOT_FOUND, Json(ErrorResponse::from(self))).into_response()
             }
             Error::TokenExpired => {
                 tracing::info!("{:?}", self);
-                (StatusCode::GONE, Json(extra::json_error_response(self))).into_response()
+                (StatusCode::GONE, Json(ErrorResponse::from(self))).into_response()
             }
             Error::DataAccess(_) => {
                 tracing::error!("{:?}", self);
