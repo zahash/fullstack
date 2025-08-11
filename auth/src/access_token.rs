@@ -185,13 +185,6 @@ impl From<Token<32>> for AccessToken {
 }
 
 #[cfg(feature = "axum")]
-impl axum::response::IntoResponse for AccessToken {
-    fn into_response(self) -> axum::response::Response {
-        self.base64encoded().into_response()
-    }
-}
-
-#[cfg(feature = "axum")]
 impl axum::response::IntoResponse for AccessTokenValidationError {
     fn into_response(self) -> axum::response::Response {
         match self {

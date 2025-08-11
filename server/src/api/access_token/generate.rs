@@ -12,19 +12,38 @@ use crate::AppState;
 
 pub const PATH: &str = "/access-token/generate";
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "openapi", schema(as = access_token::generate::Config))]
 #[derive(Deserialize, Debug)]
-pub struct AccessTokenSettings {
+pub struct Config {
+    #[cfg_attr(feature = "openapi", schema(example = "my-token"))]
     name: String,
-    ttl: Option<Duration>,
+
+    #[cfg_attr(feature = "openapi", schema(example = 3600u64, value_type = u64))]
+    ttl_sec: Option<u64>,
 }
 
+#[cfg_attr(feature = "openapi", utoipa::path(
+    post,
+    path = PATH,
+    request_body(
+        content = Config,
+        content_type = "application/x-www-form-urlencoded",
+    ),
+    responses(
+        (status = 200, description = "Access token generated successfully", body = String),
+        (status = 403, description = "Insufficient permissions"),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "access_token"
+))]
 #[debug_handler]
 #[tracing::instrument(fields(user_id = tracing::field::Empty, ?settings), skip_all)]
 pub async fn handler(
     State(AppState { data_access, .. }): State<AppState>,
     principal: Principal,
-    Form(settings): Form<AccessTokenSettings>,
-) -> Result<(StatusCode, AccessToken), Error> {
+    Form(settings): Form<Config>,
+) -> Result<(StatusCode, String), Error> {
     let permissions = principal
         .permissions(&data_access)
         .await
@@ -38,7 +57,9 @@ pub async fn handler(
     let access_token = AccessToken::new();
     let access_token_hash = access_token.hash_sha256();
     let created_at = OffsetDateTime::now_utc();
-    let expires_at = settings.ttl.map(|ttl| created_at + ttl);
+    let expires_at = settings
+        .ttl_sec
+        .map(|sec| created_at + Duration::from_secs(sec));
 
     data_access
         .write(
@@ -76,7 +97,7 @@ pub async fn handler(
 
     tracing::info!(?expires_at, "access_token created");
 
-    Ok((StatusCode::CREATED, access_token))
+    Ok((StatusCode::CREATED, access_token.base64encoded()))
 }
 
 #[derive(thiserror::Error, Debug)]

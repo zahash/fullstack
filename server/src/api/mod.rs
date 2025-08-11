@@ -15,6 +15,8 @@ pub const OPEN_API_DOCS_PATH: &str = "/api-docs/openapi.json";
 #[derive(utoipa::OpenApi)]
 #[openapi(
     paths(
+        access_token::generate::handler,
+        access_token::verify::handler,
         health::handler,
         login::handler,
         logout::handler,
@@ -22,6 +24,11 @@ pub const OPEN_API_DOCS_PATH: &str = "/api-docs/openapi.json";
         sysinfo::handler,
         username::check_availability::handler
     ),
-    components(schemas(login::Credentials, signup::RequestBody, sysinfo::ResponseBody))
+    components(schemas(
+        access_token::generate::Config,
+        login::Credentials,
+        signup::RequestBody,
+        sysinfo::ResponseBody
+    ))
 )]
 pub struct OpenApiDoc;

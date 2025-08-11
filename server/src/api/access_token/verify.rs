@@ -12,8 +12,21 @@ use extra::ErrorResponse;
 
 use crate::AppState;
 
-pub const PATH: &str = "/check/access-token";
+pub const PATH: &str = "/access-token/verify";
 
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = PATH,
+    responses(
+        (status = 200, description = "Access token is valid"),
+        (status = 401, description = "Invalid or missing access token", body = ErrorResponse),
+        (status = 500, description = "Internal server error"),
+    ),
+    params(
+        ("Authorization" = String, Header, description = "Access token in the form 'Token <your-access-token>'")
+    ),
+    tag = "access_token"
+))]
 #[tracing::instrument(skip_all, ret)]
 pub async fn handler(
     State(AppState { data_access, .. }): State<AppState>,
