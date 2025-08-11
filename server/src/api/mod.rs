@@ -33,3 +33,11 @@ pub const OPEN_API_DOCS_PATH: &str = "/api-docs/openapi.json";
     ))
 )]
 pub struct OpenApiDoc;
+
+#[cfg(all(feature = "openapi", feature = "smtp"))]
+#[derive(utoipa::OpenApi)]
+#[openapi(paths(
+    email::check_verification_token::handler,
+    email::initiate_verification::handler,
+))]
+pub struct SmtpOpenApiDoc;

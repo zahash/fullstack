@@ -124,7 +124,13 @@ pub fn server(
         use axum::Json;
         use utoipa::OpenApi;
 
-        router.route(OPEN_API_DOCS_PATH, get(Json(OpenApiDoc::openapi())))
+        let mut openapi = utoipa::openapi::OpenApi::default();
+        openapi.merge(OpenApiDoc::openapi());
+
+        #[cfg(feature = "smtp")]
+        openapi.merge(api::SmtpOpenApiDoc::openapi());
+
+        router.route(OPEN_API_DOCS_PATH, get(Json(openapi)))
     };
 
     #[cfg(feature = "rapidoc")]

@@ -8,6 +8,7 @@ use contextual::Context;
 use dashcache::DashCache;
 use extra::ErrorResponse;
 use http::StatusCode;
+use serde::Deserialize;
 use tag::Tag;
 use time::OffsetDateTime;
 
@@ -15,10 +16,31 @@ use crate::{AppState, smtp::VerificationToken};
 
 pub const PATH: &str = "/check/email-verification-token";
 
+#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams))]
+#[cfg_attr(feature = "openapi", into_params(parameter_in = Query))]
+#[derive(Deserialize)]
+pub struct QueryParams {
+    #[cfg_attr(feature = "openapi", param(example = "gZwnqQ"))]
+    pub token_b64encoded: String,
+}
+
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = PATH,
+    params(QueryParams),
+    responses(
+        (status = 200, description = "Email verified successfully"),
+        (status = 400, description = "Invalid or malformed token", body = ErrorResponse),
+        (status = 404, description = "Token not found", body = ErrorResponse),
+        (status = 410, description = "Token expired", body = ErrorResponse),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "check"
+))]
 #[debug_handler]
 pub async fn handler(
     State(AppState { data_access, .. }): State<AppState>,
-    Query(token_b64encoded): Query<String>,
+    Query(QueryParams { token_b64encoded }): Query<QueryParams>,
 ) -> Result<StatusCode, Error> {
     let token =
         VerificationToken::base64decode(&token_b64encoded).map_err(|_| Error::Base64decode)?;
