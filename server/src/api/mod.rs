@@ -17,6 +17,7 @@ pub const OPEN_API_DOCS_PATH: &str = "/api-docs/openapi.json";
     paths(
         access_token::generate::handler,
         access_token::verify::handler,
+        email::check_availability::handler,
         health::handler,
         login::handler,
         logout::handler,

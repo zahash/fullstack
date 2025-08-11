@@ -30,6 +30,7 @@ pub struct QueryParams {
         (status = 200, description = "Username is available"),
         (status = 409, description = "Username is already taken"),
         (status = 400, description = "Invalid username format", body = ErrorResponse),
+        (status = 500, description = "Internal server error"),
     ),
     tag = "check"
 ))]

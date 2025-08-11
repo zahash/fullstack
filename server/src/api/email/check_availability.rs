@@ -13,17 +13,32 @@ use crate::AppState;
 
 pub const PATH: &str = "/check/email-availability";
 
+#[cfg_attr(feature = "openapi", derive(utoipa::IntoParams))]
+#[cfg_attr(feature = "openapi", into_params(parameter_in = Query))]
 #[derive(Deserialize)]
-pub struct CheckEmailAvailabilityParams {
+pub struct QueryParams {
+    #[cfg_attr(feature = "openapi", param(example = "joe@smith.com"))]
     pub email: String,
 }
 
+#[cfg_attr(feature = "openapi", utoipa::path(
+    get,
+    path = PATH,
+    params(QueryParams),
+    responses(
+        (status = 200, description = "Email is available"),
+        (status = 409, description = "Email already exists"),
+        (status = 400, description = "Invalid email address", body = ErrorResponse),
+        (status = 500, description = "Internal server error"),
+    ),
+    tag = "check"
+))]
 #[tracing::instrument(fields(%email), skip_all, ret)]
 pub async fn handler(
     State(AppState { data_access, .. }): State<AppState>,
-    Query(CheckEmailAvailabilityParams { email }): Query<CheckEmailAvailabilityParams>,
-) -> Result<StatusCode, CheckEmailAvailabilityError> {
-    let email = Email::try_from(email).map_err(CheckEmailAvailabilityError::InvalidParams)?;
+    Query(QueryParams { email }): Query<QueryParams>,
+) -> Result<StatusCode, Error> {
+    let email = Email::try_from(email).map_err(Error::InvalidParams)?;
 
     match super::exists(&data_access, &email)
         .await
@@ -35,7 +50,7 @@ pub async fn handler(
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum CheckEmailAvailabilityError {
+pub enum Error {
     #[error("{0}")]
     InvalidParams(&'static str),
 
@@ -43,14 +58,14 @@ pub enum CheckEmailAvailabilityError {
     DataAccess(#[from] contextual::Error<data_access::Error>),
 }
 
-impl IntoResponse for CheckEmailAvailabilityError {
+impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
-            CheckEmailAvailabilityError::InvalidParams(_) => {
+            Error::InvalidParams(_) => {
                 tracing::info!("{:?}", self);
                 (StatusCode::BAD_REQUEST, Json(ErrorResponse::from(self))).into_response()
             }
-            CheckEmailAvailabilityError::DataAccess(err) => {
+            Error::DataAccess(err) => {
                 tracing::error!("{:?}", err);
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
