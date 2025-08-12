@@ -32,7 +32,7 @@ pub const OPEN_API_DOCS_PATH: &str = "/api-docs/openapi.json";
         sysinfo::ResponseBody
     ))
 )]
-pub struct OpenApiDoc;
+struct OpenApiDoc;
 
 #[cfg(all(feature = "openapi", feature = "smtp"))]
 #[derive(utoipa::OpenApi)]
@@ -40,4 +40,17 @@ pub struct OpenApiDoc;
     email::check_verification_token::handler,
     email::initiate_verification::handler,
 ))]
-pub struct SmtpOpenApiDoc;
+struct SmtpOpenApiDoc;
+
+#[cfg(feature = "openapi")]
+pub fn openapi() -> utoipa::openapi::OpenApi {
+    use utoipa::OpenApi;
+
+    let mut openapi = utoipa::openapi::OpenApi::default();
+    openapi.merge(OpenApiDoc::openapi());
+
+    #[cfg(feature = "smtp")]
+    openapi.merge(SmtpOpenApiDoc::openapi());
+
+    openapi
+}

@@ -119,44 +119,25 @@ pub fn server(
         );
 
     #[cfg(feature = "openapi")]
-    let router = {
-        use crate::api::{OPEN_API_DOCS_PATH, OpenApiDoc};
-        use axum::Json;
-        use utoipa::OpenApi;
-
-        let mut openapi = utoipa::openapi::OpenApi::default();
-        openapi.merge(OpenApiDoc::openapi());
-
-        #[cfg(feature = "smtp")]
-        openapi.merge(api::SmtpOpenApiDoc::openapi());
-
-        router.route(OPEN_API_DOCS_PATH, get(Json(openapi)))
-    };
+    let router = router.route(api::OPEN_API_DOCS_PATH, get(axum::Json(api::openapi())));
 
     #[cfg(feature = "rapidoc")]
     let router = {
         use axum::response::Html;
         use utoipa_rapidoc::RapiDoc;
 
-        use crate::api::OPEN_API_DOCS_PATH;
-
         router.route(
             "/rapidoc",
-            get(Html(RapiDoc::new(OPEN_API_DOCS_PATH).to_html())),
+            get(Html(RapiDoc::new(api::OPEN_API_DOCS_PATH).to_html())),
         )
     };
 
     #[cfg(feature = "scalar")]
     let router = {
-        use crate::api::OpenApiDoc;
         use axum::response::Html;
-        use utoipa::OpenApi;
         use utoipa_scalar::Scalar;
 
-        router.route(
-            "/scalar",
-            get(Html(Scalar::new(OpenApiDoc::openapi()).to_html())),
-        )
+        router.route("/scalar", get(Html(Scalar::new(api::openapi()).to_html())))
     };
 
     router

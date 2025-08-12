@@ -42,6 +42,11 @@ pub async fn handler(
     State(AppState { data_access, .. }): State<AppState>,
     Query(QueryParams { token_b64encoded }): Query<QueryParams>,
 ) -> Result<StatusCode, Error> {
+    // TODO: require authentication for this.
+    // else, anyone can send bogus request with random token
+    // which might accidentally verify some email
+    // maybe also take email as input along with token
+
     let token =
         VerificationToken::base64decode(&token_b64encoded).map_err(|_| Error::Base64decode)?;
     let token_hash = token.hash_sha256();
