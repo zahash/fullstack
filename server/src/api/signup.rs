@@ -57,6 +57,7 @@ pub enum Error {
 #[cfg_attr(feature = "openapi", utoipa::path(
     post,
     path = PATH,
+    operation_id = PATH,
     request_body(
         content = RequestBody,
         content_type = "application/x-www-form-urlencoded",

@@ -112,6 +112,7 @@ impl Default for ResponseBody {
 #[cfg_attr(feature = "openapi", utoipa::path(
     get,
     path = PATH,
+    operation_id = PATH,
     responses(
         (status = 200, description = "System Information", body = ResponseBody),
     ),

@@ -13,6 +13,7 @@ pub const PATH: &str = "/initiate-email-verification";
 #[cfg_attr(feature = "openapi", utoipa::path(
     get,
     path = PATH,
+    operation_id = PATH,
     params(
         ("email" = String, Query, description = "Email address to initiate verification for", example = "joe@smith.com")
     ),

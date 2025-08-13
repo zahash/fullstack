@@ -19,6 +19,9 @@ use token::Token;
 
 const EMAIL_VERIFICATION_TOKEN_TTL: std::time::Duration = std::time::Duration::from_secs(60 * 60);
 
+// TODO: JWT could be a very good candidate for Verification token
+// it is stateless and only used once.
+// it would be a no-op if used more than once.
 pub type VerificationToken = Token<4>;
 
 #[derive(Clone)]

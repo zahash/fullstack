@@ -140,6 +140,16 @@ pub fn server(
         router.route("/scalar", get(Html(Scalar::new(api::openapi()).to_html())))
     };
 
+    #[cfg(feature = "swagger-ui")]
+    let router = {
+        use axum::response::Html;
+
+        router.route(
+            "/swagger-ui",
+            get(Html(include_str!("static/swagger-ui.html"))),
+        )
+    };
+
     router
         .with_state(AppState {
             data_access,

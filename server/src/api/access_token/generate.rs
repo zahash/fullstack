@@ -26,6 +26,7 @@ pub struct Config {
 #[cfg_attr(feature = "openapi", utoipa::path(
     post,
     path = PATH,
+    operation_id = PATH,
     request_body(
         content = Config,
         content_type = "application/x-www-form-urlencoded",

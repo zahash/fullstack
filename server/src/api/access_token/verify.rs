@@ -17,6 +17,7 @@ pub const PATH: &str = "/access-token/verify";
 #[cfg_attr(feature = "openapi", utoipa::path(
     get,
     path = PATH,
+    operation_id = PATH,
     responses(
         (status = 200, description = "Access token is valid"),
         (status = 401, description = "Invalid or missing access token", body = ErrorResponse),

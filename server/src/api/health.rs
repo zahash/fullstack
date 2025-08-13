@@ -7,6 +7,7 @@ pub const PATH: &str = "/health";
 #[cfg_attr(feature = "openapi", utoipa::path(
     get,
     path = PATH,
+    operation_id = PATH,
     responses((status = 200, description = "health check OK")),
     tag = "probe"
 ))]

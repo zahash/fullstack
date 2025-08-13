@@ -15,7 +15,7 @@ forwarded-header-value = "0.1.1"
 http = "1"
 serde = { version = "1", features = ["derive"] }
 sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "sqlite"] }
-sysinfo = { version = "0.36", features = ["serde"] }
+sysinfo = { version = "0.37", features = ["serde"] }
 tera = { version = "1", optional = true }
 thiserror = "2"
 time = "0.3"
@@ -46,7 +46,7 @@ test-proc-macros = { path = "../test-proc-macros", features = [
 ] }
 
 [features]
-openapi = ["dep:utoipa", "extra/openapi"]
+openapi = ["dep:utoipa", "auth/openapi", "extra/openapi"]
 rapidoc = ["dep:utoipa-rapidoc", "openapi"]
 rate-limit = []
 scalar = ["dep:utoipa-scalar", "openapi"]
@@ -61,4 +61,5 @@ smtp = [
     "lettre/tracing",
 ]
 smtp--no-tls = []
+swagger-ui = ["openapi"]
 ui = []

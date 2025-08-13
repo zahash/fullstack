@@ -24,6 +24,7 @@ pub struct QueryParams {
 #[cfg_attr(feature = "openapi", utoipa::path(
     get,
     path = PATH,
+    operation_id = PATH,
     params(QueryParams),
     responses(
         (status = 200, description = "Email is available"),
