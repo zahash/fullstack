@@ -13,12 +13,12 @@ struct Args {
     #[arg(long, env("DATABASE_URL"))]
     database_url: String,
 
-    #[cfg(feature = "ui")]
+    #[cfg(feature = "serve-dir")]
     /// The directory where the server's UI files are located.
     /// This should point to a valid local path containing frontend assets.
     /// Example: `./ui` or `/var/www/html`
     #[arg(long, env("UI_DIR"))]
-    ui_dir: std::path::PathBuf,
+    serve_dir: std::path::PathBuf,
 
     #[cfg(feature = "rate-limit")]
     /// The rate limit in the form of a string, e.g. "1/s", "10/min", "100/hour".
@@ -84,8 +84,8 @@ async fn main() {
         #[cfg(feature = "rate-limit")]
         rate_limiter: args.rate_limit,
 
-        #[cfg(feature = "ui")]
-        ui_dir: args.ui_dir,
+        #[cfg(feature = "serve-dir")]
+        serve_dir: args.serve_dir,
 
         #[cfg(feature = "smtp")]
         smtp: server::SMTPConfig {

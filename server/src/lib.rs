@@ -31,8 +31,8 @@ pub struct ServerOpts {
     #[cfg(feature = "rate-limit")]
     pub rate_limiter: RateLimiterConfig,
 
-    #[cfg(feature = "ui")]
-    pub ui_dir: std::path::PathBuf,
+    #[cfg(feature = "serve-dir")]
+    pub serve_dir: std::path::PathBuf,
 
     #[cfg(feature = "smtp")]
     pub smtp: SMTPConfig,
@@ -121,35 +121,6 @@ pub fn server(
     #[cfg(feature = "openapi")]
     let router = router.route(api::OPEN_API_DOCS_PATH, get(axum::Json(api::openapi())));
 
-    #[cfg(feature = "rapidoc")]
-    let router = {
-        use axum::response::Html;
-        use utoipa_rapidoc::RapiDoc;
-
-        router.route(
-            "/rapidoc",
-            get(Html(RapiDoc::new(api::OPEN_API_DOCS_PATH).to_html())),
-        )
-    };
-
-    #[cfg(feature = "scalar")]
-    let router = {
-        use axum::response::Html;
-        use utoipa_scalar::Scalar;
-
-        router.route("/scalar", get(Html(Scalar::new(api::openapi()).to_html())))
-    };
-
-    #[cfg(feature = "swagger-ui")]
-    let router = {
-        use axum::response::Html;
-
-        router.route(
-            "/swagger-ui",
-            get(Html(include_str!("static/swagger-ui.html"))),
-        )
-    };
-
     router
         .with_state(AppState {
             data_access,
@@ -222,8 +193,8 @@ pub async fn serve(opts: ServerOpts) -> Result<(), ServerError> {
         rate_limiter,
     );
 
-    #[cfg(feature = "ui")]
-    let server = server.fallback_service(tower_http::services::ServeDir::new(&opts.ui_dir));
+    #[cfg(feature = "serve-dir")]
+    let server = server.fallback_service(tower_http::services::ServeDir::new(&opts.serve_dir));
 
     let app = server.into_make_service_with_connect_info::<SocketAddr>();
 

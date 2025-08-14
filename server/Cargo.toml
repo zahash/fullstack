@@ -25,8 +25,6 @@ tower-http = { version = "0.6", features = ["fs", "request-id", "trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 utoipa = { version = "5.4.0", optional = true }
-utoipa-rapidoc = { version = "6", optional = true }
-utoipa-scalar = { version = "0.3", optional = true }
 
 auth = { path = "../auth", features = ["axum", "tracing"] }
 contextual = { path = "../contextual" }
@@ -47,9 +45,8 @@ test-proc-macros = { path = "../test-proc-macros", features = [
 
 [features]
 openapi = ["dep:utoipa", "auth/openapi", "extra/openapi"]
-rapidoc = ["dep:utoipa-rapidoc", "openapi"]
 rate-limit = []
-scalar = ["dep:utoipa-scalar", "openapi"]
+serve-dir = []
 smtp = [
     "dep:lettre",
     "dep:tera",
@@ -61,5 +58,3 @@ smtp = [
     "lettre/tracing",
 ]
 smtp--no-tls = []
-swagger-ui = ["openapi"]
-ui = []
