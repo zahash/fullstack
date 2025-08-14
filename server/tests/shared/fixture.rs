@@ -3,9 +3,9 @@ use crate::{
     shared::request::{login, signup},
 };
 
-pub async fn _sample_fixture(data_access: &data_access::DataAccess) {
+pub async fn _sample_fixture(pool: &sqlx::Pool<sqlx::Sqlite>) {
     fixture! {
-        data_access;
+        pool;
         signup("user1", "user1@test.com", "pass1");
         login("user1", "pass1");
     }

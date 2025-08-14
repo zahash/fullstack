@@ -1,10 +1,8 @@
 use std::ops::Deref;
 
 use cookie::{Cookie, SameSite, time::Duration};
-use dashcache::DashCache;
-use data_access::DataAccess;
+
 use http::header::COOKIE;
-use tag::Tag;
 use time::OffsetDateTime;
 use token::Token;
 
@@ -46,7 +44,6 @@ pub enum SessionCookieExtractionError {
 
 #[derive(Debug, Clone)]
 pub struct SessionInfo {
-    id: i64,
     pub user_id: i64,
     pub created_at: OffsetDateTime,
     pub expires_at: OffsetDateTime,
@@ -76,38 +73,20 @@ impl SessionId {
 
     pub async fn info(
         &self,
-        data_access: &DataAccess,
-    ) -> Result<Option<SessionInfo>, data_access::Error> {
+        pool: &sqlx::Pool<sqlx::Sqlite>,
+    ) -> Result<Option<SessionInfo>, sqlx::Error> {
         let session_id_hash = self.hash_sha256();
 
-        data_access
-            .read(
-                |pool| {
-                    sqlx::query_as!(
-                        SessionInfo,
-                        r#"
-                        SELECT id as "id!", user_id, created_at, expires_at, user_agent
-                        FROM sessions WHERE session_id_hash = ?
-                        "#,
-                        session_id_hash
-                    )
-                    .fetch_optional(pool)
-                },
-                "session_info__from__session_id",
-                session_id_hash.clone(),
-                |value| match value {
-                    Some(session_info) => vec![Tag {
-                        table: "sessions",
-                        primary_key: Some(session_info.id),
-                    }],
-                    None => vec![Tag {
-                        table: "sessions",
-                        primary_key: None,
-                    }],
-                },
-                DashCache::new,
-            )
-            .await
+        sqlx::query_as!(
+            SessionInfo,
+            r#"
+            SELECT user_id, created_at, expires_at, user_agent
+            FROM sessions WHERE session_id_hash = ?
+            "#,
+            session_id_hash
+        )
+        .fetch_optional(pool)
+        .await
     }
 }
 
@@ -152,44 +131,22 @@ impl TryFrom<SessionInfo> for Verified<SessionInfo> {
 impl Verified<SessionInfo> {
     pub async fn permissions(
         &self,
-        data_access: &DataAccess,
-    ) -> Result<Permissions, data_access::Error> {
+        pool: &sqlx::Pool<sqlx::Sqlite>,
+    ) -> Result<Permissions, sqlx::Error> {
         let user_id = self.0.user_id;
 
-        data_access
-            .read(
-                |pool| {
-                    sqlx::query_as!(
-                        Permission,
-                        r#"
-                        SELECT p.id as "id!", p.permission, p.description from permissions p
-                        INNER JOIN user_permissions up ON up.permission_id = p.id
-                        WHERE up.user_id = ?
-                        "#,
-                        user_id
-                    )
-                    .fetch_all(pool)
-                },
-                "session_permissions__from__user_id",
-                user_id,
-                |permissions| {
-                    let mut tags = permissions
-                        .iter()
-                        .map(|p| Tag {
-                            table: "permissions",
-                            primary_key: Some(p.id),
-                        })
-                        .collect::<Vec<Tag>>();
-                    tags.push(Tag {
-                        table: "users",
-                        primary_key: Some(user_id),
-                    });
-                    tags
-                },
-                DashCache::new,
-            )
-            .await
-            .map(Permissions)
+        sqlx::query_as!(
+            Permission,
+            r#"
+            SELECT p.id as "id!", p.permission, p.description from permissions p
+            INNER JOIN user_permissions up ON up.permission_id = p.id
+            WHERE up.user_id = ?
+            "#,
+            user_id
+        )
+        .fetch_all(pool)
+        .await
+        .map(Permissions)
     }
 }
 

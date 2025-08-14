@@ -16,7 +16,6 @@ use axum::{
     routing::{get, post},
 };
 use contextual::Context;
-use data_access::DataAccess;
 use sqlx::SqlitePool;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
@@ -57,14 +56,14 @@ pub struct SMTPConfig {
 
 #[derive(Clone)]
 pub struct AppState {
-    pub data_access: DataAccess,
+    pub pool: sqlx::Pool<sqlx::Sqlite>,
 
     #[cfg(feature = "smtp")]
     pub smtp: crate::smtp::Smtp,
 }
 
 pub fn server(
-    data_access: DataAccess,
+    pool: sqlx::Pool<sqlx::Sqlite>,
     #[cfg(feature = "smtp")] smtp: crate::smtp::Smtp,
     #[cfg(feature = "rate-limit")] rate_limiter: crate::middleware::RateLimiter,
 ) -> Router {
@@ -128,7 +127,7 @@ pub fn server(
 
     router
         .with_state(AppState {
-            data_access,
+            pool,
 
             #[cfg(feature = "smtp")]
             smtp,
@@ -140,11 +139,9 @@ pub async fn serve(opts: ServerOpts) -> Result<(), ServerError> {
     #[cfg(feature = "tracing")]
     tracing::info!("{:?}", opts);
 
-    let data_access = DataAccess::new(
-        SqlitePool::connect(&opts.database_url)
-            .await
-            .context(format!("connect database :: {}", opts.database_url))?,
-    );
+    let pool = SqlitePool::connect(&opts.database_url)
+        .await
+        .context(format!("connect database :: {}", opts.database_url))?;
 
     #[cfg(feature = "smtp")]
     let smtp = crate::smtp::Smtp {
@@ -193,7 +190,7 @@ pub async fn serve(opts: ServerOpts) -> Result<(), ServerError> {
         crate::middleware::RateLimiter::new(opts.rate_limiter.limit, opts.rate_limiter.interval);
 
     let server = server(
-        data_access,
+        pool,
         #[cfg(feature = "smtp")]
         smtp,
         #[cfg(feature = "rate-limit")]
@@ -239,9 +236,9 @@ pub enum ServerError {
     Io(#[from] contextual::Error<std::io::Error>),
 }
 
-impl FromRef<AppState> for DataAccess {
-    fn from_ref(input: &AppState) -> Self {
-        input.data_access.clone()
+impl FromRef<AppState> for sqlx::Pool<sqlx::Sqlite> {
+    fn from_ref(app_state: &AppState) -> Self {
+        app_state.pool.clone()
     }
 }
 

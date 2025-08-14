@@ -1,8 +1,5 @@
 use std::ops::Deref;
 
-use dashcache::DashCache;
-use data_access::DataAccess;
-use tag::Tag;
 use time::OffsetDateTime;
 use token::Token;
 
@@ -64,39 +61,21 @@ impl AccessToken {
 
     pub async fn info(
         &self,
-        data_access: &DataAccess,
-    ) -> Result<Option<AccessTokenInfo>, data_access::Error> {
+        pool: &sqlx::Pool<sqlx::Sqlite>,
+    ) -> Result<Option<AccessTokenInfo>, sqlx::Error> {
         let access_token_hash = self.hash_sha256();
 
-        data_access
-            .read(
-                |pool| {
-                    sqlx::query_as!(
-                        AccessTokenInfo,
-                        r#"
-                        SELECT id as "id!", name, user_id, created_at, expires_at
-                        FROM access_tokens
-                        WHERE access_token_hash = ?
-                        "#,
-                        access_token_hash
-                    )
-                    .fetch_optional(pool)
-                },
-                "access_token_info__from__access_token_hash",
-                access_token_hash.clone(),
-                |value| match value {
-                    Some(access_token_info) => vec![Tag {
-                        table: "access_tokens",
-                        primary_key: Some(access_token_info.id),
-                    }],
-                    None => vec![Tag {
-                        table: "access_tokens",
-                        primary_key: None,
-                    }],
-                },
-                DashCache::new,
-            )
-            .await
+        sqlx::query_as!(
+            AccessTokenInfo,
+            r#"
+            SELECT id as "id!", name, user_id, created_at, expires_at
+            FROM access_tokens
+            WHERE access_token_hash = ?
+            "#,
+            access_token_hash
+        )
+        .fetch_optional(pool)
+        .await
     }
 }
 
@@ -131,42 +110,22 @@ impl TryFrom<AccessTokenInfo> for Verified<AccessTokenInfo> {
 impl Verified<AccessTokenInfo> {
     pub async fn permissions(
         &self,
-        data_access: &DataAccess,
-    ) -> Result<Permissions, data_access::Error> {
+        pool: &sqlx::Pool<sqlx::Sqlite>,
+    ) -> Result<Permissions, sqlx::Error> {
         let access_token_id = self.0.id;
 
-        data_access
-            .read(
-                |pool| {
-                    sqlx::query_as!(
-                        Permission,
-                        r#"SELECT p.id as "id!", p.permission, p.description from permissions p
-                        INNER JOIN access_token_permissions atp ON atp.permission_id = p.id
-                        WHERE atp.access_token_id = ?"#,
-                        access_token_id
-                    )
-                    .fetch_all(pool)
-                },
-                "access_token_permissions__from__access_token_id",
-                access_token_id,
-                |permissions| {
-                    let mut tags = permissions
-                        .iter()
-                        .map(|p| Tag {
-                            table: "permissions",
-                            primary_key: Some(p.id),
-                        })
-                        .collect::<Vec<Tag>>();
-                    tags.push(Tag {
-                        table: "access_tokens",
-                        primary_key: Some(access_token_id),
-                    });
-                    tags
-                },
-                DashCache::new,
-            )
-            .await
-            .map(Permissions)
+        sqlx::query_as!(
+            Permission,
+            r#"
+            SELECT p.id as "id!", p.permission, p.description from permissions p
+            INNER JOIN access_token_permissions atp ON atp.permission_id = p.id
+            WHERE atp.access_token_id = ?
+            "#,
+            access_token_id
+        )
+        .fetch_all(pool)
+        .await
+        .map(Permissions)
     }
 }
 

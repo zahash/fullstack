@@ -28,11 +28,8 @@ utoipa = { version = "5.4.0", optional = true }
 
 auth = { path = "../auth", features = ["axum"] }
 contextual = { path = "../contextual" }
-dashcache = { path = "../dashcache" }
-data-access = { path = "../data-access" }
 email = { path = "../email", features = ["serde", "sqlite"] }
 extra = { path = "../extra", features = ["error-response"] }
-tag = { path = "../tag" }
 token = { path = "../token", optional = true }
 validation = { path = "../validation" }
 
@@ -59,10 +56,4 @@ smtp = [
     "lettre/tracing",
 ]
 smtp--no-tls = []
-tracing = [
-    "dep:tracing",
-    "auth/tracing",
-    "dashcache/tracing",
-    "data-access/tracing",
-    "tracing-subscriber/env-filter",
-]
+tracing = ["dep:tracing", "auth/tracing", "tracing-subscriber/env-filter"]

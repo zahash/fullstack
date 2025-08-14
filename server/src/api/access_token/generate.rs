@@ -5,7 +5,6 @@ use axum::{Form, extract::State, http::StatusCode, response::IntoResponse};
 use axum_macros::debug_handler;
 use contextual::Context;
 use serde::Deserialize;
-use tag::Tag;
 use time::OffsetDateTime;
 
 use crate::AppState;
@@ -41,12 +40,12 @@ pub struct Config {
 #[debug_handler]
 #[cfg_attr(feature = "tracing", tracing::instrument(fields(user_id = tracing::field::Empty, ?settings), skip_all))]
 pub async fn handler(
-    State(AppState { data_access, .. }): State<AppState>,
+    State(AppState { pool, .. }): State<AppState>,
     principal: Principal,
     Form(settings): Form<Config>,
 ) -> Result<(StatusCode, String), Error> {
     let permissions = principal
-        .permissions(&data_access)
+        .permissions(&pool)
         .await
         .context("get permissions")?;
 
@@ -64,39 +63,21 @@ pub async fn handler(
         .ttl_sec
         .map(|sec| created_at + Duration::from_secs(sec));
 
-    data_access
-        .write(
-            |pool| {
-                sqlx::query!(
-                    r#"
-                    INSERT INTO access_tokens
-                    (name, access_token_hash, user_id, created_at, expires_at)
-                    VALUES (?, ?, ?, ?, ?)
-                    RETURNING id as "id!"
-                    "#,
-                    settings.name,
-                    access_token_hash,
-                    user_id,
-                    created_at,
-                    expires_at,
-                )
-                .fetch_one(pool)
-            },
-            |value| {
-                vec![
-                    Tag {
-                        table: "access_tokens",
-                        primary_key: None,
-                    },
-                    Tag {
-                        table: "access_tokens",
-                        primary_key: Some(value.id),
-                    },
-                ]
-            },
-        )
-        .await
-        .context("insert access token")?;
+    sqlx::query!(
+        r#"
+        INSERT INTO access_tokens
+        (name, access_token_hash, user_id, created_at, expires_at)
+        VALUES (?, ?, ?, ?, ?)
+        "#,
+        settings.name,
+        access_token_hash,
+        user_id,
+        created_at,
+        expires_at,
+    )
+    .execute(&pool)
+    .await
+    .context("insert access token")?;
 
     #[cfg(feature = "tracing")]
     tracing::info!(?expires_at, "access_token created");
@@ -110,14 +91,14 @@ pub enum Error {
     Permission(#[from] InsufficientPermissionsError),
 
     #[error("{0}")]
-    DataAccess(#[from] contextual::Error<data_access::Error>),
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
 }
 
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
             Error::Permission(err) => err.into_response(),
-            Error::DataAccess(_err) => {
+            Error::Sqlx(_err) => {
                 #[cfg(feature = "tracing")]
                 tracing::error!("{:?}", _err);
 

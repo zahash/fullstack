@@ -2,37 +2,46 @@ mod shared;
 
 use shared::{
     request::{login, signup},
-    setup::data_access,
+    setup::pool,
 };
 use test_proc_macros::{email, password, username};
 
 #[tokio::test]
 async fn onboarding_flow() {
+    #[cfg(feature = "tracing")]
+    shared::setup::tracing_init();
+
     let username = username!("user1");
     let email = email!("user1@test.com");
     let password = password!("Aa!1aaaa");
 
-    let data_access = data_access().await;
+    let pool = pool().await;
 
-    t!( send!(data_access login(username, password))  => status!(401) );
-    t!( send!(data_access signup(username, email, password)) => status!(201) );
-    t!( send!(data_access login(username, password))  => status!(200) );
+    t!( send!(pool login(username, password))  => status!(401) );
+    t!( send!(pool signup(username, email, password)) => status!(201) );
+    t!( send!(pool login(username, password))  => status!(200) );
 }
 
 #[tokio::test]
 async fn double_signup() {
+    #[cfg(feature = "tracing")]
+    shared::setup::tracing_init();
+
     let username = username!("user1");
     let email = email!("user1@test.com");
     let password = password!("Aa!1aaaa");
 
-    let data_access = data_access().await;
+    let pool = pool().await;
 
-    t!( send!(data_access signup(username, email, password)) => status!(201) );
-    t!( send!(data_access signup(username, email, password)) => status!(409) );
+    t!( send!(pool signup(username, email, password)) => status!(201) );
+    t!( send!(pool signup(username, email, password)) => status!(409) );
 }
 
 #[tokio::test]
 async fn username_taken() {
+    #[cfg(feature = "tracing")]
+    shared::setup::tracing_init();
+
     let username = username!("user1");
 
     let email1 = email!("user_1@test.com");
@@ -41,19 +50,22 @@ async fn username_taken() {
     let password1 = password!("Aa!1aaaa");
     let password2 = password!("Bb!2bbbb");
 
-    let data_access = data_access().await;
+    let pool = pool().await;
 
     fixture! {
-        data_access;
+        pool;
         signup(username, email1, password1);
     }
 
-    t!( send!(data_access signup(username, email2, password2)) => status!(409) );
+    t!( send!(pool signup(username, email2, password2)) => status!(409) );
 }
 
 #[tokio::test]
 async fn email_taken() {
-    let data_access = data_access().await;
+    #[cfg(feature = "tracing")]
+    shared::setup::tracing_init();
+
+    let pool = pool().await;
 
     let email = email!("user3@test.com");
 
@@ -64,9 +76,9 @@ async fn email_taken() {
     let password2 = password!("Bb!2bbbb");
 
     fixture! {
-        data_access;
+        pool;
         signup(username1, email, password1);
     }
 
-    t!( send!(data_access signup(username2, email, password2)) => status!(409) );
+    t!( send!(pool signup(username2, email, password2)) => status!(409) );
 }

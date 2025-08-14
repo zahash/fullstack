@@ -5,11 +5,11 @@ use axum::{
 };
 use axum_macros::debug_handler;
 use contextual::Context;
-use dashcache::DashCache;
+
 use extra::ErrorResponse;
 use http::StatusCode;
 use serde::Deserialize;
-use tag::Tag;
+
 use time::OffsetDateTime;
 
 use crate::{AppState, smtp::VerificationToken};
@@ -40,7 +40,7 @@ pub struct QueryParams {
 ))]
 #[debug_handler]
 pub async fn handler(
-    State(AppState { data_access, .. }): State<AppState>,
+    State(AppState { pool, .. }): State<AppState>,
     Query(QueryParams { token_b64encoded }): Query<QueryParams>,
 ) -> Result<StatusCode, Error> {
     // TODO: require authentication for this.
@@ -54,71 +54,35 @@ pub async fn handler(
 
     #[derive(Debug, Clone)]
     struct Row {
-        id: i64,
         user_id: i64,
         expires_at: OffsetDateTime,
     }
 
-    let row = data_access
-        .read(
-            |pool| {
-                sqlx::query_as!(
-                    Row,
-                    r#"
-                    SELECT id as "id!", user_id, expires_at
-                    FROM email_verification_tokens
-                    WHERE token_hash = ?
-                    "#,
-                    token_hash
-                )
-                .fetch_optional(pool)
-            },
-            "email_verification_token__from__token_hash",
-            token_hash.clone(),
-            |value| match value {
-                Some(row) => vec![Tag {
-                    table: "email_verification_tokens",
-                    primary_key: Some(row.id),
-                }],
-                None => vec![Tag {
-                    table: "email_verification_tokens",
-                    primary_key: None,
-                }],
-            },
-            DashCache::new,
-        )
-        .await
-        .context("select Email VerificationToken")?
-        .ok_or(Error::TokenNotFound)?;
+    let row = sqlx::query_as!(
+        Row,
+        r#"
+        SELECT user_id, expires_at
+        FROM email_verification_tokens
+        WHERE token_hash = ?
+        "#,
+        token_hash
+    )
+    .fetch_optional(&pool)
+    .await
+    .context("select Email VerificationToken")?
+    .ok_or(Error::TokenNotFound)?;
 
     if OffsetDateTime::now_utc() > row.expires_at {
         return Err(Error::TokenExpired);
     }
 
-    data_access
-        .write(
-            |pool| {
-                sqlx::query!(
-                    "UPDATE users SET email_verified = 1 WHERE id = ?",
-                    row.user_id
-                )
-                .execute(pool)
-            },
-            |_| {
-                vec![
-                    Tag {
-                        table: "users",
-                        primary_key: Some(row.user_id),
-                    },
-                    Tag {
-                        table: "users",
-                        primary_key: None,
-                    },
-                ]
-            },
-        )
-        .await
-        .context("user email_verified")?;
+    sqlx::query!(
+        "UPDATE users SET email_verified = 1 WHERE id = ?",
+        row.user_id
+    )
+    .execute(&pool)
+    .await
+    .context("user email_verified")?;
 
     Ok(StatusCode::OK)
 }
@@ -135,7 +99,7 @@ pub enum Error {
     TokenExpired,
 
     #[error("{0}")]
-    DataAccess(#[from] contextual::Error<data_access::Error>),
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
 }
 
 impl IntoResponse for Error {
@@ -159,7 +123,7 @@ impl IntoResponse for Error {
 
                 (StatusCode::GONE, Json(ErrorResponse::from(self))).into_response()
             }
-            Error::DataAccess(_) => {
+            Error::Sqlx(_) => {
                 #[cfg(feature = "tracing")]
                 tracing::error!("{:?}", self);
 

@@ -1,9 +1,6 @@
 use clap::Parser;
 
-// TODO: Stop using DataAccess + Cache Abstraction and just use raw sql
-//       because it is a pain in the ass to develop a "transaction-aware" cache
 // TODO: introduce other databases, like postgres and mysql
-// TODO: put server tracing behind feature flag
 
 #[derive(Debug, clap::Parser)]
 struct Args {

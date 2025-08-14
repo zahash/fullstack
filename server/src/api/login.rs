@@ -9,9 +9,9 @@ use axum_extra::extract::CookieJar;
 use axum_macros::debug_handler;
 use bcrypt::verify;
 use contextual::Context;
-use dashcache::DashCache;
+
 use serde::Deserialize;
-use tag::Tag;
+
 use time::{Duration, OffsetDateTime};
 
 use crate::AppState;
@@ -36,7 +36,7 @@ pub enum Error {
     InvalidCredentials,
 
     #[error("{0}")]
-    DataAccess(#[from] contextual::Error<data_access::Error>),
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
 
     #[error("{0}")]
     Bcrypt(#[from] contextual::Error<bcrypt::BcryptError>),
@@ -60,7 +60,7 @@ pub enum Error {
 #[debug_handler]
 #[cfg_attr(feature = "tracing", tracing::instrument(fields(%username), skip_all))]
 pub async fn handler(
-    State(AppState { data_access, .. }): State<AppState>,
+    State(AppState { pool, .. }): State<AppState>,
     headers: HeaderMap,
     jar: CookieJar,
     Form(Credentials { username, password }): Form<Credentials>,
@@ -71,31 +71,13 @@ pub async fn handler(
         password_hash: String,
     }
 
-    let user = data_access
-        .read(
-            |pool| {
-                sqlx::query_as!(
-                    User,
-                    r#"SELECT id as "id!", password_hash FROM users WHERE username = ?"#,
-                    username
-                )
-                .fetch_optional(pool)
-            },
-            "login_user__from__username",
-            username.clone(),
-            |value| match value {
-                Some(user) => vec![Tag {
-                    table: "users",
-                    primary_key: Some(user.id),
-                }],
-                None => vec![Tag {
-                    table: "users",
-                    primary_key: None,
-                }],
-            },
-            DashCache::new,
-        )
-        .await;
+    let user = sqlx::query_as!(
+        User,
+        r#"SELECT id as "id!", password_hash FROM users WHERE username = ?"#,
+        username
+    )
+    .fetch_optional(&pool)
+    .await;
 
     let user = user
         .context("username -> User { id, password_hash }")?
@@ -114,39 +96,21 @@ pub async fn handler(
     let expires_at = created_at + COOKIE_DURATION;
     let user_agent = headers.get(USER_AGENT).and_then(|val| val.to_str().ok());
 
-    data_access
-        .write(
-            |pool| {
-                sqlx::query!(
-                    r#"
-                    INSERT INTO sessions
-                    (session_id_hash, user_id, created_at, expires_at, user_agent)
-                    VALUES (?, ?, ?, ?, ?)
-                    RETURNING id as "id!"
-                    "#,
-                    session_id_hash,
-                    user.id,
-                    created_at,
-                    expires_at,
-                    user_agent
-                )
-                .fetch_one(pool)
-            },
-            |value| {
-                vec![
-                    Tag {
-                        table: "sessions",
-                        primary_key: None,
-                    },
-                    Tag {
-                        table: "sessions",
-                        primary_key: Some(value.id),
-                    },
-                ]
-            },
-        )
-        .await
-        .context("insert session")?;
+    sqlx::query!(
+        r#"
+        INSERT INTO sessions
+        (session_id_hash, user_id, created_at, expires_at, user_agent)
+        VALUES (?, ?, ?, ?, ?)
+        "#,
+        session_id_hash,
+        user.id,
+        created_at,
+        expires_at,
+        user_agent
+    )
+    .execute(&pool)
+    .await
+    .context("insert session")?;
 
     #[cfg(feature = "tracing")]
     tracing::info!(?expires_at, ?user_agent, "session created");
@@ -166,7 +130,7 @@ impl IntoResponse for Error {
 
                 StatusCode::UNAUTHORIZED.into_response()
             }
-            Error::DataAccess(_) | Error::Bcrypt(_) => {
+            Error::Sqlx(_) | Error::Bcrypt(_) => {
                 #[cfg(feature = "tracing")]
                 tracing::error!("{:?}", self);
 

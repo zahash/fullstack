@@ -1,5 +1,4 @@
 use contextual::Context;
-use data_access::DataAccess;
 use http::HeaderMap;
 
 use crate::{
@@ -48,7 +47,7 @@ pub enum PrincipalError {
     NoCredentialsProvided,
 
     #[error("{0}")]
-    DataAccess(#[from] contextual::Error<data_access::Error>),
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
 
     #[error("{0}")]
     Bcrypt(#[from] contextual::Error<bcrypt::BcryptError>),
@@ -65,22 +64,22 @@ impl Principal {
 
     pub async fn permissions(
         &self,
-        data_access: &DataAccess,
-    ) -> Result<Permissions, data_access::Error> {
+        pool: &sqlx::Pool<sqlx::Sqlite>,
+    ) -> Result<Permissions, sqlx::Error> {
         match self {
-            Principal::Session(info) => info.permissions(data_access).await,
-            Principal::AccessToken(info) => info.permissions(data_access).await,
-            Principal::Basic(info) => info.permissions(data_access).await,
+            Principal::Session(info) => info.permissions(pool).await,
+            Principal::AccessToken(info) => info.permissions(pool).await,
+            Principal::Basic(info) => info.permissions(pool).await,
         }
     }
 
     pub async fn from(
         headers: &HeaderMap,
-        data_access: &DataAccess,
+        pool: &sqlx::Pool<sqlx::Sqlite>,
     ) -> Result<Self, PrincipalError> {
         if let Some(access_token) = AccessToken::try_from_headers(headers)? {
             let info = access_token
-                .info(data_access)
+                .info(pool)
                 .await
                 .context("AccessToken -> AccessTokenInfo")?
                 .ok_or(PrincipalError::UnAssociatedAccessToken)?;
@@ -89,7 +88,7 @@ impl Principal {
         }
 
         if let Some(Basic { username, password }) = Basic::try_from_headers(headers)? {
-            let user_info = UserInfo::from_username(&username, data_access)
+            let user_info = UserInfo::from_username(&username, pool)
                 .await
                 .context("username -> UserInfo")?
                 .ok_or(PrincipalError::UsernameNotFound(username))?;
@@ -102,7 +101,7 @@ impl Principal {
 
         if let Some(session_id) = SessionId::try_from_headers(headers)? {
             let info = session_id
-                .info(data_access)
+                .info(pool)
                 .await
                 .context("SessionId -> SessionInfo")?
                 .ok_or(PrincipalError::UnAssociatedSessionId)?;
@@ -118,7 +117,7 @@ impl Principal {
 impl<S> axum::extract::FromRequestParts<S> for Principal
 where
     S: Send + Sync,
-    DataAccess: axum::extract::FromRef<S>,
+    sqlx::Pool<sqlx::Sqlite>: axum::extract::FromRef<S>,
 {
     type Rejection = PrincipalError;
 
@@ -127,7 +126,7 @@ where
         state: &S,
     ) -> Result<Self, Self::Rejection> {
         use axum::extract::FromRef;
-        Principal::from(headers, &DataAccess::from_ref(state)).await
+        Principal::from(headers, &sqlx::Pool::<sqlx::Sqlite>::from_ref(state)).await
     }
 }
 
@@ -153,7 +152,7 @@ impl axum::response::IntoResponse for PrincipalError {
             PrincipalError::SessionCookieExtraction(err) => err.into_response(),
             PrincipalError::AccessTokenValidation(err) => err.into_response(),
             PrincipalError::SessionIdValidation(err) => err.into_response(),
-            PrincipalError::DataAccess(_) | PrincipalError::Bcrypt(_) => {
+            PrincipalError::Sqlx(_) | PrincipalError::Bcrypt(_) => {
                 #[cfg(feature = "tracing")]
                 tracing::error!("{:?}", self);
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()

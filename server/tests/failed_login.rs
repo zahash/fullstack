@@ -2,34 +2,40 @@ mod shared;
 
 use shared::{
     request::{login, signup},
-    setup::data_access,
+    setup::pool,
 };
 use test_proc_macros::{email, password, username};
 
 #[tokio::test]
 async fn wrong_password() {
+    #[cfg(feature = "tracing")]
+    shared::setup::tracing_init();
+
     let username = username!("user1");
     let email = email!("user1@test.com");
 
     let password = password!("Aa!1aaaa");
     let wrong_password = password!("Bb!2bbbb");
 
-    let data_access = data_access().await;
+    let pool = pool().await;
 
     fixture!(
-        data_access;
+        pool;
         signup(username, email, password);
     );
 
-    t!( send!(data_access login(username, wrong_password)) => status!(401) );
+    t!( send!(pool login(username, wrong_password)) => status!(401) );
 }
 
 #[tokio::test]
 async fn user_not_found() {
+    #[cfg(feature = "tracing")]
+    shared::setup::tracing_init();
+
     let username = username!("user1");
     let password = password!("Aa!1aaaa");
 
-    let data_access = data_access().await;
+    let pool = pool().await;
 
-    t!( send!(data_access login(username, password)) => status!(401) );
+    t!( send!(pool login(username, password)) => status!(401) );
 }

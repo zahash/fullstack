@@ -30,14 +30,14 @@ pub const PATH: &str = "/access-token/verify";
 ))]
 #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, ret))]
 pub async fn handler(
-    State(AppState { data_access, .. }): State<AppState>,
+    State(AppState { pool, .. }): State<AppState>,
     headers: HeaderMap,
 ) -> Result<StatusCode, Error> {
     let access_token =
         AccessToken::try_from_headers(&headers)?.ok_or_else(|| Error::AccessTokenHeaderNotFound)?;
 
     let info = access_token
-        .info(&data_access)
+        .info(&pool)
         .await
         .context("AccessToken -> AccessTokenInfo")?
         .ok_or(Error::UnAssociatedAccessToken)?;
@@ -71,7 +71,7 @@ pub enum Error {
     AccessTokenValidation(#[from] AccessTokenValidationError),
 
     #[error("{0}")]
-    DataAccess(#[from] contextual::Error<data_access::Error>),
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
 }
 
 impl IntoResponse for Error {
@@ -85,7 +85,7 @@ impl IntoResponse for Error {
                 (StatusCode::UNAUTHORIZED, Json(ErrorResponse::from(self))).into_response()
             }
             Error::AccessTokenValidation(err) => err.into_response(),
-            Error::DataAccess(_err) => {
+            Error::Sqlx(_err) => {
                 #[cfg(feature = "tracing")]
                 tracing::error!("{:?}", _err);
 

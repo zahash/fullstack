@@ -9,7 +9,6 @@ use email::Email;
 use extra::ErrorResponse;
 use serde::Deserialize;
 
-use tag::Tag;
 use validation::{validate_password, validate_username};
 
 use crate::AppState;
@@ -48,7 +47,7 @@ pub enum Error {
     WeakPassword(&'static str),
 
     #[error("{0}")]
-    DataAccess(#[from] contextual::Error<data_access::Error>),
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
 
     #[error("{0}")]
     Bcrypt(#[from] contextual::Error<bcrypt::BcryptError>),
@@ -73,7 +72,7 @@ pub enum Error {
 #[cfg_attr(feature = "tracing", tracing::instrument(fields(%username, %email), skip_all, ret))]
 pub async fn handler(
     State(AppState {
-        data_access,
+        pool,
 
         #[cfg(feature = "smtp")]
         smtp,
@@ -88,14 +87,14 @@ pub async fn handler(
     let password = validate_password(password).map_err(Error::WeakPassword)?;
     let email = Email::try_from(email).map_err(Error::InvalidEmail)?;
 
-    if super::username::exists(&data_access, &username)
+    if super::username::exists(&pool, &username)
         .await
         .context("username exists")?
     {
         return Err(Error::UsernameExists(username));
     }
 
-    if super::email::exists(&data_access, &email)
+    if super::email::exists(&pool, &email)
         .await
         .context("email exists")?
     {
@@ -104,37 +103,19 @@ pub async fn handler(
 
     let password_hash = bcrypt::hash(password, bcrypt::DEFAULT_COST).context("hash password")?;
 
-    data_access
-        .write(
-            |pool| {
-                sqlx::query!(
-                    r#"
-                    INSERT INTO users
-                    (username, email, password_hash)
-                    VALUES (?, ?, ?)
-                    RETURNING id as "user_id!"
-                    "#,
-                    username,
-                    email,
-                    password_hash,
-                )
-                .fetch_one(pool)
-            },
-            |value| {
-                vec![
-                    Tag {
-                        table: "users",
-                        primary_key: None,
-                    },
-                    Tag {
-                        table: "users",
-                        primary_key: Some(value.user_id),
-                    },
-                ]
-            },
-        )
-        .await
-        .context("insert user")?;
+    sqlx::query!(
+        r#"
+        INSERT INTO users
+        (username, email, password_hash)
+        VALUES (?, ?, ?)
+        "#,
+        username,
+        email,
+        password_hash,
+    )
+    .execute(&pool)
+    .await
+    .context("insert user")?;
 
     #[cfg(feature = "smtp")]
     tokio::spawn({
@@ -142,7 +123,7 @@ pub async fn handler(
         tracing::info!("spawn task to initiate email verification for {email}");
 
         let fut = async move {
-            let _res = crate::smtp::initiate_email_verification(&data_access, &smtp, &email)
+            let _res = crate::smtp::initiate_email_verification(&pool, &smtp, &email)
                 .await
                 .context("signup");
 
@@ -183,7 +164,7 @@ impl IntoResponse for Error {
 
                 (StatusCode::CONFLICT, Json(ErrorResponse::from(self))).into_response()
             }
-            Error::DataAccess(_) | Error::Bcrypt(_) => {
+            Error::Sqlx(_) | Error::Bcrypt(_) => {
                 #[cfg(feature = "tracing")]
                 tracing::error!("{:?}", self);
 

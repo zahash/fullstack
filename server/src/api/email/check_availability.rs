@@ -36,12 +36,12 @@ pub struct QueryParams {
 ))]
 #[cfg_attr(feature = "tracing", tracing::instrument(fields(%email), skip_all, ret))]
 pub async fn handler(
-    State(AppState { data_access, .. }): State<AppState>,
+    State(AppState { pool, .. }): State<AppState>,
     Query(QueryParams { email }): Query<QueryParams>,
 ) -> Result<StatusCode, Error> {
     let email = Email::try_from(email).map_err(Error::InvalidParams)?;
 
-    match super::exists(&data_access, &email)
+    match super::exists(&pool, &email)
         .await
         .context("check email availability")?
     {
@@ -56,7 +56,7 @@ pub enum Error {
     InvalidParams(&'static str),
 
     #[error("{0}")]
-    DataAccess(#[from] contextual::Error<data_access::Error>),
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
 }
 
 impl IntoResponse for Error {
@@ -68,7 +68,7 @@ impl IntoResponse for Error {
 
                 (StatusCode::BAD_REQUEST, Json(ErrorResponse::from(self))).into_response()
             }
-            Error::DataAccess(_err) => {
+            Error::Sqlx(_err) => {
                 #[cfg(feature = "tracing")]
                 tracing::error!("{:?}", _err);
 

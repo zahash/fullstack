@@ -2,8 +2,7 @@ use std::{path::PathBuf, str::FromStr, sync::Arc};
 
 use axum::{Json, response::IntoResponse};
 use contextual::Context;
-use dashcache::DashCache;
-use data_access::DataAccess;
+
 use email::Email;
 use extra::ErrorResponse;
 use http::StatusCode;
@@ -12,7 +11,7 @@ use lettre::{
     message::{Mailbox, MultiPart},
     transport::smtp::response::Response,
 };
-use tag::Tag;
+
 use tera::Tera;
 use time::OffsetDateTime;
 use token::Token;
@@ -59,7 +58,7 @@ impl SmtpSenders {
 }
 
 pub async fn initiate_email_verification(
-    data_access: &DataAccess,
+    pool: &sqlx::Pool<sqlx::Sqlite>,
     smtp: &Smtp,
     email: &Email,
 ) -> Result<Response, InitiateEmailVerificationError> {
@@ -106,72 +105,36 @@ pub async fn initiate_email_verification(
         user_id: i64,
     }
 
-    let user_id = data_access
-        .read(
-            |pool| {
-                sqlx::query_as!(
-                    Row,
-                    r#"
-                    SELECT id as "user_id!" FROM users 
-                    WHERE email = ? LIMIT 1
-                    "#,
-                    email
-                )
-                .fetch_optional(pool)
-            },
-            "user_id__from__email",
-            email.clone(),
-            |value| match value {
-                Some(row) => vec![Tag {
-                    table: "users",
-                    primary_key: Some(row.user_id),
-                }],
-                None => vec![Tag {
-                    table: "users",
-                    primary_key: None,
-                }],
-            },
-            DashCache::new,
-        )
-        .await
-        .context("email -> user_id")?
-        .ok_or(InitiateEmailVerificationError::EmailDoesNotExist(
-            email.clone(),
-        ))?
-        .user_id;
+    let user_id = sqlx::query_as!(
+        Row,
+        r#"
+        SELECT id as "user_id!" FROM users 
+        WHERE email = ? LIMIT 1
+        "#,
+        email
+    )
+    .fetch_optional(pool)
+    .await
+    .context("email -> user_id")?
+    .ok_or(InitiateEmailVerificationError::EmailDoesNotExist(
+        email.clone(),
+    ))?
+    .user_id;
 
-    data_access
-        .write(
-            |pool| {
-                sqlx::query!(
-                    r#"
-                    INSERT INTO email_verification_tokens
-                    (token_hash, user_id, created_at, expires_at)
-                    VALUES (?, ?, ?, ?)
-                    RETURNING id as "id!"
-                    "#,
-                    verification_token_hash,
-                    user_id,
-                    created_at,
-                    expires_at
-                )
-                .fetch_one(pool)
-            },
-            |value| {
-                vec![
-                    Tag {
-                        table: "email_verification_tokens",
-                        primary_key: None,
-                    },
-                    Tag {
-                        table: "email_verification_tokens",
-                        primary_key: Some(value.id),
-                    },
-                ]
-            },
-        )
-        .await
-        .context("insert email_verification_token")?;
+    sqlx::query!(
+        r#"
+        INSERT INTO email_verification_tokens
+        (token_hash, user_id, created_at, expires_at)
+        VALUES (?, ?, ?, ?)
+        "#,
+        verification_token_hash,
+        user_id,
+        created_at,
+        expires_at
+    )
+    .execute(pool)
+    .await
+    .context("insert email_verification_token")?;
 
     let response = smtp
         .transport
@@ -191,7 +154,7 @@ pub enum InitiateEmailVerificationError {
     SmtpSenders(#[from] contextual::Error<SmtpSendersError>),
 
     #[error("{0}")]
-    DataAccess(#[from] contextual::Error<data_access::Error>),
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
 
     #[error("{0}")]
     EmailTemplate(#[from] contextual::Error<tera::Error>),
@@ -213,7 +176,7 @@ impl IntoResponse for InitiateEmailVerificationError {
                 (StatusCode::NOT_FOUND, Json(ErrorResponse::from(self))).into_response()
             }
             InitiateEmailVerificationError::SmtpSenders(_)
-            | InitiateEmailVerificationError::DataAccess(_)
+            | InitiateEmailVerificationError::Sqlx(_)
             | InitiateEmailVerificationError::EmailTemplate(_)
             | InitiateEmailVerificationError::EmailContent(_)
             | InitiateEmailVerificationError::SmtpTransport(_) => {

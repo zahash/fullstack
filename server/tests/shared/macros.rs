@@ -16,9 +16,9 @@ macro_rules! request {
 
 #[macro_export]
 macro_rules! fixture {
-    ( $data_access:ident ; $( $req:expr ; )* ) => {{
+    ( $pool:ident ; $( $req:expr ; )* ) => {{
         $(
-            let resp = crate::send!( $data_access $req );
+            let resp = crate::send!( $pool $req );
             let status = resp.status();
             let body = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
 
@@ -29,9 +29,9 @@ macro_rules! fixture {
 
 #[macro_export]
 macro_rules! send {
-    ( $data_access:ident $req:expr ) => {{
+    ( $pool:ident $req:expr ) => {{
         use tower::ServiceExt;
-        server::server($data_access.clone())
+        server::server($pool.clone())
             .oneshot($req)
             .await
             .expect("failed to send request")

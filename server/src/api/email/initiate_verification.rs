@@ -27,14 +27,14 @@ pub const PATH: &str = "/initiate-email-verification";
 #[debug_handler]
 #[cfg_attr(feature = "tracing", tracing::instrument(fields(?email), skip_all, ret))]
 pub async fn handler(
-    State(AppState { data_access, smtp }): State<AppState>,
+    State(AppState { pool, smtp }): State<AppState>,
     Query(email): Query<Email>,
 ) -> Result<Json<Response>, InitiateEmailVerificationError> {
     // TODO: malicious requests could be sent that initiates email verification
     // for random emails
     // maybe require auth for this
 
-    crate::smtp::initiate_email_verification(&data_access, &smtp, &email)
+    crate::smtp::initiate_email_verification(&pool, &smtp, &email)
         .await
         .map(Json)
 }
