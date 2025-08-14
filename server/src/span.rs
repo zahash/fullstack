@@ -1,31 +1,17 @@
-use std::{fmt::Display, net::IpAddr};
-
 use http::Request;
 use tracing::Span;
 
-struct OptionDisplay<T>(Option<T>, &'static str);
-
-impl<T: Display> Display for OptionDisplay<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.0 {
-            Some(val) => write!(f, "{val}"),
-            None => write!(f, "{}", self.1),
-        }
-    }
-}
-
 pub fn span<B>(request: &Request<B>) -> Span {
-    let request_id = request
-        .headers()
-        .get("x-request-id")
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or("<unknown-request-id>");
-
-    let client_ip = request
-        .extensions()
-        .get::<Option<IpAddr>>()
-        .copied()
-        .flatten();
+    let request_id = match request.headers().get("x-request-id") {
+        None => "<unknown-request-id>",
+        Some(header_value) => match header_value.to_str() {
+            Ok(value) => value,
+            Err(_) => {
+                tracing::warn!("malformed request id :: {:?}", header_value);
+                "<malformed-request-id>"
+            }
+        },
+    };
 
     // We deliberately use `error_span!` (instead of `info_span!`) here to ensure that
     // this span is *always created* and *visible* even when the log level is set to `warn` or `error`.
@@ -38,12 +24,28 @@ pub fn span<B>(request: &Request<B>) -> Span {
     //
     // Yes, `error_span!` implies a high severity level, but here it's used strategically
     // to preserve structured logging in production environments where higher log levels are enforced.
-    tracing::error_span!(
+
+    let span = tracing::error_span!(
         "request",
-        "{} {} {} {}",
-        OptionDisplay(client_ip, "<unknown-client-ip>"),
-        request_id,
-        request.method(),
-        request.uri(),
-    )
+        %request_id,
+        method = %request.method(),
+        uri = %request.uri(),
+        ip = tracing::field::Empty
+    );
+
+    #[cfg(feature = "client-ip")]
+    {
+        let client_ip = request
+            .extensions()
+            .get::<Option<std::net::IpAddr>>()
+            .copied()
+            .flatten();
+
+        match client_ip {
+            Some(ip_addr) => span.record("ip", tracing::field::display(ip_addr)),
+            None => span.record("ip", "<unknown-ip>"),
+        };
+    }
+
+    span
 }

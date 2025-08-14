@@ -58,7 +58,7 @@ pub enum Error {
     tag = "auth"
 ))]
 #[debug_handler]
-#[tracing::instrument(fields(%username), skip_all)]
+#[cfg_attr(feature = "tracing", tracing::instrument(fields(%username), skip_all))]
 pub async fn handler(
     State(AppState { data_access, .. }): State<AppState>,
     headers: HeaderMap,
@@ -101,6 +101,7 @@ pub async fn handler(
         .context("username -> User { id, password_hash }")?
         .ok_or(Error::InvalidCredentials)?;
 
+    #[cfg(feature = "tracing")]
     tracing::info!("user_id={}", user.id);
 
     if !verify(password, &user.password_hash).context("verify password hash")? {
@@ -147,6 +148,7 @@ pub async fn handler(
         .await
         .context("insert session")?;
 
+    #[cfg(feature = "tracing")]
     tracing::info!(?expires_at, ?user_agent, "session created");
 
     let session_cookie = session_id.into_cookie(COOKIE_DURATION);
@@ -159,11 +161,15 @@ impl IntoResponse for Error {
     fn into_response(self) -> Response {
         match self {
             Error::InvalidCredentials => {
+                #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
+
                 StatusCode::UNAUTHORIZED.into_response()
             }
             Error::DataAccess(_) | Error::Bcrypt(_) => {
+                #[cfg(feature = "tracing")]
                 tracing::error!("{:?}", self);
+
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
         }

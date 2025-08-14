@@ -207,7 +207,9 @@ impl IntoResponse for InitiateEmailVerificationError {
     fn into_response(self) -> axum::response::Response {
         match self {
             InitiateEmailVerificationError::EmailDoesNotExist(_) => {
+                #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
+
                 (StatusCode::NOT_FOUND, Json(ErrorResponse::from(self))).into_response()
             }
             InitiateEmailVerificationError::SmtpSenders(_)
@@ -215,7 +217,9 @@ impl IntoResponse for InitiateEmailVerificationError {
             | InitiateEmailVerificationError::EmailTemplate(_)
             | InitiateEmailVerificationError::EmailContent(_)
             | InitiateEmailVerificationError::SmtpTransport(_) => {
+                #[cfg(feature = "tracing")]
                 tracing::error!("{:?}", self);
+
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
         }

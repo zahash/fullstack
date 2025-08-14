@@ -73,12 +73,16 @@ pub async fn mw_rate_limiter(
         .copied()
         .flatten()
         .or_else(|| {
+            #[cfg(feature = "tracing")]
             tracing::error!("unable to get client_ip while rate limiting");
+
             None
         })
     {
         if rate_limiter.is_too_many(client_ip) {
+            #[cfg(feature = "tracing")]
             tracing::warn!("rate limited {}", client_ip);
+
             return StatusCode::TOO_MANY_REQUESTS.into_response();
         }
     }

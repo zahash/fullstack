@@ -28,7 +28,7 @@ pub const PATH: &str = "/access-token/verify";
     ),
     tag = "access_token"
 ))]
-#[tracing::instrument(skip_all, ret)]
+#[cfg_attr(feature = "tracing", tracing::instrument(skip_all, ret))]
 pub async fn handler(
     State(AppState { data_access, .. }): State<AppState>,
     headers: HeaderMap,
@@ -42,6 +42,7 @@ pub async fn handler(
         .context("AccessToken -> AccessTokenInfo")?
         .ok_or(Error::UnAssociatedAccessToken)?;
 
+    #[cfg(feature = "tracing")]
     tracing::info!(
         "user id = {}; access token name = {}",
         info.user_id,
@@ -78,12 +79,16 @@ impl IntoResponse for Error {
         match self {
             Error::AccessTokenAuthorizationExtractionError(err) => err.into_response(),
             Error::AccessTokenHeaderNotFound | Error::UnAssociatedAccessToken => {
+                #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
+
                 (StatusCode::UNAUTHORIZED, Json(ErrorResponse::from(self))).into_response()
             }
             Error::AccessTokenValidation(err) => err.into_response(),
-            Error::DataAccess(err) => {
-                tracing::error!("{:?}", err);
+            Error::DataAccess(_err) => {
+                #[cfg(feature = "tracing")]
+                tracing::error!("{:?}", _err);
+
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
         }

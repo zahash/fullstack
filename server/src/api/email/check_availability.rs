@@ -34,7 +34,7 @@ pub struct QueryParams {
     ),
     tag = "check"
 ))]
-#[tracing::instrument(fields(%email), skip_all, ret)]
+#[cfg_attr(feature = "tracing", tracing::instrument(fields(%email), skip_all, ret))]
 pub async fn handler(
     State(AppState { data_access, .. }): State<AppState>,
     Query(QueryParams { email }): Query<QueryParams>,
@@ -63,11 +63,15 @@ impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
             Error::InvalidParams(_) => {
+                #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
+
                 (StatusCode::BAD_REQUEST, Json(ErrorResponse::from(self))).into_response()
             }
-            Error::DataAccess(err) => {
-                tracing::error!("{:?}", err);
+            Error::DataAccess(_err) => {
+                #[cfg(feature = "tracing")]
+                tracing::error!("{:?}", _err);
+
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
         }

@@ -1,5 +1,7 @@
 mod api;
 mod middleware;
+
+#[cfg(feature = "tracing")]
 mod span;
 
 #[cfg(feature = "smtp")]
@@ -18,10 +20,7 @@ use data_access::DataAccess;
 use sqlx::SqlitePool;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
-use tower_http::{
-    request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer},
-    trace::TraceLayer,
-};
+use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
 
 #[derive(Debug)]
 pub struct ServerOpts {
@@ -71,11 +70,17 @@ pub fn server(
 ) -> Router {
     let middleware = ServiceBuilder::new()
         .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
-        .layer(PropagateRequestIdLayer::x_request_id())
-        .layer(from_fn(middleware::mw_client_ip))
-        .layer(TraceLayer::new_for_http().make_span_with(span::span))
-        .layer(from_fn(middleware::latency_ms))
-        .layer(from_fn(middleware::mw_handle_leaked_5xx));
+        .layer(PropagateRequestIdLayer::x_request_id());
+
+    #[cfg(feature = "client-ip")]
+    let middleware = middleware.layer(from_fn(middleware::mw_client_ip));
+
+    #[cfg(feature = "tracing")]
+    let middleware = middleware
+        .layer(tower_http::trace::TraceLayer::new_for_http().make_span_with(span::span))
+        .layer(from_fn(middleware::latency_ms));
+
+    let middleware = middleware.layer(from_fn(middleware::mw_handle_leaked_5xx));
 
     #[cfg(feature = "rate-limit")]
     let middleware = middleware.layer(axum::middleware::from_fn_with_state(
@@ -132,6 +137,7 @@ pub fn server(
 }
 
 pub async fn serve(opts: ServerOpts) -> Result<(), ServerError> {
+    #[cfg(feature = "tracing")]
     tracing::info!("{:?}", opts);
 
     let data_access = DataAccess::new(
@@ -152,6 +158,7 @@ pub async fn serve(opts: ServerOpts) -> Result<(), ServerError> {
 
             #[cfg(feature = "smtp--no-tls")]
             let mut transport = {
+                #[cfg(feature = "tracing")]
                 tracing::warn!(
                     "SMTP is running in insecure mode (smtp-no-tls). TLS certificate validation is disabled — only use for local testing!"
                 );
@@ -202,10 +209,13 @@ pub async fn serve(opts: ServerOpts) -> Result<(), ServerError> {
     let listener = TcpListener::bind(addr)
         .await
         .context(format!("bind :: {addr}"))?;
+
+    #[cfg(feature = "tracing")]
     tracing::info!(
         "listening on {}",
         listener.local_addr().context("local_addr")?
     );
+
     axum::serve(listener, app)
         .await
         .context("axum::serve")

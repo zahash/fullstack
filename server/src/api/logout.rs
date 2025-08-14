@@ -16,6 +16,9 @@ pub enum Error {
     DataAccess(#[from] contextual::Error<data_access::Error>),
 }
 
+// TODO: log user_id using tracing::instrument
+// #[cfg_attr(feature = "tracing", tracing::instrument(fields(user_id = tracing::field::Empty), skip_all, ret))]
+
 #[cfg_attr(feature = "openapi", utoipa::path(
     get,
     path = PATH,
@@ -68,8 +71,10 @@ pub async fn handler(
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
-            Error::DataAccess(err) => {
-                tracing::error!("{:?}", err);
+            Error::DataAccess(_err) => {
+                #[cfg(feature = "tracing")]
+                tracing::error!("{:?}", _err);
+
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
         }

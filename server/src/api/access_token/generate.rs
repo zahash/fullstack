@@ -39,7 +39,7 @@ pub struct Config {
     tag = "access_token"
 ))]
 #[debug_handler]
-#[tracing::instrument(fields(user_id = tracing::field::Empty, ?settings), skip_all)]
+#[cfg_attr(feature = "tracing", tracing::instrument(fields(user_id = tracing::field::Empty, ?settings), skip_all))]
 pub async fn handler(
     State(AppState { data_access, .. }): State<AppState>,
     principal: Principal,
@@ -53,6 +53,8 @@ pub async fn handler(
     permissions.require("access_token:create")?;
 
     let user_id = principal.user_id();
+
+    #[cfg(feature = "tracing")]
     tracing::Span::current().record("user_id", tracing::field::display(user_id));
 
     let access_token = AccessToken::new();
@@ -96,6 +98,7 @@ pub async fn handler(
         .await
         .context("insert access token")?;
 
+    #[cfg(feature = "tracing")]
     tracing::info!(?expires_at, "access_token created");
 
     Ok((StatusCode::CREATED, access_token.base64encoded()))
@@ -114,8 +117,10 @@ impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
             Error::Permission(err) => err.into_response(),
-            Error::DataAccess(err) => {
-                tracing::error!("{:?}", err);
+            Error::DataAccess(_err) => {
+                #[cfg(feature = "tracing")]
+                tracing::error!("{:?}", _err);
+
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
         }

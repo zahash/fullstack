@@ -11,7 +11,7 @@ pub const PATH: &str = "/health";
     responses((status = 200, description = "health check OK")),
     tag = "probe"
 ))]
-#[tracing::instrument(ret)]
+#[cfg_attr(feature = "tracing", tracing::instrument(ret))]
 pub async fn handler() -> StatusCode {
     StatusCode::OK
 }

@@ -70,7 +70,7 @@ pub enum Error {
     ),
     tag = "auth"
 ))]
-#[tracing::instrument(fields(%username, %email), skip_all, ret)]
+#[cfg_attr(feature = "tracing", tracing::instrument(fields(%username, %email), skip_all, ret))]
 pub async fn handler(
     State(AppState {
         data_access,
@@ -138,21 +138,31 @@ pub async fn handler(
 
     #[cfg(feature = "smtp")]
     tokio::spawn({
-        use tracing::Instrument;
+        #[cfg(feature = "tracing")]
         tracing::info!("spawn task to initiate email verification for {email}");
 
-        async move {
-            match crate::smtp::initiate_email_verification(&data_access, &smtp, &email)
+        let fut = async move {
+            let _res = crate::smtp::initiate_email_verification(&data_access, &smtp, &email)
                 .await
-                .context("signup")
-            {
+                .context("signup");
+
+            #[cfg(feature = "tracing")]
+            match _res {
                 Ok(response) => {
                     tracing::info!("initiate_email_verification response :: {response:?}")
                 }
                 Err(err) => tracing::error!("initiate_email_verification error :: {err:?}"),
             }
+        };
+
+        #[cfg(feature = "tracing")]
+        {
+            use tracing::Instrument;
+            fut.instrument(tracing::Span::current())
         }
-        .instrument(tracing::Span::current())
+
+        #[cfg(not(feature = "tracing"))]
+        fut
     });
 
     Ok(StatusCode::CREATED)
@@ -162,15 +172,21 @@ impl IntoResponse for Error {
     fn into_response(self) -> Response {
         match self {
             Error::InvalidUsername(_) | Error::InvalidEmail(_) | Error::WeakPassword(_) => {
+                #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
+
                 (StatusCode::BAD_REQUEST, Json(ErrorResponse::from(self))).into_response()
             }
             Error::UsernameExists(_) | Error::EmailExists(_) => {
+                #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
+
                 (StatusCode::CONFLICT, Json(ErrorResponse::from(self))).into_response()
             }
             Error::DataAccess(_) | Error::Bcrypt(_) => {
+                #[cfg(feature = "tracing")]
                 tracing::error!("{:?}", self);
+
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
         }

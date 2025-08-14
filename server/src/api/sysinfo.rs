@@ -119,7 +119,7 @@ impl Default for ResponseBody {
     tag = "probe"
 ))]
 #[debug_handler]
-#[tracing::instrument(ret)]
+#[cfg_attr(feature = "tracing", tracing::instrument(ret))]
 pub async fn handler() -> ResponseBody {
     ResponseBody::default()
 }

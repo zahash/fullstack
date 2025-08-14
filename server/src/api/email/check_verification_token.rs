@@ -142,19 +142,27 @@ impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
             Error::Base64decode => {
+                #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
+
                 (StatusCode::BAD_REQUEST, Json(ErrorResponse::from(self))).into_response()
             }
             Error::TokenNotFound => {
+                #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
+
                 (StatusCode::NOT_FOUND, Json(ErrorResponse::from(self))).into_response()
             }
             Error::TokenExpired => {
+                #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
+
                 (StatusCode::GONE, Json(ErrorResponse::from(self))).into_response()
             }
             Error::DataAccess(_) => {
+                #[cfg(feature = "tracing")]
                 tracing::error!("{:?}", self);
+
                 StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
         }

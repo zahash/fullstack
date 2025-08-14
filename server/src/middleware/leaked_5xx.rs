@@ -1,5 +1,5 @@
 use axum::{
-    body::{Body, to_bytes},
+    body::Body,
     http::{Request, Response},
     middleware::Next,
     response::IntoResponse,
@@ -16,7 +16,8 @@ pub async fn mw_handle_leaked_5xx(request: Request<Body>, next: Next) -> Respons
 
     if status.is_server_error() {
         // Log and capture the error details without exposing them to the client
-        match to_bytes(response.into_body(), usize::MAX).await {
+        #[cfg(feature = "tracing")]
+        match axum::body::to_bytes(response.into_body(), usize::MAX).await {
             Ok(content) if !content.is_empty() => tracing::error!("{:?}", content),
             Err(e) => tracing::error!(
                 "unable to convert INTERNAL_SERVER_ERROR response body to bytes :: {:?}",
