@@ -1,5 +1,4 @@
 use clap::Parser;
-use tracing_subscriber::EnvFilter;
 
 // TODO: Stop using DataAccess + Cache Abstraction and just use raw sql
 //       because it is a pain in the ass to develop a "transaction-aware" cache
@@ -76,8 +75,9 @@ struct Args {
 
 #[tokio::main]
 async fn main() {
+    #[cfg(feature = "tracing")]
     tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env(/* RUST_LOG env var sets logging level */))
+        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env(/* RUST_LOG env var sets logging level */))
         .init();
 
     let args = Args::parse();
