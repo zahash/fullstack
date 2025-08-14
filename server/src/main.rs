@@ -17,7 +17,7 @@ struct Args {
     /// The directory where the server's UI files are located.
     /// This should point to a valid local path containing frontend assets.
     /// Example: `./ui` or `/var/www/html`
-    #[arg(long, env("UI_DIR"))]
+    #[arg(long, env("SERVE_DIR"))]
     serve_dir: std::path::PathBuf,
 
     #[cfg(feature = "rate-limit")]
