@@ -13,6 +13,8 @@ use validation::{validate_password, validate_username};
 
 use crate::AppState;
 
+// TODO: assign permissions to each signed up user
+
 pub const PATH: &str = "/signup";
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

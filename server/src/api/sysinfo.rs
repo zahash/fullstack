@@ -1,14 +1,20 @@
-use axum::{Json, response::IntoResponse};
+use auth::{InsufficientPermissionsError, Principal};
+use axum::{Json, extract::State, response::IntoResponse};
 use axum_macros::debug_handler;
+use contextual::Context;
+use extra::ErrorResponse;
+use http::StatusCode;
 use serde::Serialize;
 use sysinfo::{Disks, System};
+
+use crate::AppState;
 
 pub const PATH: &str = "/sysinfo";
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "openapi", schema(as = sysinfo::ResponseBody))]
+#[cfg_attr(feature = "openapi", schema(as = sysinfo::Info))]
 #[derive(Debug, Serialize)]
-pub struct ResponseBody {
+pub struct Info {
     pub system: SystemInfo,
     pub memory: MemoryInfo,
     pub disks: Vec<DiskInfo>,
@@ -74,7 +80,7 @@ pub struct DiskInfo {
     pub available_space: u64,
 }
 
-impl Default for ResponseBody {
+impl Default for Info {
     fn default() -> Self {
         let system = {
             let mut system = System::new_all();
@@ -114,18 +120,56 @@ impl Default for ResponseBody {
     path = PATH,
     operation_id = PATH,
     responses(
-        (status = 200, description = "System Information", body = ResponseBody),
+        (status = 200, description = "System Information", body = Info),
+        (status = 401, description = "Invalid credentials", body = ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse),
+        (status = 500, description = "Internal server error"),
     ),
     tag = "probe"
 ))]
 #[debug_handler]
-#[cfg_attr(feature = "tracing", tracing::instrument(ret))]
-pub async fn handler() -> ResponseBody {
-    ResponseBody::default()
+#[cfg_attr(feature = "tracing", tracing::instrument(fields(user_id = tracing::field::Empty), skip_all, ret))]
+pub async fn handler(
+    State(AppState { pool, .. }): State<AppState>,
+    principal: Principal,
+) -> Result<Info, Error> {
+    #[cfg(feature = "tracing")]
+    tracing::Span::current().record("user_id", tracing::field::display(principal.user_id()));
+
+    let permissions = principal
+        .permissions(&pool)
+        .await
+        .context("get permissions")?;
+    permissions.require("sysinfo")?;
+
+    Ok(Info::default())
 }
 
-impl IntoResponse for ResponseBody {
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("{0}")]
+    Permission(#[from] InsufficientPermissionsError),
+
+    #[error("{0}")]
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
+}
+
+impl IntoResponse for Info {
     fn into_response(self) -> axum::response::Response {
         Json(self).into_response()
+    }
+}
+
+impl IntoResponse for Error {
+    fn into_response(self) -> axum::response::Response {
+        match self {
+            Error::Permission(err) => err.into_response(),
+            Error::Sqlx(_err) => {
+                #[cfg(feature = "tracing")]
+                tracing::error!("{:?}", _err);
+
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
+        }
     }
 }

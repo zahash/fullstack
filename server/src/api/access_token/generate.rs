@@ -4,6 +4,7 @@ use auth::{AccessToken, InsufficientPermissionsError, Principal};
 use axum::{Form, extract::State, http::StatusCode, response::IntoResponse};
 use axum_macros::debug_handler;
 use contextual::Context;
+use extra::ErrorResponse;
 use serde::Deserialize;
 use time::OffsetDateTime;
 
@@ -32,7 +33,7 @@ pub struct Config {
     ),
     responses(
         (status = 200, description = "Access token generated successfully", body = String),
-        (status = 403, description = "Insufficient permissions"),
+        (status = 403, description = "Insufficient permissions", body = ErrorResponse),
         (status = 500, description = "Internal server error"),
     ),
     tag = "access_token"

@@ -29,7 +29,7 @@ pub const OPEN_API_DOCS_PATH: &str = "/api-docs/openapi.json";
         access_token::generate::Config,
         login::Credentials,
         signup::RequestBody,
-        sysinfo::ResponseBody
+        sysinfo::Info
     ))
 )]
 struct OpenApiDoc;
@@ -57,3 +57,5 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 
     openapi
 }
+
+// TODO: create permissions management apis
