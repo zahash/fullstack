@@ -1,21 +1,31 @@
-use axum::{
-    Json,
-    extract::{Query, State},
-};
+use std::str::FromStr;
+
+use axum::{Form, Json, extract::State, response::IntoResponse};
 use axum_macros::debug_handler;
 use email::Email;
-use lettre::transport::smtp::response::Response;
+use extra::ErrorResponse;
+use http::StatusCode;
+use serde::Deserialize;
 
 use crate::{AppState, smtp::InitiateEmailVerificationError};
 
 pub const PATH: &str = "/initiate-email-verification";
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "openapi", schema(as = email::initiate_verification::RequestBody))]
+#[derive(Deserialize)]
+pub struct RequestBody {
+    #[cfg_attr(feature = "openapi", schema(examples("joe@smith.com")))]
+    pub email: String,
+}
+
 #[cfg_attr(feature = "openapi", utoipa::path(
-    get,
+    post,
     path = PATH,
     operation_id = PATH,
-    params(
-        ("email" = String, Query, description = "Email address to initiate verification for", example = "joe@smith.com")
+    request_body(
+        content = RequestBody,
+        content_type = "application/x-www-form-urlencoded",
     ),
     responses(
         (status = 200, description = "Verification email sent successfully"),
@@ -28,13 +38,53 @@ pub const PATH: &str = "/initiate-email-verification";
 #[cfg_attr(feature = "tracing", tracing::instrument(fields(?email), skip_all, ret))]
 pub async fn handler(
     State(AppState { pool, smtp }): State<AppState>,
-    Query(email): Query<Email>,
-) -> Result<Json<Response>, InitiateEmailVerificationError> {
-    // TODO: malicious requests could be sent that initiates email verification
-    // for random emails
-    // maybe require auth for this
+    Form(RequestBody { email }): Form<RequestBody>,
+) -> Result<StatusCode, Error> {
+    let email = Email::from_str(&email).map_err(Error::InvalidEmail)?;
 
-    crate::smtp::initiate_email_verification(&pool, &smtp, &email)
-        .await
-        .map(Json)
+    match crate::smtp::initiate_email_verification(&pool, &smtp, &email).await? {
+        None => {
+            #[cfg(feature = "tracing")]
+            tracing::info!("initiate_email_verification no-op");
+
+            Ok(StatusCode::OK)
+        }
+        Some(response) => match response.is_positive() {
+            true => {
+                #[cfg(feature = "tracing")]
+                tracing::info!("{:?}", response);
+
+                Ok(StatusCode::OK)
+            }
+            false => {
+                #[cfg(feature = "tracing")]
+                tracing::warn!("{:?}", response);
+
+                Ok(StatusCode::SERVICE_UNAVAILABLE)
+            }
+        },
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("{0}")]
+    InvalidEmail(&'static str),
+
+    #[error("{0}")]
+    InitiateEmailVerification(#[from] InitiateEmailVerificationError),
+}
+
+impl IntoResponse for Error {
+    fn into_response(self) -> axum::response::Response {
+        match self {
+            Error::InvalidEmail(_) => {
+                #[cfg(feature = "tracing")]
+                tracing::info!("{:?}", self);
+
+                (StatusCode::BAD_REQUEST, Json(ErrorResponse::from(self))).into_response()
+            }
+            Error::InitiateEmailVerification(err) => err.into_response(),
+        }
+    }
 }

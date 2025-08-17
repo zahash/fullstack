@@ -115,11 +115,11 @@ pub fn server(
     let router = router
         .route(
             api::email::initiate_verification::PATH,
-            get(api::email::initiate_verification::handler),
+            post(api::email::initiate_verification::handler),
         )
         .route(
             api::email::check_verification_token::PATH,
-            get(api::email::check_verification_token::handler),
+            post(api::email::check_verification_token::handler),
         );
 
     #[cfg(feature = "openapi")]

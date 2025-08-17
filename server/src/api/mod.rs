@@ -36,10 +36,13 @@ struct OpenApiDoc;
 
 #[cfg(all(feature = "openapi", feature = "smtp"))]
 #[derive(utoipa::OpenApi)]
-#[openapi(paths(
-    email::check_verification_token::handler,
-    email::initiate_verification::handler,
-))]
+#[openapi(
+    paths(
+        email::check_verification_token::handler,
+        email::initiate_verification::handler,
+    ),
+    components(schemas(email::check_verification_token::RequestBody))
+)]
 struct SmtpOpenApiDoc;
 
 #[cfg(feature = "openapi")]

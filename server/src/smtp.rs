@@ -2,7 +2,6 @@ use std::{path::PathBuf, str::FromStr, sync::Arc};
 
 use axum::{Json, response::IntoResponse};
 use contextual::Context;
-
 use email::Email;
 use extra::ErrorResponse;
 use http::StatusCode;
@@ -11,7 +10,6 @@ use lettre::{
     message::{Mailbox, MultiPart},
     transport::smtp::response::Response,
 };
-
 use tera::Tera;
 use time::OffsetDateTime;
 use token::Token;
@@ -61,7 +59,26 @@ pub async fn initiate_email_verification(
     pool: &sqlx::Pool<sqlx::Sqlite>,
     smtp: &Smtp,
     email: &Email,
-) -> Result<Response, InitiateEmailVerificationError> {
+) -> Result<Option<Response>, InitiateEmailVerificationError> {
+    let record = sqlx::query!(
+        r#"SELECT email_verified FROM users WHERE email = ? LIMIT 1"#,
+        email
+    )
+    .fetch_optional(pool)
+    .await
+    .context("check if email already verified")?;
+
+    let Some(record) = record else {
+        return Err(InitiateEmailVerificationError::EmailDoesNotExist(
+            email.clone(),
+        ));
+    };
+
+    // no-op if email already verified
+    if record.email_verified {
+        return Ok(None);
+    }
+
     let verification_token = VerificationToken::random();
     let verification_token_hash = verification_token.hash_sha256();
     let verification_token_encoded = verification_token.base64encoded();
@@ -100,41 +117,31 @@ pub async fn initiate_email_verification(
             .context("verify-email message builder")?
     };
 
-    #[derive(Debug, Clone)]
-    struct Row {
-        user_id: i64,
-    }
-
-    let user_id = sqlx::query_as!(
-        Row,
+    sqlx::query!(
         r#"
-        SELECT id as "user_id!" FROM users 
-        WHERE email = ? LIMIT 1
+        DELETE FROM email_verification_tokens
+        where email = ?
         "#,
         email
     )
-    .fetch_optional(pool)
+    .execute(pool)
     .await
-    .context("email -> user_id")?
-    .ok_or(InitiateEmailVerificationError::EmailDoesNotExist(
-        email.clone(),
-    ))?
-    .user_id;
+    .context("delete existing email verification tokens")?;
 
     sqlx::query!(
         r#"
         INSERT INTO email_verification_tokens
-        (token_hash, user_id, created_at, expires_at)
+        (token_hash, email, created_at, expires_at)
         VALUES (?, ?, ?, ?)
         "#,
         verification_token_hash,
-        user_id,
+        email,
         created_at,
         expires_at
     )
     .execute(pool)
     .await
-    .context("insert email_verification_token")?;
+    .context("insert email verification token")?;
 
     let response = smtp
         .transport
@@ -142,12 +149,12 @@ pub async fn initiate_email_verification(
         .await
         .context("send verification email")?;
 
-    Ok(response)
+    Ok(Some(response))
 }
 
 #[derive(thiserror::Error, Debug)]
 pub enum InitiateEmailVerificationError {
-    #[error("email does not exist :: {0}")]
+    #[error("email `{0}` does not exist")]
     EmailDoesNotExist(Email),
 
     #[error("{0}")]

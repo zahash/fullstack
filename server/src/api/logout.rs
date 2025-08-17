@@ -15,9 +15,6 @@ pub enum Error {
     Sqlx(#[from] contextual::Error<sqlx::Error>),
 }
 
-// TODO: log user_id using tracing::instrument
-// #[cfg_attr(feature = "tracing", tracing::instrument(fields(user_id = tracing::field::Empty), skip_all, ret))]
-
 #[cfg_attr(feature = "openapi", utoipa::path(
     get,
     path = PATH,
