@@ -43,6 +43,7 @@ pub struct RequestBody {
     ),
     tag = "check"
 ))]
+#[cfg_attr(feature = "tracing", tracing::instrument(fields(%email), skip_all, ret))]
 #[debug_handler]
 pub async fn handler(
     State(AppState { pool, .. }): State<AppState>,

@@ -35,7 +35,7 @@ pub struct RequestBody {
     tag = "email"
 ))]
 #[debug_handler]
-#[cfg_attr(feature = "tracing", tracing::instrument(fields(?email), skip_all, ret))]
+#[cfg_attr(feature = "tracing", tracing::instrument(fields(%email), skip_all, ret))]
 pub async fn handler(
     State(AppState { pool, smtp }): State<AppState>,
     Form(RequestBody { email }): Form<RequestBody>,
