@@ -6,7 +6,7 @@ CREATE TABLE permissions(
 
 CREATE TABLE permission_groups(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    group TEXT NOT NULL UNIQUE,
+    [group] TEXT NOT NULL UNIQUE,
     description TEXT
 );
 
