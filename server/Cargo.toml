@@ -9,6 +9,7 @@ axum-extra = { version = "0.10", features = ["cookie"] }
 axum-macros = "0.5"
 bcrypt = "0.17"
 clap = { version = "4", features = ["derive", "env"] }
+dotenvy = { version = "0.15", optional = true }
 lettre = { version = "0.11", default-features = false, optional = true }
 dashmap = "6.1"
 forwarded-header-value = { version = "0.1.1", optional = true }
@@ -43,6 +44,7 @@ test-proc-macros = { path = "../test-proc-macros", features = [
 [features]
 client-ip = ["dep:forwarded-header-value"]
 openapi = ["dep:utoipa", "auth/openapi", "extra/openapi"]
+profiles = ["dep:dotenvy"]
 rate-limit = []
 serve-dir = []
 smtp = [

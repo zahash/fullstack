@@ -77,6 +77,9 @@ async fn main() {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env(/* RUST_LOG env var sets logging level */))
         .init();
 
+    #[cfg(feature = "profiles")]
+    load_profile();
+
     let args = Args::parse();
 
     let server_opts = server::ServerOpts {
@@ -100,8 +103,55 @@ async fn main() {
         },
     };
 
-    if let Err(e) = server::serve(server_opts).await {
-        eprintln!("{e}");
-        std::process::exit(1);
+    if let Err(err) = server::serve(server_opts).await {
+        exit(err)
     }
+}
+
+#[cfg(feature = "profiles")]
+fn load_profile() {
+    use std::{
+        env::{VarError, var},
+        path::Path,
+    };
+
+    fn load_profile_from_filename(filename: impl AsRef<Path>) {
+        match dotenvy::from_filename_override(&filename) {
+            Ok(_) => {
+                #[cfg(feature = "tracing")]
+                tracing::info!("loaded profile {:?}", filename.as_ref());
+            }
+            Err(dotenvy::Error::Io(err)) if err.kind() == std::io::ErrorKind::NotFound => {
+                #[cfg(feature = "tracing")]
+                tracing::warn!("{:?} not found", filename.as_ref());
+            }
+            Err(err) => exit(err),
+        };
+    }
+
+    match var("RUST_PROFILE") {
+        Ok(profile) => {
+            let profile = profile.to_lowercase();
+
+            #[cfg(feature = "tracing")]
+            tracing::info!("RUST_PROFILE `{profile}`");
+
+            load_profile_from_filename(".env");
+            if profile != "default" {
+                load_profile_from_filename(format!(".env.{profile}"));
+            }
+        }
+        Err(err) => match err {
+            VarError::NotPresent => {
+                #[cfg(feature = "tracing")]
+                tracing::warn!("RUST_PROFILE not found");
+            }
+            VarError::NotUnicode(_) => exit(err),
+        },
+    };
+}
+
+fn exit(err: impl std::error::Error) {
+    eprintln!("{err}");
+    std::process::exit(1);
 }
