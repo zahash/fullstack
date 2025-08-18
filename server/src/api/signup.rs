@@ -89,14 +89,16 @@ pub async fn handler(
     let password = validate_password(password).map_err(Error::WeakPassword)?;
     let email = Email::try_from(email).map_err(Error::InvalidEmail)?;
 
-    if super::username::exists(&pool, &username)
+    let mut tx = pool.begin().await.context("begin transaction")?;
+
+    if super::username::exists(&mut *tx, &username)
         .await
         .context("username exists")?
     {
         return Err(Error::UsernameExists(username));
     }
 
-    if super::email::exists(&pool, &email)
+    if super::email::exists(&mut *tx, &email)
         .await
         .context("email exists")?
     {
@@ -115,9 +117,13 @@ pub async fn handler(
         email,
         password_hash,
     )
-    .execute(&pool)
+    .execute(&mut *tx)
     .await
     .context("insert user")?;
+
+    // TODO: assign permissions from "signup" permission group
+
+    tx.commit().await.context("commit transaction")?;
 
     #[cfg(feature = "smtp")]
     tokio::spawn({

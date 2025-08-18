@@ -7,13 +7,17 @@ pub mod check_verification_token;
 pub mod initiate_verification;
 
 use email::Email;
+use sqlx::{Executor, Sqlite};
 
-pub async fn exists(pool: &sqlx::Pool<sqlx::Sqlite>, email: &Email) -> Result<bool, sqlx::Error> {
+pub async fn exists<'a, E: Executor<'a, Database = Sqlite>>(
+    ex: E,
+    email: &Email,
+) -> Result<bool, sqlx::Error> {
     let row = sqlx::query_scalar!(
         r#"SELECT id as "user_id!" FROM users WHERE email = ? LIMIT 1"#,
         email
     )
-    .fetch_optional(pool)
+    .fetch_optional(ex)
     .await?;
 
     match row {

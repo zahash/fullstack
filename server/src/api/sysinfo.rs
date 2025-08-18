@@ -2,7 +2,6 @@ use auth::{InsufficientPermissionsError, Principal};
 use axum::{Json, extract::State, response::IntoResponse};
 use axum_macros::debug_handler;
 use contextual::Context;
-use extra::ErrorResponse;
 use http::StatusCode;
 use serde::Serialize;
 use sysinfo::{Disks, System};
@@ -121,8 +120,8 @@ impl Default for Info {
     operation_id = PATH,
     responses(
         (status = 200, description = "System Information", body = Info),
-        (status = 401, description = "Invalid credentials", body = ErrorResponse),
-        (status = 403, description = "Insufficient permissions", body = ErrorResponse),
+        (status = 401, description = "Invalid credentials", body = extra::ErrorResponse),
+        (status = 403, description = "Insufficient permissions", body = extra::ErrorResponse),
         (status = 500, description = "Internal server error"),
     ),
     tag = "probe"
