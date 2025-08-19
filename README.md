@@ -1,6 +1,7 @@
 # Fullstack Workspace
 
-This is a monorepo containing a fullstack application with Rust (backend, WASM) and SolidJS (frontend) components.
+This is a monorepo containing a fullstack application with
+Rust (backend, WASM) and SolidJS (frontend) components.
 
 ## Prerequisites
 
@@ -12,20 +13,22 @@ This is a monorepo containing a fullstack application with Rust (backend, WASM) 
 
 ### Email Testing (Mailtutan)
 
-To test email functionality locally, you can use [mailtutan](https://github.com/mailtutan/mailtutan), a simple SMTP server for development
+To test email functionality locally,
+you can use [mailtutan](https://github.com/mailtutan/mailtutan),
+a simple SMTP server for development
 
 ```sh
 mailtutan --ip 127.0.0.1
 ```
 
-This will start a local SMTP server on port 1025 by default. Configure your `.env` or server launch to use `127.0.0.1:1025` as the SMTP relay.
+This will start a local SMTP server on port 1025 by default.
+Configure your `.env` or server launch to use `127.0.0.1:1025` as the SMTP relay.
 
 ## Frontend (SolidJS) setup
 
 ```sh
 cd ui
 npm install
-
 ```
 
 ### Start the development server
@@ -60,7 +63,6 @@ Set the `DATABASE_URL` environment variable (see below), then create the databas
 
 ```sh
 sqlx database create -D sqlite://target/data.db
-
 sqlx migrate run --source .\migrations\ -D sqlite://target/data.db
 ```
 
@@ -85,21 +87,25 @@ This workspace uses Cargo feature flags to enable optional functionality in vari
 
 The following features are available for the `server` binary crate:
 
+- **client-ip**: Enables listing the client-ip of the incoming request in application logs.
+- **openapi**: Enables openapi documentation support.
+- **profiles**: Enables use of profiles like `dev`, `staging`, `prod`, etc... by setting the `RUST_PROFILE` environment variable. Requires having `.env.<profile>` files like `.env`(default profile), `.env.dev`, `.env.staging`, `.env.prod`, etc... in the current working directory.
 - **rate-limit**: Enables rate limiting middleware.
+- **serve-dir**: Enables serving the frontend UI from the backend.
 - **smtp**: Enables SMTP email sending support (adds `lettre`, `tera`, and `token` dependencies, and enables related features in `lettre`).
 - **smtp--no-tls**: Enables SMTP support without TLS (used for testing purposes only).
-- **ui**: Enables serving the frontend UI from the backend.
+- **tracing**: Enables application logs. Log level can be set using the `RUST_LOG` environment variable.
 
 You can enable these features at build or run time using the `--features` flag. For example:
 
 ```sh
-cargo run --bin server --features smtp,ui,rate-limit
+cargo run --bin server --features smtp,rate-limit,tracing
 ```
 
 Or for a release build:
 
 ```sh
-cargo build --bin server --release --features smtp,ui,rate-limit
+cargo build --bin server --release --features smtp,rate-limit,tracing
 ```
 
 The release binary will be in `target/release/server.exe` (Windows) or `target/release/server` (Linux/macOS).
