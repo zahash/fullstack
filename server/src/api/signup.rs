@@ -1,3 +1,4 @@
+use auth::assign_permission_group;
 use axum::{
     Form, Json,
     extract::State,
@@ -12,8 +13,6 @@ use serde::Deserialize;
 use validation::{validate_password, validate_username};
 
 use crate::AppState;
-
-// TODO: assign permissions to each signed up user
 
 pub const PATH: &str = "/signup";
 
@@ -107,21 +106,25 @@ pub async fn handler(
 
     let password_hash = bcrypt::hash(password, bcrypt::DEFAULT_COST).context("hash password")?;
 
-    sqlx::query!(
+    let user_id = sqlx::query!(
         r#"
         INSERT INTO users
         (username, email, password_hash)
         VALUES (?, ?, ?)
+        RETURNING id as "user_id!"
         "#,
         username,
         email,
         password_hash,
     )
-    .execute(&mut *tx)
+    .fetch_one(&mut *tx)
     .await
-    .context("insert user")?;
+    .context("insert user")?
+    .user_id;
 
-    // TODO: assign permissions from "signup" permission group
+    assign_permission_group(&mut *tx, user_id, "signup")
+        .await
+        .context("assign `signup` permission group")?;
 
     tx.commit().await.context("commit transaction")?;
 

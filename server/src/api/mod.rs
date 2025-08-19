@@ -60,10 +60,4 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 
 /*
 TODO: create permissions management apis
-TODO: create permission groups to make it easier to assign a bunch
-        of permissions at once and in each situation.
-        eg: `signup` or `admin` permission group.
-        the permission group and permissions table have many to many relation
-        to avoid inserting duplicate relations, use the "INSERT OR IGNORE"
-        or "ON CONFLICT DO NOTHING" sql commands
 */
