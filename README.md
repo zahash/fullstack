@@ -73,11 +73,19 @@ cargo build -p wasm --target wasm32-unknown-unknown --profile web
 wasm-bindgen ./target/wasm32-unknown-unknown/web/wasm.wasm --out-dir ./ui/lib/wasm --target web
 ```
 
-### Server
+### Run the development server
 
 ```sh
 cargo run --bin server
 ```
+
+### Make Release Build
+
+```sh
+cargo build --bin server --release
+```
+
+The release binary will be in `target/release/server.exe` (Windows) or `target/release/server` (Linux/macOS).
 
 ## Feature Flags
 
@@ -107,8 +115,6 @@ Or for a release build:
 ```sh
 cargo build --bin server --release --features smtp,rate-limit,tracing
 ```
-
-The release binary will be in `target/release/server.exe` (Windows) or `target/release/server` (Linux/macOS).
 
 ## Deployment
 
