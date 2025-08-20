@@ -1,46 +1,81 @@
 mod shared;
 
-use shared::{
-    request::{login, signup},
-    setup::pool,
-};
+use shared::TestClient;
 use test_proc_macros::{email, password, username};
 
 #[tokio::test]
 async fn onboarding_flow() {
     #[cfg(feature = "tracing")]
-    shared::setup::tracing_init();
+    shared::tracing_init();
 
     let username = username!("user1");
     let email = email!("user1@test.com");
     let password = password!("Aa!1aaaa");
 
-    let pool = pool().await;
+    let client = TestClient::new().await;
 
-    t!( send!(pool login(username, password))  => status!(401) );
-    t!( send!(pool signup(username, email, password)) => status!(201) );
-    t!( send!(pool login(username, password))  => status!(200) );
+    client
+        .send(request!(
+            POST "/login";
+            "content-type" => "application/x-www-form-urlencoded";
+            format!("username={}&password={}", username, password)
+        ))
+        .await
+        .status(401);
+
+    client
+        .send(request!(
+            POST "/signup";
+            "content-type" => "application/x-www-form-urlencoded";
+            format!("username={}&email={}&password={}", username, email, password)
+        ))
+        .await
+        .status(201);
+
+    client
+        .send(request!(
+            POST "/login";
+            "content-type" => "application/x-www-form-urlencoded";
+            format!("username={}&password={}", username, password)
+        ))
+        .await
+        .status(200);
 }
 
 #[tokio::test]
 async fn double_signup() {
     #[cfg(feature = "tracing")]
-    shared::setup::tracing_init();
+    shared::tracing_init();
 
     let username = username!("user1");
     let email = email!("user1@test.com");
     let password = password!("Aa!1aaaa");
 
-    let pool = pool().await;
+    let client = TestClient::new().await;
 
-    t!( send!(pool signup(username, email, password)) => status!(201) );
-    t!( send!(pool signup(username, email, password)) => status!(409) );
+    client
+        .send(request!(
+            POST "/signup";
+            "content-type" => "application/x-www-form-urlencoded";
+            format!("username={}&email={}&password={}", username, email, password)
+        ))
+        .await
+        .status(201);
+
+    client
+        .send(request!(
+            POST "/signup";
+            "content-type" => "application/x-www-form-urlencoded";
+            format!("username={}&email={}&password={}", username, email, password)
+        ))
+        .await
+        .status(409);
 }
 
 #[tokio::test]
 async fn username_taken() {
     #[cfg(feature = "tracing")]
-    shared::setup::tracing_init();
+    shared::tracing_init();
 
     let username = username!("user1");
 
@@ -50,22 +85,36 @@ async fn username_taken() {
     let password1 = password!("Aa!1aaaa");
     let password2 = password!("Bb!2bbbb");
 
-    let pool = pool().await;
+    let client = TestClient::new().await;
 
-    fixture! {
-        pool;
-        signup(username, email1, password1);
-    }
+    client
+        .send(request!(
+            POST "/signup";
+            "content-type" => "application/x-www-form-urlencoded";
+            format!("username={}&email={}&password={}", username, email1, password1)
+        ))
+        .await
+        .status(201);
 
-    t!( send!(pool signup(username, email2, password2)) => status!(409) );
+    // TODO: assert the body json using the ErrorResponse type
+    // assert if the string "username" is present
+    // or check the "kind" field
+    client
+        .send(request!(
+            POST "/signup";
+            "content-type" => "application/x-www-form-urlencoded";
+            format!("username={}&email={}&password={}", username, email2, password2)
+        ))
+        .await
+        .status(409);
 }
 
 #[tokio::test]
 async fn email_taken() {
     #[cfg(feature = "tracing")]
-    shared::setup::tracing_init();
+    shared::tracing_init();
 
-    let pool = pool().await;
+    let client = TestClient::new().await;
 
     let email = email!("user3@test.com");
 
@@ -75,10 +124,21 @@ async fn email_taken() {
     let password1 = password!("Aa!1aaaa");
     let password2 = password!("Bb!2bbbb");
 
-    fixture! {
-        pool;
-        signup(username1, email, password1);
-    }
+    client
+        .send(request!(
+            POST "/signup";
+            "content-type" => "application/x-www-form-urlencoded";
+            format!("username={}&email={}&password={}", username1, email, password1)
+        ))
+        .await
+        .status(201);
 
-    t!( send!(pool signup(username2, email, password2)) => status!(409) );
+    client
+        .send(request!(
+            POST "/signup";
+            "content-type" => "application/x-www-form-urlencoded";
+            format!("username={}&email={}&password={}", username2, email, password2)
+        ))
+        .await
+        .status(409);
 }
