@@ -1,34 +1,101 @@
-use axum::body::{Body, to_bytes};
+use axum::{
+    Router,
+    body::{Body, to_bytes},
+};
 use http::{Request, Response};
-use sqlx::{Pool, Sqlite};
+use server::ServerOpts;
+use sqlx::{Pool, Sqlite, sqlite::SqliteConnectOptions};
+use tempfile::{TempDir, tempdir};
 use tower::ServiceExt;
 
 pub mod macros;
 
 pub struct TestClient {
-    pool: Pool<Sqlite>,
+    router: Router,
+
+    // hold TempDir because the temporary directory will be deleted on Drop
+    _temp_dir: TempDir,
 }
 
 impl TestClient {
-    pub async fn new() -> Self {
-        let pool = sqlx::Pool::<sqlx::Sqlite>::connect("sqlite::memory:")
-            .await
-            .expect("unable to connect to test db");
+    pub async fn default() -> Self {
+        let temp_dir = tempdir().expect("unable to create temp dir");
 
-        sqlx::migrate!("../migrations")
-            .run(&pool)
-            .await
-            .expect("unable to run migrations");
+        let database_config = server::DatabaseConfig {
+            url: {
+                let path = temp_dir.path().join("test.db");
+                path.to_string_lossy().to_string()
+            },
+        };
+        Self::prepare_database(&database_config).await;
 
-        Self { pool }
+        let router = server::router(ServerOpts {
+            database: database_config,
+
+            #[cfg(feature = "rate-limit")]
+            rate_limiter: server::RateLimiterConfig {
+                limit: usize::MAX,
+                interval: std::time::Duration::from_secs(0),
+            },
+
+            #[cfg(feature = "serve-dir")]
+            serve_dir: temp_dir.path().to_owned(),
+
+            #[cfg(feature = "smtp")]
+            smtp: {
+                let senders_dir = temp_dir.path().join("senders");
+                Self::prepare_senders(&senders_dir).await;
+
+                server::SmtpConfig {
+                    relay: "127.0.0.1".into(),
+                    port: Some(1025),
+                    username: None,
+                    password: None,
+                    senders_dir,
+                    templates_dir: "../templates".into(),
+                }
+            },
+        })
+        .await
+        .expect("unable to create router");
+
+        Self {
+            router,
+            _temp_dir: temp_dir,
+        }
     }
 
     pub async fn send(&self, request: Request<Body>) -> Asserter {
-        let response = server::server(self.pool.clone())
+        let response = self.router
+            .clone()
             .oneshot(request)
             .await
             .unwrap(/* Infallible */);
         Asserter::from(response)
+    }
+
+    async fn prepare_database(config: &server::DatabaseConfig) {
+        let pool = Pool::<Sqlite>::connect_with(
+            SqliteConnectOptions::new()
+                .filename(&config.url)
+                .create_if_missing(true),
+        )
+        .await
+        .expect("unable to connect to test db");
+        sqlx::migrate!("../migrations")
+            .run(&pool)
+            .await
+            .expect("unable to run migrations");
+    }
+
+    #[cfg(feature = "smtp")]
+    async fn prepare_senders(dir: &std::path::Path) {
+        std::fs::create_dir_all(dir).expect("unable to create senders dir");
+
+        for sender in ["noreply"] {
+            std::fs::write(dir.join(sender), format!("{}@example.com", sender))
+                .expect(&format!("unable to create `{sender}` sender"));
+        }
     }
 }
 

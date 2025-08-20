@@ -16,15 +16,13 @@ use axum::{
     routing::{get, post},
 };
 use contextual::Context;
-use sqlx::SqlitePool;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
 
 #[derive(Debug)]
 pub struct ServerOpts {
-    pub database_url: String,
-    pub port: u16,
+    pub database: DatabaseConfig,
 
     #[cfg(feature = "rate-limit")]
     pub rate_limiter: RateLimiterConfig,
@@ -33,7 +31,12 @@ pub struct ServerOpts {
     pub serve_dir: std::path::PathBuf,
 
     #[cfg(feature = "smtp")]
-    pub smtp: SMTPConfig,
+    pub smtp: SmtpConfig,
+}
+
+#[derive(Debug)]
+pub struct DatabaseConfig {
+    pub url: String,
 }
 
 #[cfg(feature = "rate-limit")]
@@ -45,7 +48,7 @@ pub struct RateLimiterConfig {
 
 #[cfg(feature = "smtp")]
 #[derive(Debug)]
-pub struct SMTPConfig {
+pub struct SmtpConfig {
     pub relay: String,
     pub port: Option<u16>,
     pub username: Option<String>,
@@ -62,31 +65,7 @@ pub struct AppState {
     pub smtp: crate::smtp::Smtp,
 }
 
-pub fn server(
-    pool: sqlx::Pool<sqlx::Sqlite>,
-    #[cfg(feature = "smtp")] smtp: crate::smtp::Smtp,
-    #[cfg(feature = "rate-limit")] rate_limiter: crate::middleware::RateLimiter,
-) -> Router {
-    let middleware = ServiceBuilder::new()
-        .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
-        .layer(PropagateRequestIdLayer::x_request_id());
-
-    #[cfg(feature = "client-ip")]
-    let middleware = middleware.layer(from_fn(middleware::mw_client_ip));
-
-    #[cfg(feature = "tracing")]
-    let middleware = middleware
-        .layer(tower_http::trace::TraceLayer::new_for_http().make_span_with(span::span))
-        .layer(from_fn(middleware::latency_ms));
-
-    let middleware = middleware.layer(from_fn(middleware::mw_handle_leaked_5xx));
-
-    #[cfg(feature = "rate-limit")]
-    let middleware = middleware.layer(axum::middleware::from_fn_with_state(
-        std::sync::Arc::new(rate_limiter),
-        crate::middleware::mw_rate_limiter,
-    ));
-
+pub async fn router(opts: ServerOpts) -> Result<Router, ServerError> {
     let router = Router::new()
         .route(
             api::username::check_availability::PATH,
@@ -125,84 +104,52 @@ pub fn server(
     #[cfg(feature = "openapi")]
     let router = router.route(api::OPEN_API_DOCS_PATH, get(axum::Json(api::openapi())));
 
-    router
-        .with_state(AppState {
-            pool,
+    #[cfg(feature = "serve-dir")]
+    let router = router.fallback_service(tower_http::services::ServeDir::new(&opts.serve_dir));
 
-            #[cfg(feature = "smtp")]
-            smtp,
-        })
-        .layer(middleware)
-}
+    let middleware = ServiceBuilder::new()
+        .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
+        .layer(PropagateRequestIdLayer::x_request_id());
 
-pub async fn serve(opts: ServerOpts) -> Result<(), ServerError> {
+    #[cfg(feature = "client-ip")]
+    let middleware = middleware.layer(from_fn(middleware::mw_client_ip));
+
     #[cfg(feature = "tracing")]
-    tracing::info!("{:?}", opts);
+    let middleware = middleware
+        .layer(tower_http::trace::TraceLayer::new_for_http().make_span_with(span::span))
+        .layer(from_fn(middleware::latency_ms));
 
-    let pool = SqlitePool::connect(&opts.database_url)
-        .await
-        .context(format!("connect database :: {}", opts.database_url))?;
-
-    #[cfg(feature = "smtp")]
-    let smtp = crate::smtp::Smtp {
-        transport: {
-            #[cfg(not(feature = "smtp--no-tls"))]
-            let mut transport =
-                lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::starttls_relay(
-                    &opts.smtp.relay,
-                )
-                .context("smtp relay")?;
-
-            #[cfg(feature = "smtp--no-tls")]
-            let mut transport = {
-                #[cfg(feature = "tracing")]
-                tracing::warn!(
-                    "SMTP is running in insecure mode (smtp-no-tls). TLS certificate validation is disabled — only use for local testing!"
-                );
-
-                lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(
-                    &opts.smtp.relay,
-                )
-            };
-
-            if let (Some(username), Some(password)) = (opts.smtp.username, opts.smtp.password) {
-                use lettre::transport::smtp::authentication::Credentials;
-                transport = transport.credentials(Credentials::new(username, password));
-            }
-
-            if let Some(port) = opts.smtp.port {
-                transport = transport.port(port);
-            }
-
-            transport.build()
-        },
-        senders: std::sync::Arc::new(crate::smtp::SmtpSenders::new(opts.smtp.senders_dir)),
-        tera: {
-            let glob = opts.smtp.templates_dir.join("*.html");
-            let glob_str = glob.to_string_lossy().to_string();
-            let tera = tera::Tera::new(&glob_str).context("initialize Tera")?;
-            std::sync::Arc::new(tera)
-        },
-    };
+    let middleware = middleware.layer(from_fn(middleware::mw_handle_leaked_5xx));
 
     #[cfg(feature = "rate-limit")]
-    let rate_limiter =
-        crate::middleware::RateLimiter::new(opts.rate_limiter.limit, opts.rate_limiter.interval);
+    let middleware = middleware.layer(axum::middleware::from_fn_with_state(
+        std::sync::Arc::new(opts.rate_limiter.into()),
+        crate::middleware::mw_rate_limiter,
+    ));
 
-    let server = server(
-        pool,
+    let router = router.layer(middleware);
+
+    let router = router.with_state(AppState {
+        pool: opts
+            .database
+            .pool()
+            .await
+            .context(format!("connect database :: {}", opts.database.url))?,
         #[cfg(feature = "smtp")]
-        smtp,
-        #[cfg(feature = "rate-limit")]
-        rate_limiter,
-    );
+        smtp: crate::smtp::Smtp::try_from(opts.smtp)?,
+    });
 
-    #[cfg(feature = "serve-dir")]
-    let server = server.fallback_service(tower_http::services::ServeDir::new(&opts.serve_dir));
+    Ok(router)
+}
 
+pub async fn serve(server: Router, port: u16) -> Result<(), ServerError> {
+    #[cfg(feature = "client-ip")]
     let app = server.into_make_service_with_connect_info::<SocketAddr>();
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], opts.port));
+    #[cfg(not(feature = "client-ip"))]
+    let app = server.into_make_service();
+
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = TcpListener::bind(addr)
         .await
         .context(format!("bind :: {addr}"))?;
@@ -226,19 +173,88 @@ pub enum ServerError {
 
     #[cfg(feature = "smtp")]
     #[error("{0}")]
-    SmtpTransport(#[from] contextual::Error<lettre::transport::smtp::Error>),
-
-    #[cfg(feature = "smtp")]
-    #[error("{0}")]
-    Tera(#[from] contextual::Error<tera::Error>),
+    SmtpInitialization(#[from] SmtpInitializationError),
 
     #[error("{0}")]
     Io(#[from] contextual::Error<std::io::Error>),
 }
 
+#[cfg(feature = "smtp")]
+#[derive(thiserror::Error, Debug)]
+pub enum SmtpInitializationError {
+    #[cfg(feature = "smtp")]
+    #[error("{0}")]
+    SmtpTransport(#[from] contextual::Error<lettre::transport::smtp::Error>),
+
+    #[cfg(feature = "smtp")]
+    #[error("{0}")]
+    Tera(#[from] contextual::Error<tera::Error>),
+}
+
 impl FromRef<AppState> for sqlx::Pool<sqlx::Sqlite> {
     fn from_ref(app_state: &AppState) -> Self {
         app_state.pool.clone()
+    }
+}
+
+impl DatabaseConfig {
+    pub async fn pool(&self) -> Result<sqlx::Pool<sqlx::Sqlite>, sqlx::Error> {
+        sqlx::Pool::<sqlx::Sqlite>::connect(&self.url).await
+    }
+}
+
+#[cfg(feature = "rate-limit")]
+impl From<RateLimiterConfig> for crate::middleware::RateLimiter {
+    fn from(config: RateLimiterConfig) -> Self {
+        Self::new(config.limit, config.interval)
+    }
+}
+
+#[cfg(feature = "smtp")]
+impl TryFrom<SmtpConfig> for crate::smtp::Smtp {
+    type Error = SmtpInitializationError;
+
+    fn try_from(config: SmtpConfig) -> Result<Self, Self::Error> {
+        Ok(Self {
+            transport: {
+                #[cfg(not(feature = "smtp--no-tls"))]
+                let mut transport =
+                    lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::starttls_relay(
+                        &config.relay,
+                    )
+                    .context("smtp relay")?;
+
+                #[cfg(feature = "smtp--no-tls")]
+                let mut transport = {
+                    #[cfg(feature = "tracing")]
+                    tracing::warn!(
+                        "SMTP is running in insecure mode (smtp-no-tls). TLS certificate validation is disabled — only use for local testing!"
+                    );
+
+                    lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(
+                        &config.relay,
+                    )
+                };
+
+                if let (Some(username), Some(password)) = (config.username, config.password) {
+                    use lettre::transport::smtp::authentication::Credentials;
+                    transport = transport.credentials(Credentials::new(username, password));
+                }
+
+                if let Some(port) = config.port {
+                    transport = transport.port(port);
+                }
+
+                transport.build()
+            },
+            senders: std::sync::Arc::new(crate::smtp::SmtpSenders::new(config.senders_dir)),
+            tera: {
+                let glob = config.templates_dir.join("*.html");
+                let glob_str = glob.to_string_lossy().to_string();
+                let tera = tera::Tera::new(&glob_str).context("initialize Tera")?;
+                std::sync::Arc::new(tera)
+            },
+        })
     }
 }
 

@@ -14,7 +14,7 @@ async fn wrong_password() {
     let password = password!("Aa!1aaaa");
     let wrong_password = password!("Bb!2bbbb");
 
-    let client = TestClient::new().await;
+    let client = TestClient::default().await;
 
     client
         .send(request!(
@@ -43,7 +43,7 @@ async fn user_not_found() {
     let username = username!("user1");
     let password = password!("Aa!1aaaa");
 
-    let client = TestClient::new().await;
+    let client = TestClient::default().await;
 
     client
         .send(request!(

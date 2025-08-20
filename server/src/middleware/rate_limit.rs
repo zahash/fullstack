@@ -31,6 +31,7 @@ impl RateLimiter {
         }
     }
 
+    #[allow(dead_code)]
     pub fn nolimit() -> Self {
         Self {
             requests: DashMap::default(),
@@ -67,24 +68,23 @@ pub async fn mw_rate_limiter(
     request: Request<Body>,
     next: Next,
 ) -> Response<Body> {
-    if let Some(client_ip) = request
+    let client_ip = request
         .extensions()
         .get::<Option<IpAddr>>()
         .copied()
         .flatten()
-        .or_else(|| {
+        .unwrap_or_else(|| {
             #[cfg(feature = "tracing")]
-            tracing::error!("unable to get client_ip while rate limiting");
+            tracing::warn!("unable to get client_ip while rate limiting");
 
-            None
-        })
-    {
-        if rate_limiter.is_too_many(client_ip) {
-            #[cfg(feature = "tracing")]
-            tracing::warn!("rate limited {}", client_ip);
+            IpAddr::from([0, 0, 0, 0])
+        });
 
-            return StatusCode::TOO_MANY_REQUESTS.into_response();
-        }
+    if rate_limiter.is_too_many(client_ip) {
+        #[cfg(feature = "tracing")]
+        tracing::warn!("rate limited {}", client_ip);
+
+        return StatusCode::TOO_MANY_REQUESTS.into_response();
     }
 
     next.run(request).await

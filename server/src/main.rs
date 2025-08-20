@@ -82,9 +82,10 @@ async fn main() {
 
     let args = Args::parse();
 
-    let server_opts = server::ServerOpts {
-        database_url: args.database_url,
-        port: args.port,
+    let opts = server::ServerOpts {
+        database: server::DatabaseConfig {
+            url: args.database_url,
+        },
 
         #[cfg(feature = "rate-limit")]
         rate_limiter: args.rate_limit,
@@ -93,7 +94,7 @@ async fn main() {
         serve_dir: args.serve_dir,
 
         #[cfg(feature = "smtp")]
-        smtp: server::SMTPConfig {
+        smtp: server::SmtpConfig {
             relay: args.smtp_relay,
             port: args.smtp_port,
             username: args.smtp_username,
@@ -103,8 +104,13 @@ async fn main() {
         },
     };
 
-    if let Err(err) = server::serve(server_opts).await {
-        exit(err)
+    match server::router(opts).await {
+        Err(err) => exit(err),
+        Ok(router) => {
+            if let Err(err) = server::serve(router, args.port).await {
+                exit(err)
+            }
+        }
     }
 }
 

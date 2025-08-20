@@ -12,7 +12,7 @@ async fn onboarding_flow() {
     let email = email!("user1@test.com");
     let password = password!("Aa!1aaaa");
 
-    let client = TestClient::new().await;
+    let client = TestClient::default().await;
 
     client
         .send(request!(
@@ -51,7 +51,7 @@ async fn double_signup() {
     let email = email!("user1@test.com");
     let password = password!("Aa!1aaaa");
 
-    let client = TestClient::new().await;
+    let client = TestClient::default().await;
 
     client
         .send(request!(
@@ -85,7 +85,7 @@ async fn username_taken() {
     let password1 = password!("Aa!1aaaa");
     let password2 = password!("Bb!2bbbb");
 
-    let client = TestClient::new().await;
+    let client = TestClient::default().await;
 
     client
         .send(request!(
@@ -114,7 +114,7 @@ async fn email_taken() {
     #[cfg(feature = "tracing")]
     shared::tracing_init();
 
-    let client = TestClient::new().await;
+    let client = TestClient::default().await;
 
     let email = email!("user3@test.com");
 
