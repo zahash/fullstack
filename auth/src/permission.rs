@@ -28,6 +28,13 @@ impl Permissions {
 }
 
 #[cfg(feature = "axum")]
+impl extra::ErrorKind for InsufficientPermissionsError {
+    fn kind(&self) -> &'static str {
+        "auth.permissions"
+    }
+}
+
+#[cfg(feature = "axum")]
 impl axum::response::IntoResponse for InsufficientPermissionsError {
     fn into_response(self) -> axum::response::Response {
         #[cfg(feature = "tracing")]

@@ -69,7 +69,7 @@ pub async fn initiate_email_verification(
     .context("check if email already verified")?;
 
     let Some(record) = record else {
-        return Err(InitiateEmailVerificationError::EmailDoesNotExist(
+        return Err(InitiateEmailVerificationError::UnAssociatedEmail(
             email.clone(),
         ));
     };
@@ -154,8 +154,8 @@ pub async fn initiate_email_verification(
 
 #[derive(thiserror::Error, Debug)]
 pub enum InitiateEmailVerificationError {
-    #[error("email `{0}` does not exist")]
-    EmailDoesNotExist(Email),
+    #[error("email `{0}` not associated with any user")]
+    UnAssociatedEmail(Email),
 
     #[error("{0}")]
     SmtpSenders(#[from] contextual::Error<SmtpSendersError>),
@@ -173,10 +173,25 @@ pub enum InitiateEmailVerificationError {
     SmtpTransport(#[from] contextual::Error<lettre::transport::smtp::Error>),
 }
 
+impl extra::ErrorKind for InitiateEmailVerificationError {
+    fn kind(&self) -> &'static str {
+        match self {
+            InitiateEmailVerificationError::UnAssociatedEmail(_) => {
+                "email.verification.unassociated"
+            }
+            InitiateEmailVerificationError::SmtpSenders(_) => "email.verification.smtp-senders",
+            InitiateEmailVerificationError::Sqlx(_) => "email.verification.sqlx",
+            InitiateEmailVerificationError::EmailTemplate(_) => "email.verification.email-template",
+            InitiateEmailVerificationError::EmailContent(_) => "email.verification.email-content",
+            InitiateEmailVerificationError::SmtpTransport(_) => "email.verification.smtp-transport",
+        }
+    }
+}
+
 impl IntoResponse for InitiateEmailVerificationError {
     fn into_response(self) -> axum::response::Response {
         match self {
-            InitiateEmailVerificationError::EmailDoesNotExist(_) => {
+            InitiateEmailVerificationError::UnAssociatedEmail(_) => {
                 #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
 

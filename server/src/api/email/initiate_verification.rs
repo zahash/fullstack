@@ -75,6 +75,15 @@ pub enum Error {
     InitiateEmailVerification(#[from] InitiateEmailVerificationError),
 }
 
+impl extra::ErrorKind for Error {
+    fn kind(&self) -> &'static str {
+        match self {
+            Error::InvalidEmail(_) => "email.invalid",
+            Error::InitiateEmailVerification(err) => err.kind(),
+        }
+    }
+}
+
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {

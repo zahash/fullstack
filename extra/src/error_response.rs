@@ -3,6 +3,9 @@
 pub struct ErrorResponse {
     message: String,
 
+    #[cfg(feature = "error-kind")]
+    kind: &'static str,
+
     #[cfg_attr(feature = "openapi", schema(example = "2025-08-01T12:34:56Z"))]
     datetime: Option<String>,
 
@@ -17,7 +20,11 @@ impl ErrorResponse {
     const HELP: &str = "Please check the response headers for `x-request-id`, include the datetime and raise a support ticket.";
 }
 
-impl<E: std::error::Error> From<E> for ErrorResponse {
+impl<#[cfg(not(feature = "error-kind"))] E, #[cfg(feature = "error-kind")] E: crate::ErrorKind>
+    From<E> for ErrorResponse
+where
+    E: std::error::Error,
+{
     fn from(error: E) -> Self {
         Self {
             message: error.to_string(),
@@ -27,6 +34,9 @@ impl<E: std::error::Error> From<E> for ErrorResponse {
                 ))
                 .ok(),
             help: Self::HELP,
+
+            #[cfg(feature = "error-kind")]
+            kind: error.kind(),
         }
     }
 }

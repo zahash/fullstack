@@ -160,6 +160,20 @@ pub async fn handler(
     Ok(StatusCode::CREATED)
 }
 
+impl extra::ErrorKind for Error {
+    fn kind(&self) -> &'static str {
+        match self {
+            Error::InvalidUsername(_) => "signup.username.invalid",
+            Error::InvalidEmail(_) => "signup.email.invalid",
+            Error::WeakPassword(_) => "signup.password.weak",
+            Error::UsernameExists(_) => "signup.username.exists",
+            Error::EmailExists(_) => "signup.email.exists",
+            Error::Sqlx(_) => "signup.sqlx",
+            Error::Bcrypt(_) => "signup.bcrypt",
+        }
+    }
+}
+
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
         match self {

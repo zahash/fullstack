@@ -131,6 +131,26 @@ where
 }
 
 #[cfg(feature = "axum")]
+impl extra::ErrorKind for PrincipalError {
+    fn kind(&self) -> &'static str {
+        match self {
+            PrincipalError::UnAssociatedAccessToken => "auth.access-token.unassociated",
+            PrincipalError::UnAssociatedSessionId => "auth.session.id.unassociated",
+            PrincipalError::InvalidBasicCredentials => "auth.basic.invalid-credentials",
+            PrincipalError::NoCredentialsProvided => "auth.no-credentials",
+            PrincipalError::UsernameNotFound(_) => "auth.basic.username.not-found",
+            PrincipalError::AccessTokenAuthorizationExtraction(err) => err.kind(),
+            PrincipalError::BasicAuthorizationExtraction(err) => err.kind(),
+            PrincipalError::SessionCookieExtraction(err) => err.kind(),
+            PrincipalError::AccessTokenValidation(err) => err.kind(),
+            PrincipalError::SessionIdValidation(err) => err.kind(),
+            PrincipalError::Sqlx(_) => "auth.sqlx",
+            PrincipalError::Bcrypt(_) => "auth.bcrypt",
+        }
+    }
+}
+
+#[cfg(feature = "axum")]
 impl axum::response::IntoResponse for PrincipalError {
     fn into_response(self) -> axum::response::Response {
         match self {

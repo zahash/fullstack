@@ -119,6 +119,19 @@ pub enum Error {
     Sqlx(#[from] contextual::Error<sqlx::Error>),
 }
 
+impl extra::ErrorKind for Error {
+    fn kind(&self) -> &'static str {
+        match self {
+            Error::InvalidEmail(_) => "email.invalid",
+            Error::VerificationNotInitialized(_) => "email.verification.not-initialized",
+            Error::Base64decode => "email.verification.token.base64-decode",
+            Error::TokenMismatch => "email.verification.token.mismatch",
+            Error::TokenExpired => "email.verification.token.expired",
+            Error::Sqlx(_) => "email.verification.sqlx",
+        }
+    }
+}
+
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {

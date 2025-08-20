@@ -159,6 +159,15 @@ impl Deref for SessionId {
 }
 
 #[cfg(feature = "axum")]
+impl extra::ErrorKind for SessionValidationError {
+    fn kind(&self) -> &'static str {
+        match self {
+            SessionValidationError::SessionExpired => "auth.session.expired",
+        }
+    }
+}
+
+#[cfg(feature = "axum")]
 impl axum::response::IntoResponse for SessionValidationError {
     fn into_response(self) -> axum::response::Response {
         match self {
@@ -171,6 +180,15 @@ impl axum::response::IntoResponse for SessionValidationError {
                 )
                     .into_response()
             }
+        }
+    }
+}
+
+#[cfg(feature = "axum")]
+impl extra::ErrorKind for SessionCookieExtractionError {
+    fn kind(&self) -> &'static str {
+        match self {
+            SessionCookieExtractionError::Base64Decode => "auth.session.cookie.base64-decode",
         }
     }
 }

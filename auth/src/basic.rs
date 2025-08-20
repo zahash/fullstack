@@ -56,6 +56,26 @@ pub enum BasicAuthorizationExtractionError {
 }
 
 #[cfg(feature = "axum")]
+impl extra::ErrorKind for BasicAuthorizationExtractionError {
+    fn kind(&self) -> &'static str {
+        match self {
+            BasicAuthorizationExtractionError::NonUTF8HeaderValue => {
+                "auth.basic.authorization-header.non-utf8"
+            }
+            BasicAuthorizationExtractionError::Base64Decode => {
+                "auth.basic.authorization-header.base64-decode"
+            }
+            BasicAuthorizationExtractionError::NonUTF8Credentials => {
+                "auth.basic.authorization-header.credentials.non-utf8"
+            }
+            BasicAuthorizationExtractionError::InvalidBasicFormat => {
+                "auth.basic.authorization-header.invalid-format"
+            }
+        }
+    }
+}
+
+#[cfg(feature = "axum")]
 impl axum::response::IntoResponse for BasicAuthorizationExtractionError {
     fn into_response(self) -> axum::response::Response {
         match self {

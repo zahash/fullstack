@@ -74,6 +74,18 @@ pub enum Error {
     Sqlx(#[from] contextual::Error<sqlx::Error>),
 }
 
+impl extra::ErrorKind for Error {
+    fn kind(&self) -> &'static str {
+        match self {
+            Error::AccessTokenAuthorizationExtractionError(err) => err.kind(),
+            Error::AccessTokenHeaderNotFound => "auth.access-token.authorization-header.not-found",
+            Error::UnAssociatedAccessToken => "auth.access-token.unassociated",
+            Error::AccessTokenValidation(err) => err.kind(),
+            Error::Sqlx(_) => "auth.access-token.sqlx",
+        }
+    }
+}
+
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {

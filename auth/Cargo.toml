@@ -21,6 +21,6 @@ extra = { path = "../extra", optional = true }
 token = { path = "../token" }
 
 [features]
-axum = ["dep:axum", "dep:extra", "extra/error-response"]
+axum = ["dep:axum", "dep:extra", "extra/error-kind", "extra/error-response"]
 openapi = ["dep:utoipa"]
 tracing = ["dep:tracing"]

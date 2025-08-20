@@ -144,6 +144,15 @@ impl From<Token<32>> for AccessToken {
 }
 
 #[cfg(feature = "axum")]
+impl extra::ErrorKind for AccessTokenValidationError {
+    fn kind(&self) -> &'static str {
+        match self {
+            AccessTokenValidationError::AccessTokenExpired => "auth.access-token.expired",
+        }
+    }
+}
+
+#[cfg(feature = "axum")]
 impl axum::response::IntoResponse for AccessTokenValidationError {
     fn into_response(self) -> axum::response::Response {
         match self {
@@ -155,6 +164,20 @@ impl axum::response::IntoResponse for AccessTokenValidationError {
                     axum::Json(extra::ErrorResponse::from(self)),
                 )
                     .into_response()
+            }
+        }
+    }
+}
+
+#[cfg(feature = "axum")]
+impl extra::ErrorKind for AccessTokenAuthorizationExtractionError {
+    fn kind(&self) -> &'static str {
+        match self {
+            AccessTokenAuthorizationExtractionError::NonUTF8HeaderValue => {
+                "auth.access-token.authorization-header.non-utf8"
+            }
+            AccessTokenAuthorizationExtractionError::Base64Decode => {
+                "auth.access-token.authorization-header.base64-decode"
             }
         }
     }
