@@ -23,14 +23,16 @@ pub const OPEN_API_DOCS_PATH: &str = "/api-docs/openapi.json";
         login::handler,
         logout::handler,
         permissions::handler,
+        permissions::assign::handler,
         signup::handler,
         sysinfo::handler,
         username::check_availability::handler
     ),
     components(schemas(
         access_token::generate::Config,
-        login::Credentials,
         auth::Permissions,
+        login::Credentials,
+        permissions::assign::RequestBody,
         signup::RequestBody,
         sysinfo::Info
     ))

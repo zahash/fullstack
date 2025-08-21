@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use contextual::Context;
 use http::HeaderMap;
 
@@ -176,6 +178,24 @@ impl axum::response::IntoResponse for PrincipalError {
                 #[cfg(feature = "tracing")]
                 tracing::error!("{:?}", self);
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
+        }
+    }
+}
+
+impl Display for Principal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Principal::Session(session_info) => {
+                write!(f, "Principal::Session::(user_id: {})", session_info.user_id)
+            }
+            Principal::AccessToken(access_token_info) => write!(
+                f,
+                "Principal::AccessToken::(user_id: {}, token_name: `{}`)",
+                access_token_info.user_id, access_token_info.name
+            ),
+            Principal::Basic(user_info) => {
+                write!(f, "Principal::Basic::(user_id: {})", user_info.user_id)
             }
         }
     }

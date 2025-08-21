@@ -7,8 +7,13 @@ pub struct Permissions(pub Vec<Permission>);
 #[cfg_attr(feature = "axum", derive(serde::Serialize))]
 #[derive(Debug, Clone)]
 pub struct Permission {
+    #[cfg_attr(feature = "openapi", schema(examples(1)))]
     pub id: i64,
+
+    #[cfg_attr(feature = "openapi", schema(examples("post:/access-token/generate")))]
     pub permission: String,
+
+    #[cfg_attr(feature = "openapi", schema(examples("Generate a new access token")))]
     pub description: Option<String>,
 }
 

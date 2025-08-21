@@ -2,6 +2,9 @@ use clap::Parser;
 
 // TODO: introduce other databases, like postgres and mysql
 
+// TODO: provide a way to show which feature flags are enabled
+//          maybe have two cli subcommands `serve` and `featuures`
+
 #[derive(Debug, clap::Parser)]
 struct Args {
     /// The port number on which the server will listen for incoming connections.

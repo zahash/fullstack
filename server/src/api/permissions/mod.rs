@@ -1,3 +1,5 @@
+pub mod assign;
+
 use auth::{InsufficientPermissionsError, Permissions, Principal};
 use axum::{extract::State, response::IntoResponse};
 use axum_macros::debug_handler;
