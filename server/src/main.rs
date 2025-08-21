@@ -2,11 +2,24 @@ use clap::Parser;
 
 // TODO: introduce other databases, like postgres and mysql
 
-// TODO: provide a way to show which feature flags are enabled
-//          maybe have two cli subcommands `serve` and `featuures`
+// TODO: have a runtime log warn for await-tasks and smtp--no-tls features
 
 #[derive(Debug, clap::Parser)]
 struct Args {
+    #[clap(subcommand)]
+    command: Command,
+}
+
+#[derive(Debug, clap::Subcommand)]
+enum Command {
+    /// Start the server
+    Serve(Serve),
+    /// Show enabled feature flags
+    Features,
+}
+
+#[derive(Debug, clap::Parser)]
+struct Serve {
     /// The port number on which the server will listen for incoming connections.
     /// Example: `8080`
     #[arg(long, env("PORT"))]
@@ -85,36 +98,66 @@ async fn main() {
 
     let args = Args::parse();
 
-    let opts = server::ServerOpts {
-        database: server::DatabaseConfig {
-            url: args.database_url,
-        },
+    match args.command {
+        Command::Serve(serve) => {
+            let opts = server::ServerOpts {
+                database: server::DatabaseConfig {
+                    url: serve.database_url,
+                },
 
-        #[cfg(feature = "rate-limit")]
-        rate_limiter: args.rate_limit,
+                #[cfg(feature = "rate-limit")]
+                rate_limiter: serve.rate_limit,
 
-        #[cfg(feature = "serve-dir")]
-        serve_dir: args.serve_dir,
+                #[cfg(feature = "serve-dir")]
+                serve_dir: serve.serve_dir,
 
-        #[cfg(feature = "smtp")]
-        smtp: server::SmtpConfig {
-            relay: args.smtp_relay,
-            port: args.smtp_port,
-            username: args.smtp_username,
-            password: args.smtp_password,
-            senders_dir: args.smtp_senders_dir,
-            templates_dir: args.smtp_templates_dir,
-        },
-    };
+                #[cfg(feature = "smtp")]
+                smtp: server::SmtpConfig {
+                    relay: serve.smtp_relay,
+                    port: serve.smtp_port,
+                    username: serve.smtp_username,
+                    password: serve.smtp_password,
+                    senders_dir: serve.smtp_senders_dir,
+                    templates_dir: serve.smtp_templates_dir,
+                },
+            };
 
-    match server::router(opts).await {
-        Err(err) => exit(err),
-        Ok(router) => {
-            if let Err(err) = server::serve(router, args.port).await {
-                exit(err)
+            match server::router(opts).await {
+                Err(err) => exit(err),
+                Ok(router) => {
+                    if let Err(err) = server::serve(router, serve.port).await {
+                        exit(err)
+                    }
+                }
             }
         }
+        Command::Features => {
+            tracing::info!("{:?}", features());
+        }
     }
+}
+
+const fn features() -> &'static [&'static str] {
+    &[
+        #[cfg(feature = "await-tasks")]
+        "await-tasks",
+        #[cfg(feature = "client-ip")]
+        "client-ip",
+        #[cfg(feature = "openapi")]
+        "openapi",
+        #[cfg(feature = "profiles")]
+        "profiles",
+        #[cfg(feature = "rate-limit")]
+        "rate-limit",
+        #[cfg(feature = "serve-dir")]
+        "serve-dir",
+        #[cfg(feature = "smtp")]
+        "smtp",
+        #[cfg(feature = "smtp--no-tls")]
+        "smtp--no-tls",
+        #[cfg(feature = "tracing")]
+        "tracing",
+    ]
 }
 
 #[cfg(feature = "profiles")]
