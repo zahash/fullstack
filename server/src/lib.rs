@@ -225,16 +225,10 @@ impl TryFrom<SmtpConfig> for crate::smtp::Smtp {
                     .context("smtp relay")?;
 
                 #[cfg(feature = "smtp--no-tls")]
-                let mut transport = {
-                    #[cfg(feature = "tracing")]
-                    tracing::warn!(
-                        "SMTP is running in insecure mode (smtp-no-tls). TLS certificate validation is disabled — only use for local testing!"
-                    );
-
+                let mut transport =
                     lettre::AsyncSmtpTransport::<lettre::Tokio1Executor>::builder_dangerous(
                         &config.relay,
-                    )
-                };
+                    );
 
                 if let (Some(username), Some(password)) = (config.username, config.password) {
                     use lettre::transport::smtp::authentication::Credentials;

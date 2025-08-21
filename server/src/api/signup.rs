@@ -129,7 +129,7 @@ pub async fn handler(
     tx.commit().await.context("commit transaction")?;
 
     #[cfg(feature = "smtp")]
-    tokio::spawn({
+    let _handle = tokio::spawn({
         #[cfg(feature = "tracing")]
         tracing::info!("spawn task to initiate email verification for {email}");
 
@@ -140,10 +140,12 @@ pub async fn handler(
 
             #[cfg(feature = "tracing")]
             match _res {
-                Ok(response) => {
-                    tracing::info!("initiate_email_verification response :: {response:?}")
-                }
-                Err(err) => tracing::error!("initiate_email_verification error :: {err:?}"),
+                Ok(None) => tracing::info!("initiate_email_verification no-op"),
+                Ok(Some(response)) => match response.is_positive() {
+                    true => tracing::info!("initiate_email_verification :: {response:?}"),
+                    false => tracing::warn!("initiate_email_verification :: {response:?}"),
+                },
+                Err(err) => tracing::error!("initiate_email_verification :: {err:?}"),
             }
         };
 
@@ -156,6 +158,14 @@ pub async fn handler(
         #[cfg(not(feature = "tracing"))]
         fut
     });
+
+    #[cfg(all(feature = "smtp", feature = "await-tasks"))]
+    {
+        if let Err(err) = _handle.await {
+            #[cfg(feature = "tracing")]
+            tracing::error!("failed to await email verification task: {err:?}");
+        }
+    }
 
     Ok(StatusCode::CREATED)
 }

@@ -45,7 +45,7 @@ pub async fn handler(
     match crate::smtp::initiate_email_verification(&pool, &smtp, &email).await? {
         None => {
             #[cfg(feature = "tracing")]
-            tracing::info!("initiate_email_verification no-op");
+            tracing::info!("no-op");
 
             Ok(StatusCode::OK)
         }

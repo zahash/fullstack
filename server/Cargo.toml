@@ -44,6 +44,7 @@ test-proc-macros = { path = "../test-proc-macros", features = [
 ] }
 
 [features]
+await-tasks = []
 client-ip = ["dep:forwarded-header-value"]
 openapi = ["dep:utoipa", "auth/openapi", "extra/openapi"]
 profiles = ["dep:dotenvy"]
