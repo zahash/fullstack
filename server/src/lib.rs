@@ -80,6 +80,7 @@ pub async fn router(opts: ServerOpts) -> Result<Router, ServerError> {
         .route(api::signup::PATH, post(api::signup::handler))
         .route(api::login::PATH, post(api::login::handler))
         .route(api::logout::PATH, get(api::logout::handler))
+        .route(api::permissions::PATH, get(api::permissions::handler))
         .route(
             api::access_token::generate::PATH,
             post(api::access_token::generate::handler),

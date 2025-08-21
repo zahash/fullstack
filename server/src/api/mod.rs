@@ -3,6 +3,7 @@ pub mod email;
 pub mod health;
 pub mod login;
 pub mod logout;
+pub mod permissions;
 pub mod private;
 pub mod signup;
 pub mod sysinfo;
@@ -21,6 +22,7 @@ pub const OPEN_API_DOCS_PATH: &str = "/api-docs/openapi.json";
         health::handler,
         login::handler,
         logout::handler,
+        permissions::handler,
         signup::handler,
         sysinfo::handler,
         username::check_availability::handler
@@ -28,6 +30,7 @@ pub const OPEN_API_DOCS_PATH: &str = "/api-docs/openapi.json";
     components(schemas(
         access_token::generate::Config,
         login::Credentials,
+        auth::Permissions,
         signup::RequestBody,
         sysinfo::Info
     ))
@@ -57,7 +60,3 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
 
     openapi
 }
-
-/*
-TODO: create permissions management apis
-*/

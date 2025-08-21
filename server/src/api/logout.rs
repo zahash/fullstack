@@ -39,12 +39,18 @@ pub async fn handler(
             "#,
             session_id_hash
         )
-        .fetch_one(&pool)
+        .fetch_optional(&pool)
         .await
         .context("delete session")?;
 
         #[cfg(feature = "tracing")]
-        tracing::Span::current().record("user_id", tracing::field::display(_record.user_id));
+        match _record {
+            Some(record) => {
+                tracing::Span::current().record("user_id", tracing::field::display(record.user_id));
+                tracing::info!("session invalidated")
+            }
+            None => tracing::info!("session not found"),
+        };
     }
 
     let jar = jar.add(expired_session_cookie());

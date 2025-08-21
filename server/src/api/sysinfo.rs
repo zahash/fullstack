@@ -139,7 +139,7 @@ pub async fn handler(
         .permissions(&pool)
         .await
         .context("get permissions")?;
-    permissions.require("sysinfo")?;
+    permissions.require("get:/sysinfo")?;
 
     Ok(Info::default())
 }

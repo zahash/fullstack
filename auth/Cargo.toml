@@ -9,6 +9,7 @@ base64 = "0.22"
 bcrypt = "0.17"
 cookie = "0.18"
 http = "1"
+serde = { version = "1", optional = true }
 sqlx = { version = "0.8", features = ["sqlite", "time"] }
 thiserror = "2"
 time = "0.3"
@@ -21,6 +22,13 @@ extra = { path = "../extra", optional = true }
 token = { path = "../token" }
 
 [features]
-axum = ["dep:axum", "dep:extra", "extra/error-kind", "extra/error-response"]
+axum = [
+    "dep:axum",
+    "dep:extra",
+    "dep:serde",
+    "extra/error-kind",
+    "extra/error-response",
+    "serde/derive",
+]
 openapi = ["dep:utoipa"]
 tracing = ["dep:tracing"]

@@ -1,5 +1,10 @@
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "axum", derive(serde::Serialize))]
+#[derive(Debug)]
 pub struct Permissions(pub Vec<Permission>);
 
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "axum", derive(serde::Serialize))]
 #[derive(Debug, Clone)]
 pub struct Permission {
     pub id: i64,
@@ -24,6 +29,13 @@ impl Permissions {
             true => Ok(()),
             false => Err(InsufficientPermissionsError),
         }
+    }
+}
+
+#[cfg(feature = "axum")]
+impl axum::response::IntoResponse for Permissions {
+    fn into_response(self) -> axum::response::Response {
+        axum::Json(self).into_response()
     }
 }
 

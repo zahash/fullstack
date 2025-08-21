@@ -49,7 +49,7 @@ pub async fn handler(
         .await
         .context("get permissions")?;
 
-    permissions.require("access_token:create")?;
+    permissions.require("post:/access-token/generate")?;
 
     let user_id = principal.user_id();
 
