@@ -63,7 +63,7 @@ impl extra::ErrorKind for Error {
     fn kind(&self) -> &'static str {
         match self {
             Error::InvalidParams(_) => "email.invalid",
-            Error::Sqlx(_) => "email.sqlx",
+            Error::Sqlx(_) => "sqlx",
         }
     }
 }

@@ -96,9 +96,6 @@ async fn username_taken() {
         .await
         .status(201);
 
-    // TODO: assert the body json using the ErrorResponse type
-    // assert if the string "username" is present
-    // or check the "kind" field
     client
         .send(request!(
             POST "/signup";
@@ -106,7 +103,14 @@ async fn username_taken() {
             format!("username={}&email={}&password={}", username, email2, password2)
         ))
         .await
-        .status(409);
+        .status(409)
+        .json_body::<serde_json::Value>(|body| {
+            assert_eq!(
+                body.get("kind"),
+                Some(&serde_json::Value::from("username.exists"))
+            );
+        })
+        .await;
 }
 
 #[tokio::test]
@@ -140,5 +144,12 @@ async fn email_taken() {
             format!("username={}&email={}&password={}", username2, email, password2)
         ))
         .await
-        .status(409);
+        .status(409)
+        .json_body::<serde_json::Value>(|body| {
+            assert_eq!(
+                body.get("kind"),
+                Some(&serde_json::Value::from("email.exists"))
+            );
+        })
+        .await;
 }

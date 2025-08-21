@@ -173,13 +173,13 @@ pub async fn handler(
 impl extra::ErrorKind for Error {
     fn kind(&self) -> &'static str {
         match self {
-            Error::InvalidUsername(_) => "signup.username.invalid",
-            Error::InvalidEmail(_) => "signup.email.invalid",
-            Error::WeakPassword(_) => "signup.password.weak",
-            Error::UsernameExists(_) => "signup.username.exists",
-            Error::EmailExists(_) => "signup.email.exists",
-            Error::Sqlx(_) => "signup.sqlx",
-            Error::Bcrypt(_) => "signup.bcrypt",
+            Error::InvalidUsername(_) => "username.invalid",
+            Error::InvalidEmail(_) => "email.invalid",
+            Error::WeakPassword(_) => "password.weak",
+            Error::UsernameExists(_) => "username.exists",
+            Error::EmailExists(_) => "email.exists",
+            Error::Sqlx(_) => "sqlx",
+            Error::Bcrypt(_) => "bcrypt",
         }
     }
 }
