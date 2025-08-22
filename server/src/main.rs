@@ -2,22 +2,6 @@ use clap::Parser;
 
 // TODO: introduce other databases, like postgres and mysql
 
-// TODO: have a runtime log warn for await-tasks and smtp--no-tls features
-
-#[derive(Debug, clap::Parser)]
-struct Args {
-    #[clap(subcommand)]
-    command: Command,
-}
-
-#[derive(Debug, clap::Subcommand)]
-enum Command {
-    /// Start the server
-    Serve(Serve),
-    /// Show enabled feature flags
-    Features,
-}
-
 #[derive(Debug, clap::Parser)]
 struct Serve {
     /// The port number on which the server will listen for incoming connections.
@@ -88,51 +72,41 @@ struct Serve {
 
 #[tokio::main]
 async fn main() {
+    let mut args_os = std::env::args_os().skip(1).peekable();
+
+    if let Some(arg) = args_os.peek()
+        && arg == "features"
+    {
+        println!("{:?}", features());
+        return;
+    }
+
     #[cfg(feature = "tracing")]
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env(/* RUST_LOG env var sets logging level */))
-        .init();
+    {
+        use tracing_subscriber::{EnvFilter, fmt};
+
+        fmt()
+            .with_env_filter(EnvFilter::from_default_env(/* RUST_LOG env var sets logging level */))
+            .init()
+    };
+
+    #[cfg(feature = "tracing")]
+    warn_dangerous_features();
 
     #[cfg(feature = "profiles")]
     load_profile();
 
-    let args = Args::parse();
+    let args = Serve::parse();
 
-    match args.command {
-        Command::Serve(serve) => {
-            let opts = server::ServerOpts {
-                database: server::DatabaseConfig {
-                    url: serve.database_url,
-                },
+    let port = args.port;
+    let opts = server::ServerOpts::from(args);
 
-                #[cfg(feature = "rate-limit")]
-                rate_limiter: serve.rate_limit,
-
-                #[cfg(feature = "serve-dir")]
-                serve_dir: serve.serve_dir,
-
-                #[cfg(feature = "smtp")]
-                smtp: server::SmtpConfig {
-                    relay: serve.smtp_relay,
-                    port: serve.smtp_port,
-                    username: serve.smtp_username,
-                    password: serve.smtp_password,
-                    senders_dir: serve.smtp_senders_dir,
-                    templates_dir: serve.smtp_templates_dir,
-                },
-            };
-
-            match server::router(opts).await {
-                Err(err) => exit(err),
-                Ok(router) => {
-                    if let Err(err) = server::serve(router, serve.port).await {
-                        exit(err)
-                    }
-                }
+    match server::router(opts).await {
+        Err(err) => exit(err),
+        Ok(router) => {
+            if let Err(err) = server::serve(router, port).await {
+                exit(err)
             }
-        }
-        Command::Features => {
-            tracing::info!("{:?}", features());
         }
     }
 }
@@ -203,7 +177,52 @@ fn load_profile() {
     };
 }
 
+#[cfg(feature = "tracing")]
+fn warn_dangerous_features() {
+    use std::{fs, path::PathBuf};
+
+    // DANGEROUS_FEATURES_DIR is set by build.rs
+    let dir = PathBuf::from(env!("DANGEROUS_FEATURES_DIR"));
+    if let Ok(entries) = fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            if let Ok(message) = fs::read_to_string(entry.path()) {
+                tracing::warn!(
+                    "crate compiled with `{}` feature enabled. {}",
+                    entry.file_name().to_string_lossy(),
+                    message
+                );
+            }
+        }
+    }
+}
+
 fn exit(err: impl std::error::Error) {
     eprintln!("{err}");
     std::process::exit(1);
+}
+
+impl From<Serve> for server::ServerOpts {
+    fn from(serve: Serve) -> Self {
+        server::ServerOpts {
+            database: server::DatabaseConfig {
+                url: serve.database_url,
+            },
+
+            #[cfg(feature = "rate-limit")]
+            rate_limiter: serve.rate_limit,
+
+            #[cfg(feature = "serve-dir")]
+            serve_dir: serve.serve_dir,
+
+            #[cfg(feature = "smtp")]
+            smtp: server::SmtpConfig {
+                relay: serve.smtp_relay,
+                port: serve.smtp_port,
+                username: serve.smtp_username,
+                password: serve.smtp_password,
+                senders_dir: serve.smtp_senders_dir,
+                templates_dir: serve.smtp_templates_dir,
+            },
+        }
+    }
 }
