@@ -59,11 +59,31 @@ Manually create the `target` directory before running sqlx commands:
 mkdir target
 ```
 
-Set the `DATABASE_URL` environment variable (see below), then create the database and run migrations as described.
+Set the `DATABASE_URL` environment variable
+
+#### Linux / macOS (bash / zsh)
 
 ```sh
-sqlx database create -D sqlite://target/data.db
-sqlx migrate run --source .\migrations\ -D sqlite://target/data.db
+export DATABASE_URL="sqlite://target/data.db"
+```
+
+#### Windows (Powershell)
+
+```sh
+$env:DATABASE_URL="sqlite://target/data.db"
+```
+
+#### Windows (Command Prompt)
+
+```sh
+set DATABASE_URL=sqlite://target/data.db
+```
+
+Then setup the database as described.
+This creates the database specified in your DATABASE_URL and runs any pending migrations.
+
+```sh
+sqlx database setup --source .\migrations\
 ```
 
 ### WASM (Rust → JS)
