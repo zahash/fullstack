@@ -14,7 +14,8 @@ const DANGEROUS_FEATURES: &'static [(&'static str, &'static str)] = &[
 ];
 
 fn main() {
-    let target_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("dangerous_features");
+    let target_dir =
+        PathBuf::from(std::env::var("OUT_DIR").unwrap(/* Infallible */)).join("dangerous_features");
     println!(
         "cargo:rustc-env=DANGEROUS_FEATURES_DIR={}",
         target_dir.display()
