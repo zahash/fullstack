@@ -66,6 +66,10 @@ struct Serve {
     smtp_senders_dir: std::path::PathBuf,
 
     #[cfg(feature = "smtp")]
+    /// Directory containing email templates.
+    ///
+    /// Each file in this directory should be a valid HTML template
+    /// that can be rendered by the server's templating engine.
     #[arg(long, env("SMTP_TEMPLATES_DIR"))]
     smtp_templates_dir: std::path::PathBuf,
 }
@@ -101,16 +105,13 @@ async fn main() {
     let port = args.port;
     let opts = server::ServerOpts::from(args);
 
-    match server::router(opts).await {
-        Err(err) => exit(err),
-        Ok(router) => {
-            if let Err(err) = server::serve(router, port).await {
-                exit(err)
-            }
-        }
-    }
+    let router = server::router(opts).await.unwrap_or_else(|e| exit(e));
+    server::serve(router, port)
+        .await
+        .unwrap_or_else(|e| exit(e))
 }
 
+#[inline(always)]
 const fn features() -> &'static [&'static str] {
     &[
         #[cfg(feature = "await-tasks")]
@@ -196,9 +197,10 @@ fn warn_dangerous_features() {
     }
 }
 
-fn exit(err: impl std::error::Error) {
+#[inline(always)]
+fn exit(err: impl std::error::Error) -> ! {
     eprintln!("{err}");
-    std::process::exit(1);
+    std::process::exit(1)
 }
 
 impl From<Serve> for server::ServerOpts {
