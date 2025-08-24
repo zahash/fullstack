@@ -1,3 +1,6 @@
+#[cfg(feature = "signed")]
+pub mod signed;
+
 use std::fmt::Display;
 
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
