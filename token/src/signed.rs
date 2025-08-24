@@ -10,6 +10,8 @@ use sha2::{
 };
 use time::OffsetDateTime;
 
+/// A generic container for a token that is signed and has an expiration date.
+/// The token is signed using HMAC-SHA256.
 #[derive(Debug, Clone)]
 pub struct Signed<T> {
     header: Header,
@@ -18,13 +20,17 @@ pub struct Signed<T> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Header {
+    /// issued at time
     iat: OffsetDateTime,
+    /// expiry time
     exp: OffsetDateTime,
 }
 
 impl<T> Signed<T> {
     const DEFAULT_TTL: Duration = Duration::from_secs(3600);
 
+    /// Creates a new `Signed` token with the default settings.
+    /// Settings can be modified using the various builder-style methods.
     pub fn new(token: T) -> Self {
         let iat = OffsetDateTime::now_utc();
         let exp = iat + Self::DEFAULT_TTL;
@@ -57,6 +63,7 @@ impl<T> Signed<T> {
         Ok(self.token)
     }
 
+    /// Encodes the `Signed` token into a url-safe base64 encoded string with no padding.
     pub fn encode(&self, secret: &[u8]) -> Result<String, EncodeError>
     where
         T: AsRef<[u8]>,
@@ -76,13 +83,14 @@ impl<T> Signed<T> {
         ))
     }
 
+    /// Decodes a `Signed` token from a url-safe base64 encoded string with no padding.
     pub fn decode(
         s: &str,
         secret: &[u8],
     ) -> Result<Self, DecodeError<<T as TryFrom<Vec<u8>>>::Error>>
     where
         T: TryFrom<Vec<u8>>,
-        <T as TryFrom<Vec<u8>>>::Error: std::error::Error + 'static,
+        <T as TryFrom<Vec<u8>>>::Error: std::error::Error,
     {
         let parts = s.split('.').collect::<Vec<&str>>();
 
