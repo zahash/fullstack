@@ -4,12 +4,12 @@ use axum::{
     extract::State,
     http::StatusCode,
     response::{IntoResponse, Response},
+    routing::{MethodRouter, post},
 };
 use contextual::Context;
 use email::Email;
 use extra::ErrorResponse;
 use serde::Deserialize;
-
 use validation::{validate_password, validate_username};
 
 use crate::AppState;
@@ -52,6 +52,10 @@ pub enum Error {
 
     #[error("{0}")]
     Bcrypt(#[from] contextual::Error<bcrypt::BcryptError>),
+}
+
+pub fn method_router() -> MethodRouter<AppState> {
+    post(handler)
 }
 
 #[cfg_attr(feature = "openapi", utoipa::path(

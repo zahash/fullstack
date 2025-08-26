@@ -3,6 +3,7 @@ use axum::{
     extract::{Query, State},
     http::StatusCode,
     response::IntoResponse,
+    routing::{MethodRouter, get},
 };
 use contextual::Context;
 use email::Email;
@@ -19,6 +20,10 @@ pub const PATH: &str = "/check/email-availability";
 pub struct QueryParams {
     #[cfg_attr(feature = "openapi", param(example = "joe@smith.com"))]
     pub email: String,
+}
+
+pub fn method_router() -> MethodRouter<AppState> {
+    get(handler)
 }
 
 #[cfg_attr(feature = "openapi", utoipa::path(

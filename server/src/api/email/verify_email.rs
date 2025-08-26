@@ -2,6 +2,7 @@ use axum::{
     Json,
     extract::{Query, State},
     response::IntoResponse,
+    routing::{MethodRouter, get},
 };
 use axum_macros::debug_handler;
 use contextual::Context;
@@ -20,6 +21,10 @@ pub const PATH: &str = "/verify-email";
 #[derive(Deserialize)]
 pub struct QueryParams {
     pub token: String,
+}
+
+pub fn method_router() -> MethodRouter<AppState> {
+    get(handler)
 }
 
 #[cfg_attr(feature = "openapi", utoipa::path(

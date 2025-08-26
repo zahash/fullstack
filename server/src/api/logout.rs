@@ -1,4 +1,5 @@
 use auth::{Credentials, SessionId, expired_session_cookie};
+use axum::routing::{MethodRouter, post};
 use axum::{extract::State, response::IntoResponse};
 use axum_extra::extract::CookieJar;
 use axum_macros::debug_handler;
@@ -15,8 +16,12 @@ pub enum Error {
     Sqlx(#[from] contextual::Error<sqlx::Error>),
 }
 
+pub fn method_router() -> MethodRouter<AppState> {
+    post(handler)
+}
+
 #[cfg_attr(feature = "openapi", utoipa::path(
-    get,
+    post,
     path = PATH,
     operation_id = PATH,
     responses((status = 200, description = "Session invalidated and Cookie removed")),

@@ -10,12 +10,7 @@ mod smtp;
 
 use std::net::SocketAddr;
 
-use axum::{
-    Router,
-    extract::FromRef,
-    middleware::from_fn,
-    routing::{get, post},
-};
+use axum::{Router, extract::FromRef, middleware::from_fn, routing::get};
 use contextual::Context;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
@@ -70,49 +65,51 @@ pub struct AppState {
     pub smtp: crate::smtp::Smtp,
 }
 
-// TODO: replace all handler with method routers. eg: method_router = post(handler)
-//          so the openapi docs method and the actual server method never mismatch by mistake
-
 pub async fn router(opts: ServerOpts) -> Result<Router, ServerError> {
+    use crate::api::{
+        access_token, email, health, key_rotation, login, logout, permissions, private, signup,
+        sysinfo, username,
+    };
+
     let router = Router::new()
         .route(
-            api::access_token::generate::PATH,
-            post(api::access_token::generate::handler),
+            access_token::generate::PATH,
+            access_token::generate::method_router(),
         )
         .route(
-            api::access_token::verify::PATH,
-            get(api::access_token::verify::handler),
+            access_token::verify::PATH,
+            access_token::verify::method_router(),
         )
         .route(
-            api::email::check_availability::PATH,
-            get(api::email::check_availability::handler),
+            email::check_availability::PATH,
+            email::check_availability::method_router(),
         )
-        .route(api::health::PATH, get(api::health::handler))
-        .route(api::key_rotation::PATH, post(api::key_rotation::handler))
-        .route(api::login::PATH, post(api::login::handler))
-        .route(api::logout::PATH, get(api::logout::handler))
-        .route(api::permissions::PATH, get(api::permissions::handler))
+        .route(health::PATH, health::method_router())
+        .route(key_rotation::PATH, key_rotation::method_router())
+        .route(login::PATH, login::method_router())
+        .route(logout::PATH, logout::method_router())
+        .route(permissions::PATH, permissions::method_router())
         .route(
-            api::permissions::assign::PATH,
-            post(api::permissions::assign::handler),
+            permissions::assign::PATH,
+            permissions::assign::method_router(),
         )
-        .route(api::private::PATH, get(api::private::handler))
-        .route(api::signup::PATH, post(api::signup::handler))
-        .route(api::sysinfo::PATH, get(api::sysinfo::handler))
+        .route(private::PATH, private::method_router())
+        .route(signup::PATH, signup::method_router())
+        .route(sysinfo::PATH, sysinfo::method_router())
         .route(
-            api::username::check_availability::PATH,
-            get(api::username::check_availability::handler),
+            username::check_availability::PATH,
+            username::check_availability::method_router(),
         );
 
     #[cfg(feature = "smtp")]
     let router = router
         .route(
-            api::email::initiate_verification::PATH,
-            post(api::email::initiate_verification::handler),
+            email::initiate_verification::PATH,
+            email::initiate_verification::method_router(),
         )
         .route(
-            api::email::verify_email::PATH,
-            get(api::email::verify_email::handler),
+            email::verify_email::PATH,
+            email::verify_email::method_router(),
         );
 
     #[cfg(feature = "openapi")]

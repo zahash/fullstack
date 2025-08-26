@@ -1,7 +1,13 @@
 use std::time::Duration;
 
 use auth::{AccessToken, InsufficientPermissionsError, Principal};
-use axum::{Form, extract::State, http::StatusCode, response::IntoResponse};
+use axum::{
+    Form,
+    extract::State,
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{MethodRouter, post},
+};
 use axum_macros::debug_handler;
 use contextual::Context;
 use serde::Deserialize;
@@ -20,6 +26,10 @@ pub struct Config {
 
     #[cfg_attr(feature = "openapi", schema(example = 3600u64, value_type = u64))]
     ttl_sec: Option<u64>,
+}
+
+pub fn method_router() -> MethodRouter<AppState> {
+    post(handler)
 }
 
 #[cfg_attr(feature = "openapi", utoipa::path(

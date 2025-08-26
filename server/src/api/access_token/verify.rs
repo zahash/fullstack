@@ -6,6 +6,7 @@ use axum::{
     extract::State,
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
+    routing::{MethodRouter, get},
 };
 use contextual::Context;
 use extra::ErrorResponse;
@@ -13,6 +14,10 @@ use extra::ErrorResponse;
 use crate::AppState;
 
 pub const PATH: &str = "/access-token/verify";
+
+pub fn method_router() -> MethodRouter<AppState> {
+    get(handler)
+}
 
 #[cfg_attr(feature = "openapi", utoipa::path(
     get,

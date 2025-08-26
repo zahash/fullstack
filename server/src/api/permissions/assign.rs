@@ -1,5 +1,10 @@
 use auth::{InsufficientPermissionsError, Principal};
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{
+    Json,
+    extract::State,
+    http::StatusCode,
+    routing::{MethodRouter, post},
+};
 use contextual::Context;
 use extra::ErrorResponse;
 use serde::Deserialize;
@@ -30,6 +35,10 @@ pub enum Assignee {
         #[cfg_attr(feature = "openapi", schema(examples("joe")))]
         username: String,
     },
+}
+
+pub fn method_router() -> MethodRouter<AppState> {
+    post(handler)
 }
 
 #[cfg_attr(feature = "openapi", utoipa::path(

@@ -1,5 +1,10 @@
 use auth::{InsufficientPermissionsError, Principal};
-use axum::{Form, extract::State, response::IntoResponse};
+use axum::{
+    Form,
+    extract::State,
+    response::IntoResponse,
+    routing::{MethodRouter, post},
+};
 use contextual::Context;
 use http::StatusCode;
 use serde::Deserialize;
@@ -14,6 +19,10 @@ pub const PATH: &str = "/rotate-key";
 pub struct RequestBody {
     #[cfg_attr(feature = "openapi", schema(example = "HMAC"))]
     pub key: String,
+}
+
+pub fn method_router() -> MethodRouter<AppState> {
+    post(handler)
 }
 
 #[cfg_attr(feature = "openapi", utoipa::path(

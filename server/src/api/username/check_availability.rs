@@ -3,11 +3,11 @@ use axum::{
     extract::{Query, State},
     http::StatusCode,
     response::IntoResponse,
+    routing::{MethodRouter, get},
 };
 use contextual::Context;
 use extra::ErrorResponse;
 use serde::Deserialize;
-
 use validation::validate_username;
 
 use crate::AppState;
@@ -20,6 +20,10 @@ pub const PATH: &str = "/check/username-availability";
 pub struct QueryParams {
     #[cfg_attr(feature = "openapi", param(example = "joe"))]
     pub username: String,
+}
+
+pub fn method_router() -> MethodRouter<AppState> {
+    get(handler)
 }
 
 #[cfg_attr(feature = "openapi", utoipa::path(

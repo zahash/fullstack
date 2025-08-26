@@ -1,6 +1,7 @@
 pub mod assign;
 
 use auth::{InsufficientPermissionsError, Permissions, Principal};
+use axum::routing::{MethodRouter, get};
 use axum::{extract::State, response::IntoResponse};
 use axum_macros::debug_handler;
 use contextual::Context;
@@ -9,6 +10,10 @@ use http::StatusCode;
 use crate::AppState;
 
 pub const PATH: &str = "/permissions";
+
+pub fn method_router() -> MethodRouter<AppState> {
+    get(handler)
+}
 
 #[cfg_attr(feature = "openapi", utoipa::path(
     get,

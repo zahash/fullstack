@@ -1,7 +1,16 @@
-use axum::http::StatusCode;
+use axum::{
+    http::StatusCode,
+    routing::{MethodRouter, get},
+};
 use axum_macros::debug_handler;
 
+use crate::AppState;
+
 pub const PATH: &str = "/health";
+
+pub fn method_router() -> MethodRouter<AppState> {
+    get(handler)
+}
 
 #[debug_handler]
 #[cfg_attr(feature = "openapi", utoipa::path(

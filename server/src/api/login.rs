@@ -4,14 +4,13 @@ use axum::{
     extract::State,
     http::{HeaderMap, StatusCode, header::USER_AGENT},
     response::{IntoResponse, Response},
+    routing::{MethodRouter, post},
 };
 use axum_extra::extract::CookieJar;
 use axum_macros::debug_handler;
 use bcrypt::verify;
 use contextual::Context;
-
 use serde::Deserialize;
-
 use time::{Duration, OffsetDateTime};
 
 use crate::AppState;
@@ -40,6 +39,10 @@ pub enum Error {
 
     #[error("{0}")]
     Bcrypt(#[from] contextual::Error<bcrypt::BcryptError>),
+}
+
+pub fn method_router() -> MethodRouter<AppState> {
+    post(handler)
 }
 
 #[cfg_attr(feature = "openapi", utoipa::path(

@@ -1,6 +1,11 @@
 use std::str::FromStr;
 
-use axum::{Form, Json, extract::State, response::IntoResponse};
+use axum::{
+    Form, Json,
+    extract::State,
+    response::IntoResponse,
+    routing::{MethodRouter, post},
+};
 use axum_extra::extract::Host;
 use axum_macros::debug_handler;
 use contextual::Context;
@@ -24,6 +29,10 @@ pub const PATH: &str = "/initiate-email-verification";
 pub struct RequestBody {
     #[cfg_attr(feature = "openapi", schema(examples("joe@smith.com")))]
     pub email: String,
+}
+
+pub fn method_router() -> MethodRouter<AppState> {
+    post(handler)
 }
 
 #[cfg_attr(feature = "openapi", utoipa::path(

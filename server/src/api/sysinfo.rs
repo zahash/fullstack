@@ -1,5 +1,10 @@
 use auth::{InsufficientPermissionsError, Principal};
-use axum::{Json, extract::State, response::IntoResponse};
+use axum::{
+    Json,
+    extract::State,
+    response::IntoResponse,
+    routing::{MethodRouter, get},
+};
 use axum_macros::debug_handler;
 use contextual::Context;
 use http::StatusCode;
@@ -112,6 +117,10 @@ impl Default for Info {
                 .collect(),
         }
     }
+}
+
+pub fn method_router() -> MethodRouter<AppState> {
+    get(handler)
 }
 
 #[cfg_attr(feature = "openapi", utoipa::path(
