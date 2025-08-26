@@ -10,7 +10,7 @@ mod smtp;
 
 use std::net::SocketAddr;
 
-use axum::{Router, extract::FromRef, middleware::from_fn, routing::get};
+use axum::{Router, extract::FromRef, middleware::from_fn};
 use contextual::Context;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
@@ -113,7 +113,10 @@ pub async fn router(opts: ServerOpts) -> Result<Router, ServerError> {
         );
 
     #[cfg(feature = "openapi")]
-    let router = router.route(api::OPEN_API_DOCS_PATH, get(axum::Json(api::openapi())));
+    let router = router.route(
+        api::OPEN_API_DOCS_PATH,
+        axum::routing::get(axum::Json(api::openapi())),
+    );
 
     #[cfg(feature = "serve-dir")]
     let router = router.fallback_service(tower_http::services::ServeDir::new(&opts.serve_dir));
