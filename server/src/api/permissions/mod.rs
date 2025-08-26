@@ -21,7 +21,7 @@ pub const PATH: &str = "/permissions";
     ),
     tag = "permissions"
 ))]
-#[cfg_attr(feature = "tracing", tracing::instrument(fields(user_id = tracing::field::Empty), skip_all, ret))]
+#[cfg_attr(feature = "tracing", tracing::instrument(fields(%principal), skip_all, ret))]
 #[debug_handler]
 pub async fn handler(
     State(AppState { pool, .. }): State<AppState>,

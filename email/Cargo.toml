@@ -7,6 +7,7 @@ edition = "2024"
 lettre = { version = "0.11", default-features = false }
 serde = { version = "1", optional = true }
 sqlx = { version = "0.8", optional = true }
+thiserror = "2"
 
 [features]
 serde = ["dep:serde", "lettre/serde"]

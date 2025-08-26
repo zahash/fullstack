@@ -38,7 +38,7 @@ pub struct Config {
     tag = "access_token"
 ))]
 #[debug_handler]
-#[cfg_attr(feature = "tracing", tracing::instrument(fields(user_id = tracing::field::Empty, ?settings), skip_all))]
+#[cfg_attr(feature = "tracing", tracing::instrument(fields(%principal, ?settings), skip_all))]
 pub async fn handler(
     State(AppState { pool, .. }): State<AppState>,
     principal: Principal,

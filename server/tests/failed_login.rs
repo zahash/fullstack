@@ -14,11 +14,12 @@ async fn wrong_password() {
     let password = password!("Aa!1aaaa");
     let wrong_password = password!("Bb!2bbbb");
 
-    let client = TestClient::default().await;
+    let mut client = TestClient::default().await;
 
     client
         .send(request!(
             POST "/signup";
+            "host" => "localhost"
             "content-type" => "application/x-www-form-urlencoded";
             format!("username={}&email={}&password={}", username, email, password)
         ))
@@ -43,7 +44,7 @@ async fn user_not_found() {
     let username = username!("user1");
     let password = password!("Aa!1aaaa");
 
-    let client = TestClient::default().await;
+    let mut client = TestClient::default().await;
 
     client
         .send(request!(

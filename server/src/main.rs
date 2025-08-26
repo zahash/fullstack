@@ -1,6 +1,8 @@
 use clap::Parser;
 
 // TODO: introduce other databases, like postgres and mysql
+// TODO: use Zeroize for access tokens, session ids, passwords, etc...
+// TODO: remove the "smtp" feature flag (but keep "smtp--no-tls")
 
 #[derive(Debug, clap::Parser)]
 struct Serve {
@@ -13,6 +15,11 @@ struct Serve {
     /// Example: `sqlite:///tmp/data/data.db` (or) `/tmp/data/data.db` (or) `./data.db`
     #[arg(long, env("DATABASE_URL"))]
     database_url: String,
+
+    /// The directory where the server's secrets are located.
+    /// Example: `./secrets` or `/var/www/secrets`
+    #[arg(long, env("SECRETS_DIR"))]
+    secrets_dir: std::path::PathBuf,
 
     #[cfg(feature = "serve-dir")]
     /// The directory where the server's UI files are located.
@@ -209,6 +216,8 @@ impl From<Serve> for server::ServerOpts {
             database: server::DatabaseConfig {
                 url: serve.database_url,
             },
+
+            secrets_dir: serve.secrets_dir,
 
             #[cfg(feature = "rate-limit")]
             rate_limiter: serve.rate_limit,

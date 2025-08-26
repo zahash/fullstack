@@ -127,7 +127,7 @@ impl Default for Info {
     tag = "probe"
 ))]
 #[debug_handler]
-#[cfg_attr(feature = "tracing", tracing::instrument(fields(user_id = tracing::field::Empty), skip_all, ret))]
+#[cfg_attr(feature = "tracing", tracing::instrument(fields(%principal), skip_all, ret))]
 pub async fn handler(
     State(AppState { pool, .. }): State<AppState>,
     principal: Principal,

@@ -1,7 +1,7 @@
 pub mod check_availability;
 
 #[cfg(feature = "smtp")]
-pub mod check_verification_token;
+pub mod verify_email;
 
 #[cfg(feature = "smtp")]
 pub mod initiate_verification;

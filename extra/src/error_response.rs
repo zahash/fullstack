@@ -18,16 +18,13 @@ pub struct ErrorResponse {
 
 impl ErrorResponse {
     const HELP: &str = "Please check the response headers for `x-request-id`, include the datetime and raise a support ticket.";
-}
 
-impl<#[cfg(not(feature = "error-kind"))] E, #[cfg(feature = "error-kind")] E: crate::ErrorKind>
-    From<E> for ErrorResponse
-where
-    E: std::error::Error,
-{
-    fn from(error: E) -> Self {
+    pub fn new(
+        message: impl Into<String>,
+        #[cfg(feature = "error-kind")] kind: &'static str,
+    ) -> Self {
         Self {
-            message: error.to_string(),
+            message: message.into(),
             datetime: time::OffsetDateTime::now_utc()
                 .format(&time::macros::format_description!(
                     "[year]-[month]-[day]T[hour]:[minute]:[second]Z"
@@ -36,7 +33,17 @@ where
             help: Self::HELP,
 
             #[cfg(feature = "error-kind")]
-            kind: error.kind(),
+            kind,
         }
+    }
+}
+
+impl<#[cfg(not(feature = "error-kind"))] E, #[cfg(feature = "error-kind")] E: crate::ErrorKind>
+    From<E> for ErrorResponse
+where
+    E: std::error::Error,
+{
+    fn from(error: E) -> Self {
+        Self::new(error.to_string(), error.kind())
     }
 }

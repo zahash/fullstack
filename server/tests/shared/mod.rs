@@ -6,7 +6,7 @@ use http::{Request, Response};
 use server::ServerOpts;
 use sqlx::{Pool, Sqlite, sqlite::SqliteConnectOptions};
 use tempfile::{TempDir, tempdir};
-use tower::ServiceExt;
+use tower::Service;
 
 pub mod macros;
 
@@ -29,8 +29,16 @@ impl TestClient {
         };
         Self::prepare_database(&database_config).await;
 
+        // let secrets = Secret
+
         let router = server::router(ServerOpts {
             database: database_config,
+
+            secrets_dir: {
+                let dir = temp_dir.path().join("secrets");
+                Self::prepare_secrets(&dir);
+                dir
+            },
 
             #[cfg(feature = "rate-limit")]
             rate_limiter: server::RateLimiterConfig {
@@ -44,7 +52,7 @@ impl TestClient {
             #[cfg(feature = "smtp")]
             smtp: {
                 let senders_dir = temp_dir.path().join("senders");
-                Self::prepare_senders(&senders_dir).await;
+                Self::prepare_senders(&senders_dir);
 
                 server::SmtpConfig {
                     relay: "127.0.0.1".into(),
@@ -65,10 +73,9 @@ impl TestClient {
         }
     }
 
-    pub async fn send(&self, request: Request<Body>) -> Asserter {
+    pub async fn send(&mut self, request: Request<Body>) -> Asserter {
         let response = self.router
-            .clone()
-            .oneshot(request)
+            .call(request)
             .await
             .unwrap(/* Infallible */);
         Asserter::from(response)
@@ -88,8 +95,13 @@ impl TestClient {
             .expect("unable to run migrations");
     }
 
+    fn prepare_secrets(dir: &std::path::Path) {
+        std::fs::create_dir_all(dir).expect("unable to create secrets dir");
+        std::fs::write(dir.join("hmac"), vec![0; 1]).expect("unable to create hmac secret");
+    }
+
     #[cfg(feature = "smtp")]
-    async fn prepare_senders(dir: &std::path::Path) {
+    fn prepare_senders(dir: &std::path::Path) {
         std::fs::create_dir_all(dir).expect("unable to create senders dir");
 
         for sender in ["noreply"] {
@@ -106,6 +118,11 @@ pub struct Asserter {
 impl Asserter {
     pub fn into_response(self) -> Response<Body> {
         self.response
+    }
+
+    pub fn inspect(self) -> Self {
+        println!("{:#?}", self.response);
+        self
     }
 
     pub fn status(self, expected: u16) -> Self {

@@ -1,6 +1,7 @@
 pub mod access_token;
 pub mod email;
 pub mod health;
+pub mod key_rotation;
 pub mod login;
 pub mod logout;
 pub mod permissions;
@@ -20,6 +21,7 @@ pub const OPEN_API_DOCS_PATH: &str = "/api-docs/openapi.json";
         access_token::verify::handler,
         email::check_availability::handler,
         health::handler,
+        key_rotation::handler,
         login::handler,
         logout::handler,
         permissions::handler,
@@ -31,6 +33,7 @@ pub const OPEN_API_DOCS_PATH: &str = "/api-docs/openapi.json";
     components(schemas(
         access_token::generate::Config,
         auth::Permissions,
+        key_rotation::RequestBody,
         login::Credentials,
         permissions::assign::RequestBody,
         signup::RequestBody,
@@ -41,13 +44,7 @@ struct OpenApiDoc;
 
 #[cfg(all(feature = "openapi", feature = "smtp"))]
 #[derive(utoipa::OpenApi)]
-#[openapi(
-    paths(
-        email::check_verification_token::handler,
-        email::initiate_verification::handler,
-    ),
-    components(schemas(email::check_verification_token::RequestBody))
-)]
+#[openapi(paths(email::verify_email::handler, email::initiate_verification::handler,))]
 struct SmtpOpenApiDoc;
 
 #[cfg(feature = "openapi")]

@@ -1,4 +1,4 @@
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display, str::FromStr, string::FromUtf8Error};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Email(lettre::Address);
@@ -25,6 +25,31 @@ impl From<Email> for lettre::Address {
     fn from(email: Email) -> Self {
         email.0
     }
+}
+
+impl AsRef<[u8]> for Email {
+    fn as_ref(&self) -> &[u8] {
+        let str: &str = self.0.as_ref();
+        str.as_bytes()
+    }
+}
+
+impl TryFrom<Vec<u8>> for Email {
+    type Error = ParseError;
+
+    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+        let s = String::from_utf8(bytes)?;
+        Self::try_from(s).map_err(ParseError::InvalidFormat)
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum ParseError {
+    #[error("{0}")]
+    Utf8(#[from] FromUtf8Error),
+
+    #[error("{0}")]
+    InvalidFormat(&'static str),
 }
 
 impl Display for Email {

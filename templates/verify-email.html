@@ -3,8 +3,12 @@
 
 <body>
     <p>Hello,</p>
-    <p>Thanks for signing up. Please verify your email:</p>
-    <p>Verification Token: {{ verification_token }}</p>
+    <p>Thanks for signing up. Please verify your email.</p>
+
+    <form action="{{ verification_link }}">
+        <button type="submit">Verify</button>
+    </form>
+
     <p>Bye</p>
 </body>
 

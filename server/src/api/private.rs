@@ -2,7 +2,7 @@ use auth::Principal;
 
 pub const PATH: &str = "/private";
 
-#[cfg_attr(feature = "tracing", tracing::instrument(fields(user_id = tracing::field::Empty), skip_all, ret))]
+#[cfg_attr(feature = "tracing", tracing::instrument(fields(%principal), skip_all, ret))]
 pub async fn handler(principal: Principal) -> String {
     let user_id = principal.user_id();
 

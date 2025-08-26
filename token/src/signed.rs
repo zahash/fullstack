@@ -43,18 +43,18 @@ impl<T> Signed<T> {
         self
     }
 
-    pub fn token(self) -> Result<T, ValidityError> {
+    pub fn token(self) -> Result<T, TemporalValidityError> {
         let now = OffsetDateTime::now_utc();
 
         if self.header.exp < now {
-            return Err(ValidityError::Expired {
+            return Err(TemporalValidityError::Expired {
                 exp: self.header.exp,
                 now,
             });
         }
 
         if self.header.iat > now {
-            return Err(ValidityError::NotYetValid {
+            return Err(TemporalValidityError::NotYetValid {
                 iat: self.header.iat,
                 now,
             });
@@ -73,7 +73,8 @@ impl<T> Signed<T> {
         let token_base64encoded = BASE64_URL_SAFE_NO_PAD.encode(self.token.as_ref());
         let signature_base64encoded = {
             let signing_input = format!("{header_base64encoded}.{token_base64encoded}");
-            let mut mac = Hmac::<Sha256>::new_from_slice(secret)?;
+            let mut mac = Hmac::<Sha256>::new_from_slice(secret)
+                .map_err(|InvalidLength| EncodeError::InvalidKeyLength)?;
             mac.update(signing_input.as_bytes());
             let signature_bytes = mac.finalize().into_bytes();
             BASE64_URL_SAFE_NO_PAD.encode(signature_bytes)
@@ -99,7 +100,8 @@ impl<T> Signed<T> {
                 let signature = BASE64_URL_SAFE_NO_PAD
                     .decode(signature_part)
                     .context("signature")?;
-                let mut mac = Hmac::<Sha256>::new_from_slice(secret)?;
+                let mut mac = Hmac::<Sha256>::new_from_slice(secret)
+                    .map_err(|InvalidLength| DecodeError::InvalidKeyLength)?;
                 mac.update(format!("{header_part}.{token_part}").as_bytes());
                 mac.verify_slice(&signature)?;
 
@@ -127,7 +129,7 @@ impl<T> Signed<T> {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum ValidityError {
+pub enum TemporalValidityError {
     #[error("token expired at {exp} (now: {now})")]
     Expired {
         exp: OffsetDateTime,
@@ -143,8 +145,8 @@ pub enum ValidityError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum EncodeError {
-    #[error("{0}")]
-    InvalidKeyLength(#[from] InvalidLength),
+    #[error("Invalid Key Length")]
+    InvalidKeyLength,
 
     #[error("{0}")]
     Serde(#[from] contextual::Error<serde_json::Error>),
@@ -158,8 +160,8 @@ where
     #[error("Invalid token format")]
     InvalidFormat,
 
-    #[error("{0}")]
-    InvalidKeyLength(#[from] InvalidLength),
+    #[error("Invalid Key Length")]
+    InvalidKeyLength,
 
     #[error("{0}")]
     MacMismatch(#[from] MacError),

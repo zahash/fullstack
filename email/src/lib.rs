@@ -1,3 +1,3 @@
 mod email;
 
-pub use email::Email;
+pub use email::{Email, ParseError};

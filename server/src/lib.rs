@@ -1,5 +1,6 @@
 mod api;
 mod middleware;
+mod secrets;
 
 #[cfg(feature = "tracing")]
 mod span;
@@ -20,9 +21,12 @@ use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
 
+use crate::secrets::Secrets;
+
 #[derive(Debug)]
 pub struct ServerOpts {
     pub database: DatabaseConfig,
+    pub secrets_dir: std::path::PathBuf,
 
     #[cfg(feature = "rate-limit")]
     pub rate_limiter: RateLimiterConfig,
@@ -60,31 +64,17 @@ pub struct SmtpConfig {
 #[derive(Clone)]
 pub struct AppState {
     pub pool: sqlx::Pool<sqlx::Sqlite>,
+    pub secrets: Secrets,
 
     #[cfg(feature = "smtp")]
     pub smtp: crate::smtp::Smtp,
 }
 
+// TODO: replace all handler with method routers. eg: method_router = post(handler)
+//          so the openapi docs method and the actual server method never mismatch by mistake
+
 pub async fn router(opts: ServerOpts) -> Result<Router, ServerError> {
     let router = Router::new()
-        .route(
-            api::username::check_availability::PATH,
-            get(api::username::check_availability::handler),
-        )
-        .route(
-            api::email::check_availability::PATH,
-            get(api::email::check_availability::handler),
-        )
-        .route(api::health::PATH, get(api::health::handler))
-        .route(api::sysinfo::PATH, get(api::sysinfo::handler))
-        .route(api::signup::PATH, post(api::signup::handler))
-        .route(api::login::PATH, post(api::login::handler))
-        .route(api::logout::PATH, get(api::logout::handler))
-        .route(api::permissions::PATH, get(api::permissions::handler))
-        .route(
-            api::permissions::assign::PATH,
-            post(api::permissions::assign::handler),
-        )
         .route(
             api::access_token::generate::PATH,
             post(api::access_token::generate::handler),
@@ -93,7 +83,26 @@ pub async fn router(opts: ServerOpts) -> Result<Router, ServerError> {
             api::access_token::verify::PATH,
             get(api::access_token::verify::handler),
         )
-        .route(api::private::PATH, get(api::private::handler));
+        .route(
+            api::email::check_availability::PATH,
+            get(api::email::check_availability::handler),
+        )
+        .route(api::health::PATH, get(api::health::handler))
+        .route(api::key_rotation::PATH, post(api::key_rotation::handler))
+        .route(api::login::PATH, post(api::login::handler))
+        .route(api::logout::PATH, get(api::logout::handler))
+        .route(api::permissions::PATH, get(api::permissions::handler))
+        .route(
+            api::permissions::assign::PATH,
+            post(api::permissions::assign::handler),
+        )
+        .route(api::private::PATH, get(api::private::handler))
+        .route(api::signup::PATH, post(api::signup::handler))
+        .route(api::sysinfo::PATH, get(api::sysinfo::handler))
+        .route(
+            api::username::check_availability::PATH,
+            get(api::username::check_availability::handler),
+        );
 
     #[cfg(feature = "smtp")]
     let router = router
@@ -102,8 +111,8 @@ pub async fn router(opts: ServerOpts) -> Result<Router, ServerError> {
             post(api::email::initiate_verification::handler),
         )
         .route(
-            api::email::check_verification_token::PATH,
-            post(api::email::check_verification_token::handler),
+            api::email::verify_email::PATH,
+            get(api::email::verify_email::handler),
         );
 
     #[cfg(feature = "openapi")]
@@ -140,6 +149,7 @@ pub async fn router(opts: ServerOpts) -> Result<Router, ServerError> {
             .pool()
             .await
             .context(format!("connect database :: {}", opts.database.url))?,
+        secrets: Secrets::new(opts.secrets_dir),
         #[cfg(feature = "smtp")]
         smtp: crate::smtp::Smtp::try_from(opts.smtp)?,
     });

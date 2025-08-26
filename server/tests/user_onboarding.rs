@@ -12,7 +12,7 @@ async fn onboarding_flow() {
     let email = email!("user1@test.com");
     let password = password!("Aa!1aaaa");
 
-    let client = TestClient::default().await;
+    let mut client = TestClient::default().await;
 
     client
         .send(request!(
@@ -26,6 +26,7 @@ async fn onboarding_flow() {
     client
         .send(request!(
             POST "/signup";
+            "host" => "localhost"
             "content-type" => "application/x-www-form-urlencoded";
             format!("username={}&email={}&password={}", username, email, password)
         ))
@@ -51,11 +52,12 @@ async fn double_signup() {
     let email = email!("user1@test.com");
     let password = password!("Aa!1aaaa");
 
-    let client = TestClient::default().await;
+    let mut client = TestClient::default().await;
 
     client
         .send(request!(
             POST "/signup";
+            "host" => "localhost"
             "content-type" => "application/x-www-form-urlencoded";
             format!("username={}&email={}&password={}", username, email, password)
         ))
@@ -65,6 +67,7 @@ async fn double_signup() {
     client
         .send(request!(
             POST "/signup";
+            "host" => "localhost"
             "content-type" => "application/x-www-form-urlencoded";
             format!("username={}&email={}&password={}", username, email, password)
         ))
@@ -85,11 +88,12 @@ async fn username_taken() {
     let password1 = password!("Aa!1aaaa");
     let password2 = password!("Bb!2bbbb");
 
-    let client = TestClient::default().await;
+    let mut client = TestClient::default().await;
 
     client
         .send(request!(
             POST "/signup";
+            "host" => "localhost"
             "content-type" => "application/x-www-form-urlencoded";
             format!("username={}&email={}&password={}", username, email1, password1)
         ))
@@ -99,6 +103,7 @@ async fn username_taken() {
     client
         .send(request!(
             POST "/signup";
+            "host" => "localhost"
             "content-type" => "application/x-www-form-urlencoded";
             format!("username={}&email={}&password={}", username, email2, password2)
         ))
@@ -118,7 +123,7 @@ async fn email_taken() {
     #[cfg(feature = "tracing")]
     shared::tracing_init();
 
-    let client = TestClient::default().await;
+    let mut client = TestClient::default().await;
 
     let email = email!("user3@test.com");
 
@@ -131,6 +136,7 @@ async fn email_taken() {
     client
         .send(request!(
             POST "/signup";
+            "host" => "localhost"
             "content-type" => "application/x-www-form-urlencoded";
             format!("username={}&email={}&password={}", username1, email, password1)
         ))
@@ -140,6 +146,7 @@ async fn email_taken() {
     client
         .send(request!(
             POST "/signup";
+            "host" => "localhost"
             "content-type" => "application/x-www-form-urlencoded";
             format!("username={}&email={}&password={}", username2, email, password2)
         ))
