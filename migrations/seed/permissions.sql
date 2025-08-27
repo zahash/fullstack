@@ -2,6 +2,7 @@ INSERT INTO permissions (permission, description) VALUES
 ('post:/access-token/generate',         'Generate a new Access Token'),
 ('get:/permissions',                    'Get a list of permissions held by the Principal'),
 ('post:/permissions/assign',            'Assign a permission to an Assignee'),
+('post:/rotate-key',                    'Rotate the Secret key'),
 ('get:/sysinfo',                        'Get system information')
 ON CONFLICT (permission) DO NOTHING;
 
