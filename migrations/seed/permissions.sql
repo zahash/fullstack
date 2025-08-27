@@ -22,6 +22,7 @@ WITH mapping([group], permission) AS (
     ('admin',     'post:/access-token/generate'),
     ('admin',     'get:/permissions'),
     ('admin',     'post:/permissions/assign'),
+    ('admin',     'post:/rotate-key'),
     ('admin',     'get:/sysinfo')
 )
 INSERT INTO permission_group_association (permission_id, permission_group_id)
