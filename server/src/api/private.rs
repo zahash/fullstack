@@ -13,8 +13,5 @@ pub fn method_router() -> MethodRouter<AppState> {
 pub async fn handler(principal: Principal) -> String {
     let user_id = principal.user_id();
 
-    #[cfg(feature = "tracing")]
-    tracing::Span::current().record("user_id", tracing::field::display(user_id));
-
     format!("hello {user_id}")
 }

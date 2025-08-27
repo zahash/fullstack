@@ -141,9 +141,6 @@ pub async fn handler(
     State(AppState { pool, .. }): State<AppState>,
     principal: Principal,
 ) -> Result<Info, Error> {
-    #[cfg(feature = "tracing")]
-    tracing::Span::current().record("user_id", tracing::field::display(principal.user_id()));
-
     let permissions = principal
         .permissions(&pool)
         .await

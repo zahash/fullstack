@@ -63,9 +63,6 @@ pub async fn handler(
 
     let user_id = principal.user_id();
 
-    #[cfg(feature = "tracing")]
-    tracing::Span::current().record("user_id", tracing::field::display(user_id));
-
     let access_token = AccessToken::new();
     let access_token_hash = access_token.hash_sha256();
     let created_at = OffsetDateTime::now_utc();
