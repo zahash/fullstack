@@ -1,8 +1,9 @@
 use bcrypt::verify;
 
+use contextual::Context;
 use email::Email;
 
-use crate::{Permission, Permissions, Verified};
+use crate::{Permission, PermissionError, Verified};
 
 pub struct UserInfo {
     pub user_id: i64,
@@ -93,10 +94,50 @@ impl UserInfo {
 }
 
 impl Verified<UserInfo> {
+    pub async fn require_permission(
+        &self,
+        pool: &sqlx::Pool<sqlx::Sqlite>,
+        permission: &str,
+    ) -> Result<(), PermissionError> {
+        if !self
+            .has_permission(&pool, permission)
+            .await
+            .context("permission check")?
+        {
+            return Err(PermissionError::InsufficientPermissionsError);
+        }
+
+        Ok(())
+    }
+
+    pub async fn has_permission(
+        &self,
+        pool: &sqlx::Pool<sqlx::Sqlite>,
+        permission: &str,
+    ) -> Result<bool, sqlx::Error> {
+        let user_id = self.0.user_id;
+
+        let exists = sqlx::query_scalar!(
+            r#"
+            SELECT EXISTS(
+                SELECT 1 FROM permissions p
+                INNER JOIN user_permissions up ON up.permission_id = p.id
+                WHERE up.user_id = ? AND p.permission = ?
+            )
+            "#,
+            user_id,
+            permission
+        )
+        .fetch_one(pool)
+        .await?;
+
+        Ok(exists != 0)
+    }
+
     pub async fn permissions(
         &self,
         pool: &sqlx::Pool<sqlx::Sqlite>,
-    ) -> Result<Permissions, sqlx::Error> {
+    ) -> Result<Vec<Permission>, sqlx::Error> {
         let user_id = self.0.user_id;
 
         sqlx::query_as!(
@@ -110,6 +151,5 @@ impl Verified<UserInfo> {
         )
         .fetch_all(pool)
         .await
-        .map(Permissions)
     }
 }

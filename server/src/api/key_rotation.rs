@@ -1,11 +1,10 @@
-use auth::{InsufficientPermissionsError, Principal};
+use auth::{PermissionError, Principal};
 use axum::{
     Form,
     extract::State,
     response::IntoResponse,
     routing::{MethodRouter, post},
 };
-use contextual::Context;
 use http::StatusCode;
 use serde::Deserialize;
 
@@ -47,11 +46,9 @@ pub async fn handler(
     principal: Principal,
     Form(RequestBody { key }): Form<RequestBody>,
 ) -> Result<StatusCode, Error> {
-    let permissions = principal
-        .permissions(&pool)
-        .await
-        .context("get permissions")?;
-    permissions.require("post:/rotate-key")?;
+    principal
+        .require_permission(&pool, "post:/rotate-key")
+        .await?;
     secrets.reset(&key)?;
     Ok(StatusCode::OK)
 }
@@ -59,20 +56,17 @@ pub async fn handler(
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("{0}")]
-    Permission(#[from] InsufficientPermissionsError),
+    Permission(#[from] PermissionError),
 
     #[error("{0}")]
     Io(#[from] std::io::Error),
-
-    #[error("{0}")]
-    Sqlx(#[from] contextual::Error<sqlx::Error>),
 }
 
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
             Error::Permission(err) => err.into_response(),
-            Error::Io(_) | Error::Sqlx(_) => {
+            Error::Io(_) => {
                 #[cfg(feature = "tracing")]
                 tracing::error!("{:?}", self);
 

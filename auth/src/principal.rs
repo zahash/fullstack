@@ -5,9 +5,9 @@ use http::HeaderMap;
 
 use crate::{
     AccessToken, AccessTokenAuthorizationExtractionError, AccessTokenInfo,
-    AccessTokenValidationError, Basic, BasicAuthorizationExtractionError, Credentials, Permissions,
-    SessionCookieExtractionError, SessionId, SessionInfo, SessionValidationError, UserInfo,
-    Verified,
+    AccessTokenValidationError, Basic, BasicAuthorizationExtractionError, Credentials, Permission,
+    PermissionError, SessionCookieExtractionError, SessionId, SessionInfo, SessionValidationError,
+    UserInfo, Verified,
 };
 
 pub enum Principal {
@@ -64,10 +64,34 @@ impl Principal {
         }
     }
 
+    pub async fn require_permission(
+        &self,
+        pool: &sqlx::Pool<sqlx::Sqlite>,
+        permission: &str,
+    ) -> Result<(), PermissionError> {
+        match self {
+            Principal::Session(info) => info.require_permission(pool, permission).await,
+            Principal::AccessToken(info) => info.require_permission(pool, permission).await,
+            Principal::Basic(info) => info.require_permission(pool, permission).await,
+        }
+    }
+
+    pub async fn has_permission(
+        &self,
+        pool: &sqlx::Pool<sqlx::Sqlite>,
+        permission: &str,
+    ) -> Result<bool, sqlx::Error> {
+        match self {
+            Principal::Session(info) => info.has_permission(pool, permission).await,
+            Principal::AccessToken(info) => info.has_permission(pool, permission).await,
+            Principal::Basic(info) => info.has_permission(pool, permission).await,
+        }
+    }
+
     pub async fn permissions(
         &self,
         pool: &sqlx::Pool<sqlx::Sqlite>,
-    ) -> Result<Permissions, sqlx::Error> {
+    ) -> Result<Vec<Permission>, sqlx::Error> {
         match self {
             Principal::Session(info) => info.permissions(pool).await,
             Principal::AccessToken(info) => info.permissions(pool).await,

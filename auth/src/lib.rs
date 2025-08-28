@@ -1,28 +1,23 @@
 mod access_token;
+mod basic;
+mod credentials;
+mod permission;
+mod principal;
+mod session;
+mod user;
+
 pub use access_token::{
     AccessToken, AccessTokenAuthorizationExtractionError, AccessTokenInfo,
     AccessTokenValidationError,
 };
-
-mod basic;
 pub use basic::{Basic, BasicAuthorizationExtractionError};
-
-mod credentials;
 pub use credentials::Credentials;
-
-mod permission;
-pub use permission::{InsufficientPermissionsError, Permission, Permissions};
-
-mod principal;
+pub use permission::{Permission, PermissionError};
 pub use principal::{Principal, PrincipalError};
-
-mod session;
 pub use session::{
     SessionCookieExtractionError, SessionId, SessionInfo, SessionValidationError,
     expired_session_cookie,
 };
-
-mod user;
 pub use user::UserInfo;
 
 pub struct Verified<T>(T);

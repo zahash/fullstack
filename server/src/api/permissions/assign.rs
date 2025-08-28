@@ -1,4 +1,4 @@
-use auth::{InsufficientPermissionsError, Principal};
+use auth::{PermissionError, Principal};
 use axum::{
     Json,
     extract::State,
@@ -60,16 +60,15 @@ pub async fn handler(
     principal: Principal,
     Json(request_body): Json<RequestBody>,
 ) -> Result<StatusCode, Error> {
-    let assigner_permissions = principal
-        .permissions(&pool)
-        .await
-        .context("get permissions")?;
+    principal
+        .require_permission(&pool, "post:/permissions/assign")
+        .await?;
 
-    assigner_permissions.require("post:/permissions/assign")?;
-
-    if !assigner_permissions.contains(&request_body.permission) {
-        return Err(Error::Permission(InsufficientPermissionsError));
-    }
+    // The Assigner must have the requested permission themselves first
+    // before they assign it to others
+    principal
+        .require_permission(&pool, &request_body.permission)
+        .await?;
 
     let rows_affected = match request_body.assignee {
         Assignee::User { username } => sqlx::query!(
@@ -125,7 +124,7 @@ pub async fn handler(
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("{0}")]
-    Permission(#[from] InsufficientPermissionsError),
+    Permission(#[from] PermissionError),
 
     #[error("permission not assigned because either the assignee or the permission does not exist")]
     UnAssigned,

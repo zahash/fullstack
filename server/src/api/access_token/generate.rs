@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use auth::{AccessToken, InsufficientPermissionsError, Principal};
+use auth::{AccessToken, PermissionError, Principal};
 use axum::{
     Form,
     extract::State,
@@ -54,12 +54,9 @@ pub async fn handler(
     principal: Principal,
     Form(settings): Form<Config>,
 ) -> Result<(StatusCode, String), Error> {
-    let permissions = principal
-        .permissions(&pool)
-        .await
-        .context("get permissions")?;
-
-    permissions.require("post:/access-token/generate")?;
+    principal
+        .require_permission(&pool, "post:/access-token/generate")
+        .await?;
 
     let user_id = principal.user_id();
 
@@ -95,7 +92,7 @@ pub async fn handler(
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("{0}")]
-    Permission(#[from] InsufficientPermissionsError),
+    Permission(#[from] PermissionError),
 
     #[error("{0}")]
     Sqlx(#[from] contextual::Error<sqlx::Error>),

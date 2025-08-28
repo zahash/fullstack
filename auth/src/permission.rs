@@ -1,10 +1,5 @@
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "axum", derive(serde::Serialize))]
-#[derive(Debug)]
-pub struct Permissions(pub Vec<Permission>);
-
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "axum", derive(serde::Serialize))]
 #[derive(Debug, Clone)]
 pub struct Permission {
     #[cfg_attr(feature = "openapi", schema(examples(1)))]
@@ -18,48 +13,44 @@ pub struct Permission {
 }
 
 #[derive(thiserror::Error, Debug)]
-#[error("insufficient permissions")]
-pub struct InsufficientPermissionsError;
+pub enum PermissionError {
+    #[error("insufficient permissions")]
+    InsufficientPermissionsError,
 
-impl Permissions {
-    pub fn contains(&self, permission: &str) -> bool {
-        self.0
-            .iter()
-            .map(|p| &p.permission)
-            .any(|s| s == permission)
-    }
+    #[error("{0}")]
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
+}
 
-    pub fn require(&self, permission: &str) -> Result<(), InsufficientPermissionsError> {
-        match self.contains(permission) {
-            true => Ok(()),
-            false => Err(InsufficientPermissionsError),
+#[cfg(feature = "axum")]
+impl extra::ErrorKind for PermissionError {
+    fn kind(&self) -> &'static str {
+        match self {
+            PermissionError::InsufficientPermissionsError => "auth.permissions",
+            PermissionError::Sqlx(_) => "auth.sqlx",
         }
     }
 }
 
 #[cfg(feature = "axum")]
-impl axum::response::IntoResponse for Permissions {
+impl axum::response::IntoResponse for PermissionError {
     fn into_response(self) -> axum::response::Response {
-        axum::Json(self).into_response()
-    }
-}
+        match self {
+            PermissionError::InsufficientPermissionsError => {
+                #[cfg(feature = "tracing")]
+                tracing::info!("{:?}", self);
 
-#[cfg(feature = "axum")]
-impl extra::ErrorKind for InsufficientPermissionsError {
-    fn kind(&self) -> &'static str {
-        "auth.permissions"
-    }
-}
+                (
+                    axum::http::StatusCode::FORBIDDEN,
+                    axum::Json(extra::ErrorResponse::from(self)),
+                )
+                    .into_response()
+            }
+            PermissionError::Sqlx(_err) => {
+                #[cfg(feature = "tracing")]
+                tracing::error!("{:?}", _err);
 
-#[cfg(feature = "axum")]
-impl axum::response::IntoResponse for InsufficientPermissionsError {
-    fn into_response(self) -> axum::response::Response {
-        #[cfg(feature = "tracing")]
-        tracing::info!("{:?}", self);
-        (
-            axum::http::StatusCode::FORBIDDEN,
-            axum::Json(extra::ErrorResponse::from(self)),
-        )
-            .into_response()
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
+        }
     }
 }

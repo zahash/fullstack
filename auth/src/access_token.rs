@@ -1,9 +1,10 @@
 use std::ops::Deref;
 
+use contextual::Context;
 use time::OffsetDateTime;
 use token::Token;
 
-use crate::{Credentials, Permission, Permissions, Verified};
+use crate::{Credentials, Permission, PermissionError, Verified};
 
 pub struct AccessToken(Token<32>);
 
@@ -108,10 +109,50 @@ impl TryFrom<AccessTokenInfo> for Verified<AccessTokenInfo> {
 }
 
 impl Verified<AccessTokenInfo> {
+    pub async fn require_permission(
+        &self,
+        pool: &sqlx::Pool<sqlx::Sqlite>,
+        permission: &str,
+    ) -> Result<(), PermissionError> {
+        if !self
+            .has_permission(&pool, permission)
+            .await
+            .context("permission check")?
+        {
+            return Err(PermissionError::InsufficientPermissionsError);
+        }
+
+        Ok(())
+    }
+
+    pub async fn has_permission(
+        &self,
+        pool: &sqlx::Pool<sqlx::Sqlite>,
+        permission: &str,
+    ) -> Result<bool, sqlx::Error> {
+        let access_token_id = self.0.id;
+
+        let exists = sqlx::query_scalar!(
+            r#"
+            SELECT EXISTS(
+                SELECT 1 FROM permissions p
+                INNER JOIN access_token_permissions atp ON atp.permission_id = p.id
+                WHERE atp.access_token_id = ? AND p.permission = ?
+            )
+            "#,
+            access_token_id,
+            permission
+        )
+        .fetch_one(pool)
+        .await?;
+
+        Ok(exists != 0)
+    }
+
     pub async fn permissions(
         &self,
         pool: &sqlx::Pool<sqlx::Sqlite>,
-    ) -> Result<Permissions, sqlx::Error> {
+    ) -> Result<Vec<Permission>, sqlx::Error> {
         let access_token_id = self.0.id;
 
         sqlx::query_as!(
@@ -125,7 +166,6 @@ impl Verified<AccessTokenInfo> {
         )
         .fetch_all(pool)
         .await
-        .map(Permissions)
     }
 }
 
