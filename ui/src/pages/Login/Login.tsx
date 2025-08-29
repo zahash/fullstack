@@ -2,7 +2,8 @@ import type { Component } from "solid-js";
 import { Title } from "@solidjs/meta";
 import { redirect } from "@solidjs/router";
 
-import Main from "../../layouts/Main";
+import styles from "./Login.module.scss";
+import button from "../../button.module.scss";
 
 const Login: Component = () => {
     let usernameRef: HTMLInputElement;
@@ -31,14 +32,29 @@ const Login: Component = () => {
     return <>
         <Title>Login</Title>
 
-        <Main>
-            <h2>Login</h2>
-            <form id="login-form" onsubmit={onsubmit}>
-                <input ref={ele => usernameRef = ele} type="text" placeholder="username" required />
-                <input ref={ele => passwordRef = ele} type="password" placeholder="password" required />
-                <button type="submit">login</button>
+        <div class={styles.container}>
+            <section class={styles.hero}>
+                <h1>Login to your Account</h1>
+            </section>
+
+            <form class={styles.form} onsubmit={onsubmit}>
+                <div class={styles["form-field"]}>
+                    <label for="username">Username</label>
+                    <input ref={ele => usernameRef = ele} type="text"
+                        id="username" placeholder="Username" required />
+                </div>
+
+                <div class={styles["form-field"]}>
+                    <label for="password">Password</label>
+                    <input ref={ele => passwordRef = ele} type="password"
+                        id="password" placeholder="Password" required />
+                </div>
+
+                <hr />
+
+                <button type="submit" class={button["primary-btn"]}>login</button>
             </form>
-        </Main>
+        </div>
     </>;
 }
 
