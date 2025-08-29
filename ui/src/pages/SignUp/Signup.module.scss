@@ -6,6 +6,15 @@
     grid-template-columns: 1fr 1fr;
 }
 
+.left-section {
+    padding: 1rem;
+}
+
+.backlink {
+    color: var(--secondary-light);
+    font-weight: bold;
+}
+
 .hero {
     color: var(--primary-light);
 

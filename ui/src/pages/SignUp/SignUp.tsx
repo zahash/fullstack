@@ -131,8 +131,11 @@ const SignUp: Component = () => {
         <Title>Sign Up</Title>
 
         <div class={styles.container}>
-            <section class={styles.hero}>
-                <h1>Create a new Account</h1>
+            <section class={styles["left-section"]}>
+                <a href="/" class={styles.backlink}>← Back to Home</a>
+                <div class={styles.hero}>
+                    <h1>Create a new Account</h1>
+                </div>
             </section>
 
             <form class={styles.form} onsubmit={onsubmit}>

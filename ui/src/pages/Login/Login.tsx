@@ -33,8 +33,11 @@ const Login: Component = () => {
         <Title>Login</Title>
 
         <div class={styles.container}>
-            <section class={styles.hero}>
-                <h1>Login to your Account</h1>
+            <section class={styles["left-section"]}>
+                <a href="/" class={styles.backlink}>← Back to Home</a>
+                <div class={styles.hero}>
+                    <h1>Login to your Account</h1>
+                </div>
             </section>
 
             <form class={styles.form} onsubmit={onsubmit}>
