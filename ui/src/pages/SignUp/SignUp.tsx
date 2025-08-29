@@ -5,7 +5,8 @@ import { redirect } from "@solidjs/router";
 import init, { validate_password } from "@lib/wasm/wasm";
 import debounce from "@lib/utils/debounce";
 
-import Main from "../../layouts/Main";
+import styles from "./Signup.module.scss";
+import button from "../../button.module.scss";
 
 const SignUp: Component = () => {
     onMount(async () => await init());
@@ -38,6 +39,36 @@ const SignUp: Component = () => {
         }
         else {
             usernameRef.setCustomValidity("");
+        }
+    });
+
+    createEffect(() => {
+        if (!passwordRef) return;
+
+        const { status, message } = passwordStatus();
+        if (status === "weak") {
+            passwordRef.setCustomValidity(message || "Weak password");
+            passwordRef.reportValidity();
+        }
+        else {
+            passwordRef.setCustomValidity("");
+        }
+    });
+
+    createEffect(() => {
+        if (!emailRef) return;
+
+        const { status, message } = emailStatus();
+        if (status === "unavailable") {
+            emailRef.setCustomValidity("Email is taken");
+            emailRef.reportValidity();
+        }
+        else if (status === "invalid") {
+            emailRef.setCustomValidity(message || "Invalid email");
+            emailRef.reportValidity();
+        }
+        else {
+            emailRef.setCustomValidity("");
         }
     });
 
@@ -99,33 +130,44 @@ const SignUp: Component = () => {
     return <>
         <Title>Sign Up</Title>
 
-        <Main>
-            <h2>Sign Up</h2>
-            <form id="signup-form" onsubmit={onsubmit}>
-                <input type="text" oninput={debounced_checkUsernameAvailability} ref={ele => usernameRef = ele} required placeholder="username" />
-                <span id="signup-msg-username">
-                    {{
-                        unavailable: "username taken",
-                        invalid: usernameStatus().message || "invalid username",
-                    }[usernameStatus().status || ""] || ""}
-                </span>
+        <div class={styles.container}>
+            <section class={styles.hero}>
+                <h1>Create a new Account</h1>
+            </section>
 
-                <input type="password" oninput={checkPasswordStrength} ref={ele => passwordRef = ele} required placeholder="password" />
-                <span id="signup-msg-password">
-                    {passwordStatus().status === "weak" ? passwordStatus().message : ""}
-                </span>
+            <form class={styles.form} onsubmit={onsubmit}>
+                <p class={styles.login}>Already have an account? <a href="/login">Login →</a></p>
 
-                <input type="email" oninput={debounced_checkEmailAvailability} ref={ele => emailRef = ele} required placeholder="email" />
-                <span id="signup-msg-email">
-                    {{
-                        unavailable: "email taken",
-                        invalid: emailStatus().message || "invalid email",
-                    }[emailStatus().status || ""] || ""}
-                </span>
+                <div class={styles["form-field"]}>
+                    <label for="username">Username</label>
+                    <input type="text" id="username"
+                        ref={ele => usernameRef = ele}
+                        oninput={debounced_checkUsernameAvailability}
+                        placeholder="username" required />
+                </div>
 
-                <button type="submit" disabled={!canSignUp()}>sign up</button>
+                <div class={styles["form-field"]}>
+                    <label for="password">Password</label>
+                    <input type="password" id="password"
+                        ref={ele => passwordRef = ele}
+                        oninput={checkPasswordStrength}
+                        placeholder="password" required />
+                </div>
+
+                <div class={styles["form-field"]}>
+                    <label for="email">Email</label>
+                    <input type="email" id="email"
+                        ref={ele => emailRef = ele}
+                        oninput={debounced_checkEmailAvailability}
+                        placeholder="email" required />
+                </div>
+
+                <hr />
+
+                <button type="submit" class={button["primary-btn"]} disabled={!canSignUp()}>sign up</button>
             </form>
-        </Main>
+        </div>
+
     </>;
 }
 

@@ -38,6 +38,8 @@ const Login: Component = () => {
             </section>
 
             <form class={styles.form} onsubmit={onsubmit}>
+                <p class={styles.signup}>Don't have an account? <a href="/signup">Create a new one →</a></p>
+
                 <div class={styles["form-field"]}>
                     <label for="username">Username</label>
                     <input ref={ele => usernameRef = ele} type="text"
