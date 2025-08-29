@@ -143,7 +143,7 @@ const SignUp: Component = () => {
                     <input type="text" id="username"
                         ref={ele => usernameRef = ele}
                         oninput={debounced_checkUsernameAvailability}
-                        placeholder="username" required />
+                        placeholder="Username" required />
                 </div>
 
                 <div class={styles["form-field"]}>
@@ -151,7 +151,7 @@ const SignUp: Component = () => {
                     <input type="password" id="password"
                         ref={ele => passwordRef = ele}
                         oninput={checkPasswordStrength}
-                        placeholder="password" required />
+                        placeholder="Password" required />
                 </div>
 
                 <div class={styles["form-field"]}>
@@ -159,12 +159,12 @@ const SignUp: Component = () => {
                     <input type="email" id="email"
                         ref={ele => emailRef = ele}
                         oninput={debounced_checkEmailAvailability}
-                        placeholder="email" required />
+                        placeholder="Email" required />
                 </div>
 
                 <hr />
 
-                <button type="submit" class={button["primary-btn"]} disabled={!canSignUp()}>sign up</button>
+                <button type="submit" class={button["primary-btn"]} disabled={!canSignUp()}>Sign Up</button>
             </form>
         </div>
 

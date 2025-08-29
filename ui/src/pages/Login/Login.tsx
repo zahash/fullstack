@@ -54,7 +54,7 @@ const Login: Component = () => {
 
                 <hr />
 
-                <button type="submit" class={button["primary-btn"]}>login</button>
+                <button type="submit" class={button["primary-btn"]}>Login</button>
             </form>
         </div>
     </>;
