@@ -38,7 +38,6 @@ const SignUp: Component = () => {
     }, 1000);
 
     const debounced_checkEmailAvailability = debounce(async () => {
-        setEmailStatus({});
         const response = await fetch(`/check/email-availability?email=${emailRef.value}`);
         if (response.status == 200) setEmailStatus({ status: "ok" });
         else if (response.status == 400) {
@@ -51,17 +50,10 @@ const SignUp: Component = () => {
     }, 1000);
 
     function checkPasswordStrength() {
-        const password = passwordRef.value;
-        const { valid, error } = validate_password(password);
-
-        const curr: ReturnType<typeof passwordStatus> = {
+        const { valid, error } = validate_password(passwordRef.value);
+        setPasswordStatus({
             status: valid ? "ok" : "weak",
             message: error
-        };
-
-        setPasswordStatus(prev => {
-            if (curr.status === prev.status && curr.message === prev.message) return prev;
-            return curr;
         });
     }
 
