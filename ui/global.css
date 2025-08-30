@@ -13,19 +13,8 @@
             rgb(44, 45, 48) 83.333%,
             rgb(46, 47, 51) 91.667%,
             rgb(48, 49, 53) 100%);
+
+    --success: rgb(46, 125, 50);
+    --error: rgb(211, 47, 47);
+    --warning: rgb(237, 108, 2);
 }
-
-
-/* :root {
-    animation: fadeIn 1s ease-in-out;
-}
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-} */

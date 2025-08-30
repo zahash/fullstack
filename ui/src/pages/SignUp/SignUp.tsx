@@ -1,5 +1,5 @@
 import { Title } from "@solidjs/meta";
-import { createEffect, createSignal, onMount, type Component } from "solid-js";
+import { createSignal, onMount, type Component } from "solid-js";
 import { redirect } from "@solidjs/router";
 
 import init, { validate_password } from "@lib/wasm/wasm";
@@ -15,9 +15,9 @@ const SignUp: Component = () => {
     let passwordRef: HTMLInputElement;
     let emailRef: HTMLInputElement;
 
-    const [usernameStatus, setUsernameStatus] = createSignal<{ status?: string; message?: string }>({});
-    const [passwordStatus, setPasswordStatus] = createSignal<{ status?: string; message?: string }>({});
-    const [emailStatus, setEmailStatus] = createSignal<{ status?: string; message?: string }>({});
+    const [usernameStatus, setUsernameStatus] = createSignal<{ status?: "ok" | "invalid" | "unavailable"; message?: string }>({});
+    const [passwordStatus, setPasswordStatus] = createSignal<{ status?: "ok" | "weak"; message?: string }>({});
+    const [emailStatus, setEmailStatus] = createSignal<{ status?: "ok" | "invalid" | "unavailable"; message?: string }>({});
 
     const canSignUp = () =>
         usernameStatus().status === "ok"
@@ -25,60 +25,12 @@ const SignUp: Component = () => {
         && emailStatus().status === "ok"
         ;
 
-    createEffect(() => {
-        if (!usernameRef) return;
-
-        const { status, message } = usernameStatus();
-        if (status === "unavailable") {
-            usernameRef.setCustomValidity("Username is taken");
-            usernameRef.reportValidity();
-        }
-        else if (status === "invalid") {
-            usernameRef.setCustomValidity(message || "Invalid username");
-            usernameRef.reportValidity();
-        }
-        else {
-            usernameRef.setCustomValidity("");
-        }
-    });
-
-    createEffect(() => {
-        if (!passwordRef) return;
-
-        const { status, message } = passwordStatus();
-        if (status === "weak") {
-            passwordRef.setCustomValidity(message || "Weak password");
-            passwordRef.reportValidity();
-        }
-        else {
-            passwordRef.setCustomValidity("");
-        }
-    });
-
-    createEffect(() => {
-        if (!emailRef) return;
-
-        const { status, message } = emailStatus();
-        if (status === "unavailable") {
-            emailRef.setCustomValidity("Email is taken");
-            emailRef.reportValidity();
-        }
-        else if (status === "invalid") {
-            emailRef.setCustomValidity(message || "Invalid email");
-            emailRef.reportValidity();
-        }
-        else {
-            emailRef.setCustomValidity("");
-        }
-    });
-
     const debounced_checkUsernameAvailability = debounce(async () => {
-        setUsernameStatus({});
         const response = await fetch(`/check/username-availability?username=${usernameRef.value}`);
         if (response.status == 200) setUsernameStatus({ status: "ok" });
         else if (response.status == 400) {
             const json = await response.json();
-            const message = json["error"];
+            const message = json["message"];
             setUsernameStatus({ status: "invalid", message });
         }
         else if (response.status == 409) setUsernameStatus({ status: "unavailable" });
@@ -91,7 +43,7 @@ const SignUp: Component = () => {
         if (response.status == 200) setEmailStatus({ status: "ok" });
         else if (response.status == 400) {
             const json = await response.json();
-            const message = json["error"];
+            const message = json["message"];
             setEmailStatus({ status: "invalid", message });
         }
         else if (response.status == 409) setEmailStatus({ status: "unavailable" });
@@ -101,9 +53,15 @@ const SignUp: Component = () => {
     function checkPasswordStrength() {
         const password = passwordRef.value;
         const { valid, error } = validate_password(password);
-        setPasswordStatus({
+
+        const curr: ReturnType<typeof passwordStatus> = {
             status: valid ? "ok" : "weak",
             message: error
+        };
+
+        setPasswordStatus(prev => {
+            if (curr.status === prev.status && curr.message === prev.message) return prev;
+            return curr;
         });
     }
 
@@ -127,6 +85,12 @@ const SignUp: Component = () => {
         else alert(JSON.stringify(await response.json()));
     }
 
+    function statusColor(status: string | undefined): string | undefined {
+        if (status === "ok") return "var(--success)";
+        else if (status === "invalid" || status === "unavailable" || status === "weak") return "var(--error)";
+        return undefined;
+    }
+
     return <>
         <Title>Sign Up</Title>
 
@@ -146,7 +110,12 @@ const SignUp: Component = () => {
                     <input type="text" id="username"
                         ref={ele => usernameRef = ele}
                         oninput={debounced_checkUsernameAvailability}
+                        style={{ "border-color": statusColor(usernameStatus().status) }}
                         placeholder="Username" required />
+                    <p style={{ color: statusColor(usernameStatus().status) }}>
+                        {usernameStatus().status === "invalid" && (usernameStatus().message || "invalid username")}
+                        {usernameStatus().status === "unavailable" && "username taken"}
+                    </p>
                 </div>
 
                 <div class={styles["form-field"]}>
@@ -154,7 +123,11 @@ const SignUp: Component = () => {
                     <input type="password" id="password"
                         ref={ele => passwordRef = ele}
                         oninput={checkPasswordStrength}
+                        style={{ "border-color": statusColor(passwordStatus().status) }}
                         placeholder="Password" required />
+                    <p style={{ color: statusColor(passwordStatus().status) }}>
+                        {passwordStatus().status === "weak" && (passwordStatus().message || "weak password")}
+                    </p>
                 </div>
 
                 <div class={styles["form-field"]}>
@@ -162,7 +135,12 @@ const SignUp: Component = () => {
                     <input type="email" id="email"
                         ref={ele => emailRef = ele}
                         oninput={debounced_checkEmailAvailability}
+                        style={{ "border-color": statusColor(emailStatus().status) }}
                         placeholder="Email" required />
+                    <p style={{ color: statusColor(emailStatus().status) }}>
+                        {emailStatus().status === "invalid" && (emailStatus().message || "invalid email")}
+                        {emailStatus().status === "unavailable" && "email taken"}
+                    </p>
                 </div>
 
                 <hr />
