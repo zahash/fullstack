@@ -18,10 +18,6 @@ pub fn validate_username<T: AsRef<str>>(username: T) -> Result<T, &'static str> 
 pub fn validate_password<T: AsRef<str>>(password: T) -> Result<T, &'static str> {
     let password_ref = password.as_ref();
 
-    if password_ref.len() < 8 {
-        return Err("password must be at least 8 characters long");
-    }
-
     if !password_ref.chars().any(|c| c.is_lowercase()) {
         return Err("password must contain at least one lowercase letter");
     }
@@ -39,6 +35,10 @@ pub fn validate_password<T: AsRef<str>>(password: T) -> Result<T, &'static str> 
         .any(|c| r#"!@#$%^&*()_-+={}[]|\:;"'<>,.?/~`"#.contains(c))
     {
         return Err("password must contain at least one special character");
+    }
+
+    if password_ref.len() < 8 {
+        return Err("password must be at least 8 characters long");
     }
 
     Ok(password)
