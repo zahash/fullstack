@@ -137,7 +137,7 @@ const SignUp: Component = () => {
 
                 <hr />
 
-                <button type="submit" class={button["primary-btn"]} disabled={!canSignUp()}>Sign Up</button>
+                <button type="submit" class={button["btn-dark"]} disabled={!canSignUp()}>Sign Up</button>
             </form>
         </div>
 

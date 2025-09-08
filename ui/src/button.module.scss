@@ -1,4 +1,4 @@
-.primary-btn {
+.btn-dark {
     background: linear-gradient(to right,
             #232526 0%,
             #414345 51%,
@@ -7,7 +7,6 @@
     transition: 0.5s;
     background-size: 200% auto;
     color: white;
-    border-radius: 0.5rem;
 
     &:hover {
         background-position: right center;

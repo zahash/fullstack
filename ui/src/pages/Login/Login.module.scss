@@ -1,13 +1,8 @@
 .container {
     background: var(--dark-gradient);
 
-    min-height: 100vh;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-}
-
-.left-section {
     padding: 1rem;
+    min-height: 100vh;
 }
 
 .backlink {
@@ -15,15 +10,8 @@
     font-weight: bold;
 }
 
-.hero {
-    color: var(--primary-light);
-
-    font-size: x-large;
-    padding: 3rem;
-}
-
 .form {
-    background-color: var(--primary-light);
+
     padding: 2.5rem 1rem;
 
     >* {
@@ -35,12 +23,16 @@
         margin: 1rem auto;
     }
 
+    .form-title {
+        color: var(--primary-light);
+    }
+
     .signup {
-        text-align: right;
-        color: var(--secondary-dark);
+        padding: 1rem;
+        color: var(--secondary-light);
 
         a {
-            color: var(--primary-dark);
+            color: var(--primary-light);
             font-weight: bold;
         }
     }
@@ -50,12 +42,16 @@
 
         label {
             font-weight: 600;
-            color: var(--secondary-dark);
+            color: var(--secondary-light);
         }
 
         input {
             padding: 0.5rem;
             width: 100%;
+
+            border-radius: 0.5rem;
+            border-width: 0.1rem;
+            border-style: none;
         }
     }
 
@@ -64,11 +60,8 @@
         font-weight: bold;
         padding: 0.5rem;
         width: 100%;
-    }
-}
 
-@media (max-width: 60rem) {
-    .container {
-        grid-template-columns: 1fr;
+        border-style: none;
+        border-radius: 0.5rem;
     }
 }

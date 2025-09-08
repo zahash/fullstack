@@ -33,15 +33,10 @@ const Login: Component = () => {
         <Title>Login</Title>
 
         <div class={styles.container}>
-            <section class={styles["left-section"]}>
-                <a href="/" class={styles.backlink}>← Back to Home</a>
-                <div class={styles.hero}>
-                    <h1>Login to your Account</h1>
-                </div>
-            </section>
+            <a href="/" class={styles.backlink}>← Back to Home</a>
 
             <form class={styles.form} onsubmit={onsubmit}>
-                <p class={styles.signup}>Don't have an account? <a href="/signup">Create a new one →</a></p>
+                <h1 class={styles["form-title"]}>Login to your Account</h1>
 
                 <div class={styles["form-field"]}>
                     <label for="username">Username</label>
@@ -57,7 +52,9 @@ const Login: Component = () => {
 
                 <hr />
 
-                <button type="submit" class={button["primary-btn"]}>Login</button>
+                <button type="submit" class={button["btn-dark"]}>Login</button>
+
+                <p class={styles.signup}>Don't have an account? <a href="/signup">Create a new one →</a></p>
             </form>
         </div>
     </>;
