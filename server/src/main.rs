@@ -9,6 +9,7 @@ struct Serve {
     /// The port number on which the server will listen for incoming connections.
     /// Example: `8080`
     #[arg(long, env("PORT"))]
+    #[cfg_attr(debug_assertions, arg(default_value_t = 8080))]
     port: u16,
 
     /// The database connection URL used by the server.
@@ -32,6 +33,7 @@ struct Serve {
     /// The rate limit in the form of a string, e.g. "1/s", "10/min", "100/hour".
     /// Example: "10/min"
     #[arg(long, env("RATE_LIMIT"))]
+    #[cfg_attr(debug_assertions, arg(default_value = "100/s"))]
     rate_limit: server::RateLimiterConfig,
 
     #[cfg(feature = "smtp")]
@@ -78,6 +80,7 @@ struct Serve {
     /// Each file in this directory should be a valid HTML template
     /// that can be rendered by the server's templating engine.
     #[arg(long, env("SMTP_TEMPLATES_DIR"))]
+    #[cfg_attr(debug_assertions, arg(default_value_os_t = std::path::PathBuf::from("./templates/")))]
     smtp_templates_dir: std::path::PathBuf,
 }
 
