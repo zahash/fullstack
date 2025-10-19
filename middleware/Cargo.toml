@@ -1,0 +1,16 @@
+[package]
+name = "middleware"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = { version = "0.8", optional = true }
+dashmap = { version = "6.1", optional = true }
+forwarded-header-value = { version = "0.1.1", optional = true }
+tracing = { version = "0.1", optional = true }
+
+[features]
+client-ip = ["dep:axum", "dep:forwarded-header-value"]
+latency = ["dep:axum", "dep:tracing"]
+leaked-5xx = ["dep:axum", "dep:tracing"]
+rate-limit = ["dep:axum", "dep:dashmap", "dep:tracing"]

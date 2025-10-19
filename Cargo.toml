@@ -39,6 +39,7 @@ members = [
     "data-access",
     "email",
     "extra",
+    "middleware",
     "oblivious",
     "seed",
     "server",
