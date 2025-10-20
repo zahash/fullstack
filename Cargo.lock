@@ -433,6 +433,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1d728cc89cf3aee9ff92b05e62b19ee65a02b5702cff7d5a377e32c6ae29d8d"
 
 [[package]]
+name = "client-ip"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "forwarded-header-value",
+]
+
+[[package]]
 name = "colorchoice"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1491,8 +1499,8 @@ name = "middleware"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "client-ip",
  "dashmap",
- "forwarded-header-value",
  "tracing",
 ]
 
@@ -2221,6 +2229,7 @@ dependencies = [
  "axum-macros",
  "bcrypt",
  "clap",
+ "client-ip",
  "contextual",
  "dashmap",
  "dotenvy",
@@ -2229,6 +2238,7 @@ dependencies = [
  "forwarded-header-value",
  "http",
  "lettre",
+ "middleware",
  "rand 0.9.2",
  "serde",
  "serde_json",

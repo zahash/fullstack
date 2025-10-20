@@ -34,18 +34,10 @@ pub fn span<B>(request: &Request<B>) -> Span {
     );
 
     #[cfg(feature = "client-ip")]
-    {
-        let client_ip = request
-            .extensions()
-            .get::<Option<std::net::IpAddr>>()
-            .copied()
-            .flatten();
-
-        match client_ip {
-            Some(ip_addr) => span.record("ip", tracing::field::display(ip_addr)),
-            None => span.record("ip", "<unknown-ip>"),
-        };
-    }
+    match client_ip::client_ip(&request) {
+        Some(ip_addr) => span.record("ip", tracing::field::display(ip_addr)),
+        None => span.record("ip", "<unknown-ip>"),
+    };
 
     span
 }

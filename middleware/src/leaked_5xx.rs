@@ -8,7 +8,7 @@ use axum::{
 /// usually 5xx errors with internal details are handled
 /// but under unforseen circumstances they leak to the client
 /// this is the last line of defense to catch them
-pub async fn mw_handle_leaked_5xx(request: Request<Body>, next: Next) -> Response<Body> {
+pub async fn handle_leaked_5xx(request: Request<Body>, next: Next) -> Response<Body> {
     let response = next.run(request).await;
     let status = response.status();
 

@@ -1,5 +1,4 @@
 mod api;
-mod middleware;
 mod secrets;
 
 #[cfg(feature = "tracing")]
@@ -125,20 +124,17 @@ pub async fn router(opts: ServerOpts) -> Result<Router, ServerError> {
         .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
         .layer(PropagateRequestIdLayer::x_request_id());
 
-    #[cfg(feature = "client-ip")]
-    let middleware = middleware.layer(from_fn(middleware::mw_client_ip));
-
     #[cfg(feature = "tracing")]
     let middleware = middleware
         .layer(tower_http::trace::TraceLayer::new_for_http().make_span_with(span::span))
         .layer(from_fn(middleware::latency_ms));
 
-    let middleware = middleware.layer(from_fn(middleware::mw_handle_leaked_5xx));
+    let middleware = middleware.layer(from_fn(middleware::handle_leaked_5xx));
 
     #[cfg(feature = "rate-limit")]
     let middleware = middleware.layer(axum::middleware::from_fn_with_state(
         std::sync::Arc::new(opts.rate_limiter.into()),
-        crate::middleware::mw_rate_limiter,
+        middleware::rate_limiter,
     ));
 
     let router = router.layer(middleware);
@@ -219,7 +215,7 @@ impl DatabaseConfig {
 }
 
 #[cfg(feature = "rate-limit")]
-impl From<RateLimiterConfig> for crate::middleware::RateLimiter {
+impl From<RateLimiterConfig> for middleware::RateLimiter {
     fn from(config: RateLimiterConfig) -> Self {
         Self::new(config.limit, config.interval)
     }

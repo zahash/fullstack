@@ -12,6 +12,7 @@ use axum::{
     middleware::Next,
     response::IntoResponse,
 };
+use client_ip::client_ip;
 use dashmap::DashMap;
 
 pub struct RateLimiter {
@@ -60,21 +61,15 @@ impl RateLimiter {
     }
 }
 
-pub async fn mw_rate_limiter(
+pub async fn rate_limiter(
     State(rate_limiter): State<Arc<RateLimiter>>,
     request: Request<Body>,
     next: Next,
 ) -> Response<Body> {
-    let client_ip = request
-        .extensions()
-        .get::<Option<IpAddr>>()
-        .copied()
-        .flatten()
-        .unwrap_or_else(|| {
-            tracing::warn!("unable to get client_ip while rate limiting");
-
-            IpAddr::from([0, 0, 0, 0])
-        });
+    let client_ip = client_ip(&request).unwrap_or_else(|| {
+        tracing::warn!("unable to get client_ip while rate limiting");
+        IpAddr::from([0, 0, 0, 0])
+    });
 
     if rate_limiter.is_too_many(client_ip) {
         tracing::warn!("rate limited {}", client_ip);

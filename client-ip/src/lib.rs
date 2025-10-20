@@ -3,19 +3,13 @@ use std::{
     str::FromStr,
 };
 
-use axum::{body::Body, extract::ConnectInfo, http::Request, http::Response, middleware::Next};
-use axum_macros::debug_middleware;
+use axum::{
+    extract::ConnectInfo,
+    http::{Request, header::FORWARDED},
+};
 use forwarded_header_value::{ForwardedHeaderValue, Identifier};
-use http::header::FORWARDED;
 
-#[debug_middleware]
-pub async fn mw_client_ip(mut request: Request<Body>, next: Next) -> Response<Body> {
-    let ip = client_ip(&request);
-    request.extensions_mut().insert(ip);
-    next.run(request).await
-}
-
-fn client_ip<B>(request: &Request<B>) -> Option<IpAddr> {
+pub fn client_ip<B>(request: &Request<B>) -> Option<IpAddr> {
     request
         .headers()
         .get(FORWARDED)

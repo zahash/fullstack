@@ -33,6 +33,7 @@ resolver = "3"
 members = [
     "auth",
     "cache",
+    "client-ip",
     "compiletime",
     "contextual",
     "dashcache",
