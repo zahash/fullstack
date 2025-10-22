@@ -20,5 +20,5 @@
         3000,
         8080
     ],
-    "postCreateCommand": "sqlx database create && sqlx migrate run --source auth/migrations"
+    "postCreateCommand": "bash .devcontainer/post-create.sh"
 }
