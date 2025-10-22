@@ -11,13 +11,13 @@ pub struct ErrorResponse {
 
     #[cfg_attr(
         feature = "openapi",
-        schema(example = "Please check the response headers for `x-request-id`")
+        schema(example = "Please check the response headers for `x-trace-id`")
     )]
     help: &'static str,
 }
 
 impl ErrorResponse {
-    const HELP: &str = "Please check the response headers for `x-request-id`, include the datetime and raise a support ticket.";
+    const HELP: &str = "Please check the response headers for `x-trace-id`, include the datetime and raise a support ticket.";
 
     pub fn new(
         message: impl Into<String>,

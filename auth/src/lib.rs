@@ -11,6 +11,7 @@ use std::net::SocketAddr;
 
 use axum::{Router, extract::FromRef, middleware::from_fn};
 use contextual::Context;
+use http::HeaderName;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
@@ -120,9 +121,10 @@ pub async fn router(opts: ServerOpts) -> Result<Router, ServerError> {
     #[cfg(feature = "serve-dir")]
     let router = router.fallback_service(tower_http::services::ServeDir::new(&opts.serve_dir));
 
+    const X_TRACE_ID: HeaderName = HeaderName::from_static("x-trace-id");
     let middleware = ServiceBuilder::new()
-        .layer(SetRequestIdLayer::x_request_id(MakeRequestUuid))
-        .layer(PropagateRequestIdLayer::x_request_id());
+        .layer(SetRequestIdLayer::new(X_TRACE_ID, MakeRequestUuid))
+        .layer(PropagateRequestIdLayer::new(X_TRACE_ID));
 
     #[cfg(feature = "tracing")]
     let middleware = middleware

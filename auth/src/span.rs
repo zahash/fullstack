@@ -2,13 +2,13 @@ use http::Request;
 use tracing::Span;
 
 pub fn span<B>(request: &Request<B>) -> Span {
-    let request_id = match request.headers().get("x-request-id") {
-        None => "<unknown-request-id>",
+    let trace_id = match request.headers().get("x-trace-id") {
+        None => "<unknown-trace-id>",
         Some(header_value) => match header_value.to_str() {
             Ok(value) => value,
             Err(_) => {
-                tracing::warn!("malformed request id :: {:?}", header_value);
-                "<malformed-request-id>"
+                tracing::warn!("malformed trace id :: {:?}", header_value);
+                "<malformed-trace-id>"
             }
         },
     };
@@ -27,7 +27,7 @@ pub fn span<B>(request: &Request<B>) -> Span {
 
     let span = tracing::error_span!(
         "request",
-        %request_id,
+        %trace_id,
         method = %request.method(),
         uri = %request.uri(),
         ip = tracing::field::Empty
