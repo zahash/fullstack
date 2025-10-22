@@ -116,7 +116,7 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
 name = "auth"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "authlib",
  "axum",
@@ -137,7 +137,7 @@ dependencies = [
  "rand 0.9.2",
  "serde",
  "serde_json",
- "signature 0.1.0",
+ "signature 0.0.0",
  "sqlx",
  "sysinfo",
  "tempfile",
@@ -157,7 +157,7 @@ dependencies = [
 
 [[package]]
 name = "authlib"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "axum",
  "base64",
@@ -357,7 +357,7 @@ checksum = "d71b6127be86fdcfddb610f7182ac57211d4b18a3e9c82eb2d17662f2227ad6a"
 
 [[package]]
 name = "cache"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "dashmap",
  "thiserror 2.0.17",
@@ -475,7 +475,7 @@ checksum = "a1d728cc89cf3aee9ff92b05e62b19ee65a02b5702cff7d5a377e32c6ae29d8d"
 
 [[package]]
 name = "client-ip"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "axum",
  "forwarded-header-value",
@@ -489,7 +489,7 @@ checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
 name = "compiletime"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "quote",
  "regex",
@@ -513,7 +513,7 @@ checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 
 [[package]]
 name = "contextual"
-version = "0.1.0"
+version = "0.0.0"
 
 [[package]]
 name = "cookie"
@@ -614,7 +614,7 @@ dependencies = [
 
 [[package]]
 name = "dashcache"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "cache",
  "dashmap",
@@ -637,7 +637,7 @@ dependencies = [
 
 [[package]]
 name = "data-access"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "cache",
  "sqlx",
@@ -729,7 +729,7 @@ dependencies = [
 
 [[package]]
 name = "email"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "lettre",
  "serde",
@@ -793,7 +793,7 @@ dependencies = [
 
 [[package]]
 name = "extra"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "serde",
  "time",
@@ -1537,7 +1537,7 @@ checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
 
 [[package]]
 name = "middleware"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "axum",
  "client-ip",
@@ -1679,7 +1679,7 @@ dependencies = [
 
 [[package]]
 name = "oblivious"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "base64",
  "clap",
@@ -2187,7 +2187,7 @@ dependencies = [
 
 [[package]]
 name = "seed"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "clap",
  "sqlx",
@@ -2299,7 +2299,7 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "signature"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "base64",
  "contextual",
@@ -2662,7 +2662,7 @@ dependencies = [
 
 [[package]]
 name = "tag"
-version = "0.1.0"
+version = "0.0.0"
 
 [[package]]
 name = "tempfile"
@@ -2701,7 +2701,7 @@ dependencies = [
 
 [[package]]
 name = "test-proc-macros"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "email",
  "quote",
@@ -2816,7 +2816,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "token"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "base64",
  "rand 0.9.2",
@@ -3162,7 +3162,7 @@ dependencies = [
 
 [[package]]
 name = "validation"
-version = "0.1.0"
+version = "0.0.0"
 
 [[package]]
 name = "valuable"
@@ -3215,7 +3215,7 @@ checksum = "b8dad83b4f25e74f184f64c43b150b91efe7647395b42289f38e50566d82855b"
 
 [[package]]
 name = "wasm"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "validation",
  "wasm-bindgen",
