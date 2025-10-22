@@ -20,7 +20,5 @@ RUN cargo install sqlx-cli wasm-bindgen-cli mailtutan
 
 ENV DATABASE_URL=sqlite:///tmp/data.db
 
-EXPOSE 3000 8080
-
 # Default command
 CMD ["bash"]
