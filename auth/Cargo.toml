@@ -35,7 +35,7 @@ contextual = { path = "../contextual" }
 email = { path = "../email", features = ["serde", "sqlite"] }
 extra = { path = "../extra", features = ["error-kind", "error-response"] }
 middleware = { path = "../middleware", features = ["leaked-5xx"] }
-token = { path = "../token", optional = true }
+signature = { path = "../signature", optional = true }
 validation = { path = "../validation" }
 
 [dev-dependencies]
@@ -57,13 +57,12 @@ serve-dir = []
 smtp = [
     "dep:lettre",
     "dep:tera",
-    "dep:token",
+    "dep:signature",
     "lettre/builder",
     "lettre/pool",
     "lettre/smtp-transport",
     "lettre/tokio1-rustls-tls",
     "lettre/tracing",
-    "token/signed",
 ]
 smtp--no-tls = []
 tracing = [

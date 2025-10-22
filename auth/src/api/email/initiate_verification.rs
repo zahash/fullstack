@@ -114,7 +114,7 @@ pub enum Error {
     UnAssociatedEmail(Email),
 
     #[error("{0}")]
-    TokenEncodeError(#[from] contextual::Error<token::signed::EncodeError>),
+    TokenEncodeError(#[from] contextual::Error<signature::EncodeError>),
 
     #[error("{0}")]
     SendVerificationEmail(#[from] SendVerificationEmailError),

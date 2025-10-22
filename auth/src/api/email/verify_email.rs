@@ -10,7 +10,6 @@ use email::Email;
 use extra::ErrorResponse;
 use http::StatusCode;
 use serde::Deserialize;
-use token::signed;
 
 use crate::AppState;
 
@@ -50,7 +49,7 @@ pub async fn handler(
     }): Query<QueryParams>,
 ) -> Result<StatusCode, Error> {
     let hmac_secret = secrets.get("hmac").context("get HMAC key")?;
-    let signed_token = signed::Signed::<Email>::decode(&token_base64_encoded, &hmac_secret)?;
+    let signed_token = signature::Signed::<Email>::decode(&token_base64_encoded, &hmac_secret)?;
     let email = signed_token.token()?;
 
     #[cfg(feature = "tracing")]
@@ -67,10 +66,10 @@ pub async fn handler(
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("{0}")]
-    TokenDecode(#[from] signed::DecodeError<email::ParseError>),
+    TokenDecode(#[from] signature::DecodeError<email::ParseError>),
 
     #[error("{0}")]
-    TemporalTokenValidity(#[from] signed::TemporalValidityError),
+    TemporalTokenValidity(#[from] signature::TemporalValidityError),
 
     #[error("{0}")]
     Io(#[from] contextual::Error<std::io::Error>),
@@ -94,7 +93,7 @@ impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
             Error::TokenDecode(decode_error) => match decode_error {
-                signed::DecodeError::InvalidFormat => {
+                signature::DecodeError::InvalidFormat => {
                     #[cfg(feature = "tracing")]
                     tracing::info!("{:?}", decode_error);
 
@@ -107,11 +106,11 @@ impl IntoResponse for Error {
                     )
                         .into_response()
                 }
-                signed::DecodeError::MacMismatch(_)
-                | signed::DecodeError::NonUTF8(_)
-                | signed::DecodeError::Serde(_)
-                | signed::DecodeError::Base64(_)
-                | signed::DecodeError::TokenFromBytes(_) => {
+                signature::DecodeError::MacMismatch(_)
+                | signature::DecodeError::NonUTF8(_)
+                | signature::DecodeError::Serde(_)
+                | signature::DecodeError::Base64(_)
+                | signature::DecodeError::TokenFromBytes(_) => {
                     #[cfg(feature = "tracing")]
                     tracing::info!("{:?}", decode_error);
 
@@ -124,7 +123,7 @@ impl IntoResponse for Error {
                     )
                         .into_response()
                 }
-                signed::DecodeError::InvalidKeyLength => {
+                signature::DecodeError::InvalidKeyLength => {
                     #[cfg(feature = "tracing")]
                     tracing::error!("{:?}", decode_error);
 

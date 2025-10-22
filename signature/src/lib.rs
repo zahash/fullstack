@@ -74,7 +74,7 @@ impl<T> Signed<T> {
         let signature_base64encoded = {
             let signing_input = format!("{header_base64encoded}.{token_base64encoded}");
             let mut mac = Hmac::<Sha256>::new_from_slice(secret)
-                .map_err(|InvalidLength| EncodeError::InvalidKeyLength)?;
+                .map_err(|_: InvalidLength| EncodeError::InvalidKeyLength)?;
             mac.update(signing_input.as_bytes());
             let signature_bytes = mac.finalize().into_bytes();
             BASE64_URL_SAFE_NO_PAD.encode(signature_bytes)

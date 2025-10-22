@@ -9,13 +9,12 @@ use lettre::{
     message::{Mailbox, MultiPart},
     transport::smtp::response::Response,
 };
-use token::signed;
 
 pub fn verification_link(
     secret: &[u8],
     host: &str,
-    token: &signed::Signed<Email>,
-) -> Result<String, signed::EncodeError> {
+    token: &signature::Signed<Email>,
+) -> Result<String, signature::EncodeError> {
     // TODO: /verify-email is hardcoded here and it is defined in two places
     //          once here and once more in the email verification handler
     //          maybe move this whole module closer to the email verification handlers
@@ -25,8 +24,8 @@ pub fn verification_link(
     ))
 }
 
-pub fn verification_token(email: Email) -> signed::Signed<Email> {
-    signed::Signed::new(email).with_ttl(Duration::from_secs(60 * 60))
+pub fn verification_token(email: Email) -> signature::Signed<Email> {
+    signature::Signed::new(email).with_ttl(Duration::from_secs(60 * 60))
 }
 
 pub async fn send_verification_email(

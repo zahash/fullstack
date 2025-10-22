@@ -168,7 +168,7 @@ pub async fn handler(
         #[derive(thiserror::Error, Debug)]
         enum InitiateEmailVerificationError {
             #[error("{0}")]
-            TokenEncodeError(#[from] contextual::Error<token::signed::EncodeError>),
+            TokenEncodeError(#[from] contextual::Error<signature::EncodeError>),
 
             #[error("{0}")]
             SendVerificationEmail(#[from] SendVerificationEmailError),
