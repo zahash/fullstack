@@ -1,9 +1,9 @@
+use auth::ServerOpts;
 use axum::{
     Router,
     body::{Body, to_bytes},
 };
 use http::{Request, Response};
-use server::ServerOpts;
 use sqlx::{Pool, Sqlite, sqlite::SqliteConnectOptions};
 use tempfile::{TempDir, tempdir};
 use tower::Service;
@@ -21,7 +21,7 @@ impl TestClient {
     pub async fn default() -> Self {
         let temp_dir = tempdir().expect("unable to create temp dir");
 
-        let database_config = server::DatabaseConfig {
+        let database_config = auth::DatabaseConfig {
             url: {
                 let path = temp_dir.path().join("test.db");
                 path.to_string_lossy().to_string()
@@ -31,7 +31,7 @@ impl TestClient {
 
         // let secrets = Secret
 
-        let router = server::router(ServerOpts {
+        let router = auth::router(ServerOpts {
             database: database_config,
 
             secrets_dir: {
@@ -41,7 +41,7 @@ impl TestClient {
             },
 
             #[cfg(feature = "rate-limit")]
-            rate_limiter: server::RateLimiterConfig {
+            rate_limiter: auth::RateLimiterConfig {
                 limit: usize::MAX,
                 interval: std::time::Duration::from_secs(0),
             },
@@ -54,7 +54,7 @@ impl TestClient {
                 let senders_dir = temp_dir.path().join("senders");
                 Self::prepare_senders(&senders_dir);
 
-                server::SmtpConfig {
+                auth::SmtpConfig {
                     relay: "127.0.0.1".into(),
                     port: Some(1025),
                     username: None,
@@ -81,7 +81,7 @@ impl TestClient {
         Asserter::from(response)
     }
 
-    async fn prepare_database(config: &server::DatabaseConfig) {
+    async fn prepare_database(config: &auth::DatabaseConfig) {
         let pool = Pool::<Sqlite>::connect_with(
             SqliteConnectOptions::new()
                 .filename(&config.url)
@@ -89,7 +89,7 @@ impl TestClient {
         )
         .await
         .expect("unable to connect to test db");
-        sqlx::migrate!("../migrations")
+        sqlx::migrate!("./migrations")
             .run(&pool)
             .await
             .expect("unable to run migrations");

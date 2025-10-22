@@ -1,4 +1,4 @@
-use auth::{PermissionError, Principal};
+use authlib::{PermissionError, Principal};
 use axum::{
     Json,
     extract::State,

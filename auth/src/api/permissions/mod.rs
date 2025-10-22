@@ -1,6 +1,6 @@
 pub mod assign;
 
-use auth::{Permission, PermissionError, Principal};
+use authlib::{Permission, PermissionError, Principal};
 use axum::Json;
 use axum::extract::State;
 use axum::routing::{MethodRouter, get};

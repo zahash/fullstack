@@ -1,4 +1,4 @@
-use auth::Principal;
+use authlib::Principal;
 use axum::routing::{MethodRouter, get};
 
 use crate::AppState;

@@ -1,4 +1,4 @@
-use auth::assign_permission_group;
+use authlib::assign_permission_group;
 use axum::{
     Form, Json,
     extract::State,

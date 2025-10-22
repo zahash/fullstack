@@ -32,7 +32,7 @@ pub const OPEN_API_DOCS_PATH: &str = "/api-docs/openapi.json";
     ),
     components(schemas(
         access_token::generate::Config,
-        auth::Permission,
+        authlib::Permission,
         key_rotation::RequestBody,
         login::Credentials,
         permissions::assign::RequestBody,

@@ -1,4 +1,4 @@
-use auth::{
+use authlib::{
     AccessToken, AccessTokenAuthorizationExtractionError, AccessTokenValidationError, Credentials,
 };
 use axum::{

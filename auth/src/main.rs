@@ -34,7 +34,7 @@ struct Serve {
     /// Example: "10/min"
     #[arg(long, env("RATE_LIMIT"))]
     #[cfg_attr(debug_assertions, arg(default_value = "100/s"))]
-    rate_limit: server::RateLimiterConfig,
+    rate_limit: auth::RateLimiterConfig,
 
     #[cfg(feature = "smtp")]
     /// The SMTP relay server used for sending emails.
@@ -113,10 +113,10 @@ async fn main() {
     let args = Serve::parse();
 
     let port = args.port;
-    let opts = server::ServerOpts::from(args);
+    let opts = auth::ServerOpts::from(args);
 
-    let router = server::router(opts).await.unwrap_or_else(|e| exit(e));
-    server::serve(router, port)
+    let router = auth::router(opts).await.unwrap_or_else(|e| exit(e));
+    auth::serve(router, port)
         .await
         .unwrap_or_else(|e| exit(e))
 }
@@ -213,10 +213,10 @@ fn exit(err: impl std::error::Error) -> ! {
     std::process::exit(1)
 }
 
-impl From<Serve> for server::ServerOpts {
+impl From<Serve> for auth::ServerOpts {
     fn from(serve: Serve) -> Self {
-        server::ServerOpts {
-            database: server::DatabaseConfig {
+        auth::ServerOpts {
+            database: auth::DatabaseConfig {
                 url: serve.database_url,
             },
 
@@ -229,7 +229,7 @@ impl From<Serve> for server::ServerOpts {
             serve_dir: serve.serve_dir,
 
             #[cfg(feature = "smtp")]
-            smtp: server::SmtpConfig {
+            smtp: auth::SmtpConfig {
                 relay: serve.smtp_relay,
                 port: serve.smtp_port,
                 username: serve.smtp_username,

@@ -1,4 +1,4 @@
-use auth::{Credentials, SessionId, expired_session_cookie};
+use authlib::{Credentials, SessionId, expired_session_cookie};
 use axum::routing::{MethodRouter, post};
 use axum::{extract::State, response::IntoResponse};
 use axum_extra::extract::CookieJar;

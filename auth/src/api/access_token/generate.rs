@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use auth::{AccessToken, PermissionError, Principal};
+use authlib::{AccessToken, PermissionError, Principal};
 use axum::{
     Form,
     extract::State,

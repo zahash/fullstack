@@ -32,6 +32,7 @@
 resolver = "3"
 members = [
     "auth",
+    "authlib",
     "cache",
     "client-ip",
     "compiletime",
@@ -43,7 +44,6 @@ members = [
     "middleware",
     "oblivious",
     "seed",
-    "server",
     "tag",
     "test-proc-macros",
     "token",
