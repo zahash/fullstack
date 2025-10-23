@@ -1,11 +1,11 @@
 FROM debian:latest
 
 RUN apt-get update && apt-get install -y \
-    curl \
     build-essential \
+    curl \
+    git \
     libssl-dev \
-    pkg-config \
-    git
+    pkg-config
 
 # Install latest stable Rust using rustup
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
