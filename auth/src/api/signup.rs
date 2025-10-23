@@ -138,16 +138,11 @@ pub async fn handler(
 
     #[cfg(feature = "smtp")]
     {
-        use crate::{
-            secrets::Secrets,
-            smtp::{
-                Smtp,
-                email_verification::{
-                    SendVerificationEmailError, send_verification_email, verification_link,
-                    verification_token,
-                },
-            },
+        use super::email::{
+            SendVerificationEmailError, send_verification_email, verification_link,
+            verification_token,
         };
+        use crate::{secrets::Secrets, smtp::Smtp};
         use lettre::transport::smtp::response::Response as SmtpResponse;
 
         async fn initiate_email_verification(

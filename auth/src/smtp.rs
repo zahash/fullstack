@@ -1,5 +1,3 @@
-pub mod email_verification;
-
 use std::{path::PathBuf, str::FromStr, sync::Arc};
 
 use contextual::Context;

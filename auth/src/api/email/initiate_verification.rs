@@ -14,12 +14,10 @@ use extra::ErrorResponse;
 use http::StatusCode;
 use serde::Deserialize;
 
-use crate::{
-    AppState,
-    smtp::email_verification::{
-        SendVerificationEmailError, send_verification_email, verification_link, verification_token,
-    },
+use super::{
+    SendVerificationEmailError, send_verification_email, verification_link, verification_token,
 };
+use crate::AppState;
 
 pub const PATH: &str = "/initiate-email-verification";
 
