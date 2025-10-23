@@ -3,7 +3,7 @@ use bcrypt::verify;
 use contextual::Context;
 use email::Email;
 
-use crate::{Permission, PermissionError, Verified};
+use crate::core::{Permission, PermissionError, Verified};
 
 pub struct UserInfo {
     pub user_id: i64,

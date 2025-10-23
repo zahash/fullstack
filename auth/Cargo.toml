@@ -6,8 +6,10 @@ edition = "2024"
 axum = "0.8"
 axum-extra = { version = "0.10", features = ["cookie"] }
 axum-macros = "0.5"
+base64 = "0.22"
 bcrypt = "0.17"
 clap = { version = "4", features = ["derive", "env"] }
+cookie = "0.18"
 dotenvy = { version = "0.15", optional = true }
 lettre = { version = "0.11", default-features = false, optional = true }
 dashmap = "6.1"
@@ -28,13 +30,13 @@ tracing-subscriber = { version = "0.3", optional = true }
 utoipa = { version = "5.4.0", optional = true }
 zeroize = "1"
 
-authlib = { path = "../authlib", features = ["axum"] }
 client-ip = { path = "../client-ip", optional = true }
 contextual = { path = "../contextual" }
 email = { path = "../email", features = ["serde", "sqlite"] }
 extra = { path = "../extra", features = ["error-kind", "error-response"] }
 middleware = { path = "../middleware", features = ["leaked-5xx"] }
 signature = { path = "../signature", optional = true }
+token = { path = "../token" }
 validation = { path = "../validation" }
 
 [dev-dependencies]
@@ -49,7 +51,7 @@ test-proc-macros = { path = "../test-proc-macros", features = [
 [features]
 await-tasks = []
 client-ip = ["dep:client-ip"]
-openapi = ["dep:utoipa", "authlib/openapi", "extra/openapi"]
+openapi = ["dep:utoipa", "extra/openapi"]
 profiles = ["dep:dotenvy"]
 rate-limit = ["middleware/rate-limit"]
 serve-dir = []
@@ -64,9 +66,4 @@ smtp = [
     "lettre/tracing",
 ]
 smtp--no-tls = []
-tracing = [
-    "dep:tracing",
-    "authlib/tracing",
-    "middleware/latency",
-    "tracing-subscriber/env-filter",
-]
+tracing = ["dep:tracing", "middleware/latency", "tracing-subscriber/env-filter"]

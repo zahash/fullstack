@@ -1,6 +1,3 @@
-use authlib::{
-    AccessToken, AccessTokenAuthorizationExtractionError, AccessTokenValidationError, Credentials,
-};
 use axum::{
     Json,
     extract::State,
@@ -11,7 +8,13 @@ use axum::{
 use contextual::Context;
 use extra::ErrorResponse;
 
-use crate::AppState;
+use crate::{
+    AppState,
+    core::{
+        AccessToken, AccessTokenAuthorizationExtractionError, AccessTokenValidationError,
+        Credentials,
+    },
+};
 
 pub const PATH: &str = "/access-token/verify";
 

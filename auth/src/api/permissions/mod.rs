@@ -1,13 +1,15 @@
 pub mod assign;
 
-use authlib::{Permission, PermissionError, Principal};
 use axum::Json;
 use axum::extract::State;
 use axum::routing::{MethodRouter, get};
 use axum_macros::debug_handler;
 use contextual::Context;
 
-use crate::AppState;
+use crate::{
+    AppState,
+    core::{Permission, PermissionError, Principal},
+};
 
 pub const PATH: &str = "/permissions";
 

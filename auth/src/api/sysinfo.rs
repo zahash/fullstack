@@ -1,4 +1,3 @@
-use authlib::{PermissionError, Principal};
 use axum::{
     Json,
     extract::State,
@@ -8,7 +7,10 @@ use axum_macros::debug_handler;
 use serde::Serialize;
 use sysinfo::{Disks, System};
 
-use crate::AppState;
+use crate::{
+    AppState,
+    core::{PermissionError, Principal},
+};
 
 pub const PATH: &str = "/sysinfo";
 

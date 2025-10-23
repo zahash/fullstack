@@ -1,13 +1,16 @@
 use std::ops::Deref;
 
+use axum::{
+    Json,
+    response::{IntoResponse, Response},
+};
 use contextual::Context;
 use cookie::{Cookie, SameSite, time::Duration};
-
-use http::header::COOKIE;
+use http::{StatusCode, header::COOKIE};
 use time::OffsetDateTime;
 use token::Token;
 
-use crate::{Credentials, Permission, PermissionError, Verified};
+use crate::core::{Credentials, Permission, PermissionError, Verified};
 
 const SESSION_ID: &str = "session_id";
 
@@ -198,7 +201,6 @@ impl Deref for SessionId {
     }
 }
 
-#[cfg(feature = "axum")]
 impl extra::ErrorKind for SessionValidationError {
     fn kind(&self) -> &'static str {
         match self {
@@ -207,16 +209,15 @@ impl extra::ErrorKind for SessionValidationError {
     }
 }
 
-#[cfg(feature = "axum")]
-impl axum::response::IntoResponse for SessionValidationError {
-    fn into_response(self) -> axum::response::Response {
+impl IntoResponse for SessionValidationError {
+    fn into_response(self) -> Response {
         match self {
             SessionValidationError::SessionExpired => {
                 #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
                 (
-                    axum::http::StatusCode::UNAUTHORIZED,
-                    axum::Json(extra::ErrorResponse::from(self)),
+                    StatusCode::UNAUTHORIZED,
+                    Json(extra::ErrorResponse::from(self)),
                 )
                     .into_response()
             }
@@ -224,7 +225,6 @@ impl axum::response::IntoResponse for SessionValidationError {
     }
 }
 
-#[cfg(feature = "axum")]
 impl extra::ErrorKind for SessionCookieExtractionError {
     fn kind(&self) -> &'static str {
         match self {
@@ -233,16 +233,15 @@ impl extra::ErrorKind for SessionCookieExtractionError {
     }
 }
 
-#[cfg(feature = "axum")]
-impl axum::response::IntoResponse for SessionCookieExtractionError {
-    fn into_response(self) -> axum::response::Response {
+impl IntoResponse for SessionCookieExtractionError {
+    fn into_response(self) -> Response {
         match self {
             SessionCookieExtractionError::Base64Decode => {
                 #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
                 (
-                    axum::http::StatusCode::BAD_REQUEST,
-                    axum::Json(extra::ErrorResponse::from(self)),
+                    StatusCode::BAD_REQUEST,
+                    Json(extra::ErrorResponse::from(self)),
                 )
                     .into_response()
             }

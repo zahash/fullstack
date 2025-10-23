@@ -1,7 +1,6 @@
-use authlib::Principal;
 use axum::routing::{MethodRouter, get};
 
-use crate::AppState;
+use crate::{AppState, core::Principal};
 
 pub const PATH: &str = "/private";
 

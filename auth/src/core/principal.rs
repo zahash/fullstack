@@ -1,9 +1,14 @@
 use std::fmt::Display;
 
+use axum::{
+    Json,
+    extract::{FromRef, FromRequestParts},
+    response::{IntoResponse, Response},
+};
 use contextual::Context;
-use http::HeaderMap;
+use http::{HeaderMap, StatusCode, request::Parts};
 
-use crate::{
+use crate::core::{
     AccessToken, AccessTokenAuthorizationExtractionError, AccessTokenInfo,
     AccessTokenValidationError, Basic, BasicAuthorizationExtractionError, Credentials, Permission,
     PermissionError, SessionCookieExtractionError, SessionId, SessionInfo, SessionValidationError,
@@ -139,24 +144,21 @@ impl Principal {
     }
 }
 
-#[cfg(feature = "axum")]
-impl<S> axum::extract::FromRequestParts<S> for Principal
+impl<S> FromRequestParts<S> for Principal
 where
     S: Send + Sync,
-    sqlx::Pool<sqlx::Sqlite>: axum::extract::FromRef<S>,
+    sqlx::Pool<sqlx::Sqlite>: FromRef<S>,
 {
     type Rejection = PrincipalError;
 
     async fn from_request_parts(
-        axum::http::request::Parts { headers, .. }: &mut axum::http::request::Parts,
+        Parts { headers, .. }: &mut Parts,
         state: &S,
     ) -> Result<Self, Self::Rejection> {
-        use axum::extract::FromRef;
         Principal::from(headers, &sqlx::Pool::<sqlx::Sqlite>::from_ref(state)).await
     }
 }
 
-#[cfg(feature = "axum")]
 impl extra::ErrorKind for PrincipalError {
     fn kind(&self) -> &'static str {
         match self {
@@ -176,9 +178,8 @@ impl extra::ErrorKind for PrincipalError {
     }
 }
 
-#[cfg(feature = "axum")]
-impl axum::response::IntoResponse for PrincipalError {
-    fn into_response(self) -> axum::response::Response {
+impl IntoResponse for PrincipalError {
+    fn into_response(self) -> Response {
         match self {
             PrincipalError::UnAssociatedAccessToken
             | PrincipalError::UnAssociatedSessionId
@@ -188,8 +189,8 @@ impl axum::response::IntoResponse for PrincipalError {
                 #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
                 (
-                    axum::http::StatusCode::UNAUTHORIZED,
-                    axum::Json(extra::ErrorResponse::from(self)),
+                    StatusCode::UNAUTHORIZED,
+                    Json(extra::ErrorResponse::from(self)),
                 )
                     .into_response()
             }
@@ -201,7 +202,7 @@ impl axum::response::IntoResponse for PrincipalError {
             PrincipalError::Sqlx(_) | PrincipalError::Bcrypt(_) => {
                 #[cfg(feature = "tracing")]
                 tracing::error!("{:?}", self);
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
         }
     }

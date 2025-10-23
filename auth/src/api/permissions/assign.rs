@@ -1,4 +1,3 @@
-use authlib::{PermissionError, Principal};
 use axum::{
     Json,
     extract::State,
@@ -9,7 +8,10 @@ use contextual::Context;
 use extra::ErrorResponse;
 use serde::Deserialize;
 
-use crate::AppState;
+use crate::{
+    AppState,
+    core::{PermissionError, Principal},
+};
 
 pub const PATH: &str = "/permissions/assign";
 

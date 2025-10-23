@@ -1,10 +1,15 @@
 use std::ops::Deref;
 
+use axum::{
+    Json,
+    response::{IntoResponse, Response},
+};
 use contextual::Context;
+use http::StatusCode;
 use time::OffsetDateTime;
 use token::Token;
 
-use crate::{Credentials, Permission, PermissionError, Verified};
+use crate::core::{Credentials, Permission, PermissionError, Verified};
 
 pub struct AccessToken(Token<32>);
 
@@ -183,7 +188,6 @@ impl From<Token<32>> for AccessToken {
     }
 }
 
-#[cfg(feature = "axum")]
 impl extra::ErrorKind for AccessTokenValidationError {
     fn kind(&self) -> &'static str {
         match self {
@@ -192,16 +196,15 @@ impl extra::ErrorKind for AccessTokenValidationError {
     }
 }
 
-#[cfg(feature = "axum")]
-impl axum::response::IntoResponse for AccessTokenValidationError {
-    fn into_response(self) -> axum::response::Response {
+impl IntoResponse for AccessTokenValidationError {
+    fn into_response(self) -> Response {
         match self {
             AccessTokenValidationError::AccessTokenExpired => {
                 #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
                 (
-                    axum::http::StatusCode::UNAUTHORIZED,
-                    axum::Json(extra::ErrorResponse::from(self)),
+                    StatusCode::UNAUTHORIZED,
+                    Json(extra::ErrorResponse::from(self)),
                 )
                     .into_response()
             }
@@ -209,7 +212,6 @@ impl axum::response::IntoResponse for AccessTokenValidationError {
     }
 }
 
-#[cfg(feature = "axum")]
 impl extra::ErrorKind for AccessTokenAuthorizationExtractionError {
     fn kind(&self) -> &'static str {
         match self {
@@ -223,17 +225,16 @@ impl extra::ErrorKind for AccessTokenAuthorizationExtractionError {
     }
 }
 
-#[cfg(feature = "axum")]
-impl axum::response::IntoResponse for AccessTokenAuthorizationExtractionError {
-    fn into_response(self) -> axum::response::Response {
+impl IntoResponse for AccessTokenAuthorizationExtractionError {
+    fn into_response(self) -> Response {
         match self {
             AccessTokenAuthorizationExtractionError::NonUTF8HeaderValue
             | AccessTokenAuthorizationExtractionError::Base64Decode => {
                 #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
                 (
-                    axum::http::StatusCode::BAD_REQUEST,
-                    axum::Json(extra::ErrorResponse::from(self)),
+                    StatusCode::BAD_REQUEST,
+                    Json(extra::ErrorResponse::from(self)),
                 )
                     .into_response()
             }

@@ -1,4 +1,3 @@
-use authlib::{Credentials, SessionId, expired_session_cookie};
 use axum::routing::{MethodRouter, post};
 use axum::{extract::State, response::IntoResponse};
 use axum_extra::extract::CookieJar;
@@ -6,7 +5,10 @@ use axum_macros::debug_handler;
 use contextual::Context;
 use http::{HeaderMap, StatusCode};
 
-use crate::AppState;
+use crate::{
+    AppState,
+    core::{Credentials, SessionId, expired_session_cookie},
+};
 
 pub const PATH: &str = "/logout";
 

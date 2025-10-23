@@ -1,4 +1,3 @@
-use authlib::{PermissionError, Principal};
 use axum::{
     Form,
     extract::State,
@@ -8,7 +7,10 @@ use axum::{
 use http::StatusCode;
 use serde::Deserialize;
 
-use crate::AppState;
+use crate::{
+    AppState,
+    core::{PermissionError, Principal},
+};
 
 pub const PATH: &str = "/rotate-key";
 

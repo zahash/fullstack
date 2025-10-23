@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use authlib::{AccessToken, PermissionError, Principal};
 use axum::{
     Form,
     extract::State,
@@ -13,7 +12,10 @@ use contextual::Context;
 use serde::Deserialize;
 use time::OffsetDateTime;
 
-use crate::AppState;
+use crate::{
+    AppState,
+    core::{AccessToken, PermissionError, Principal},
+};
 
 pub const PATH: &str = "/access-token/generate";
 

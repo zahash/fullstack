@@ -118,14 +118,15 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 name = "auth"
 version = "0.0.0"
 dependencies = [
- "authlib",
  "axum",
  "axum-extra",
  "axum-macros",
+ "base64",
  "bcrypt",
  "clap",
  "client-ip",
  "contextual",
+ "cookie",
  "dashmap",
  "dotenvy",
  "email",
@@ -145,6 +146,7 @@ dependencies = [
  "test-proc-macros",
  "thiserror 2.0.17",
  "time",
+ "token",
  "tokio",
  "tower",
  "tower-http",
@@ -153,27 +155,6 @@ dependencies = [
  "utoipa",
  "validation",
  "zeroize",
-]
-
-[[package]]
-name = "authlib"
-version = "0.0.0"
-dependencies = [
- "axum",
- "base64",
- "bcrypt",
- "contextual",
- "cookie",
- "email",
- "extra",
- "http",
- "serde",
- "sqlx",
- "thiserror 2.0.17",
- "time",
- "token",
- "tracing",
- "utoipa",
 ]
 
 [[package]]

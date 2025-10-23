@@ -1,6 +1,11 @@
+use axum::{
+    Json,
+    response::{IntoResponse, Response},
+};
 use base64::{Engine, prelude::BASE64_STANDARD};
+use http::StatusCode;
 
-use crate::Credentials;
+use crate::core::Credentials;
 
 pub struct Basic {
     pub username: String,
@@ -55,7 +60,6 @@ pub enum BasicAuthorizationExtractionError {
     InvalidBasicFormat,
 }
 
-#[cfg(feature = "axum")]
 impl extra::ErrorKind for BasicAuthorizationExtractionError {
     fn kind(&self) -> &'static str {
         match self {
@@ -75,9 +79,8 @@ impl extra::ErrorKind for BasicAuthorizationExtractionError {
     }
 }
 
-#[cfg(feature = "axum")]
-impl axum::response::IntoResponse for BasicAuthorizationExtractionError {
-    fn into_response(self) -> axum::response::Response {
+impl IntoResponse for BasicAuthorizationExtractionError {
+    fn into_response(self) -> Response {
         match self {
             BasicAuthorizationExtractionError::NonUTF8HeaderValue
             | BasicAuthorizationExtractionError::NonUTF8Credentials
@@ -86,8 +89,8 @@ impl axum::response::IntoResponse for BasicAuthorizationExtractionError {
                 #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
                 (
-                    axum::http::StatusCode::BAD_REQUEST,
-                    axum::Json(extra::ErrorResponse::from(self)),
+                    StatusCode::BAD_REQUEST,
+                    Json(extra::ErrorResponse::from(self)),
                 )
                     .into_response()
             }

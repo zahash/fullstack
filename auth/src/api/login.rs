@@ -1,4 +1,3 @@
-use authlib::SessionId;
 use axum::{
     Form,
     extract::State,
@@ -13,7 +12,7 @@ use contextual::Context;
 use serde::Deserialize;
 use time::{Duration, OffsetDateTime};
 
-use crate::AppState;
+use crate::{AppState, core::SessionId};
 
 pub const PATH: &str = "/login";
 const COOKIE_DURATION: Duration = Duration::days(30);

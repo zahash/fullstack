@@ -1,4 +1,3 @@
-use authlib::assign_permission_group;
 use axum::{
     Form, Json,
     extract::State,
@@ -12,7 +11,7 @@ use extra::ErrorResponse;
 use serde::Deserialize;
 use validation::{validate_password, validate_username};
 
-use crate::AppState;
+use crate::{AppState, core::assign_permission_group};
 
 pub const PATH: &str = "/signup";
 

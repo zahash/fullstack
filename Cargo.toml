@@ -32,7 +32,6 @@
 resolver = "3"
 members = [
     "auth",
-    "authlib",
     "cache",
     "client-ip",
     "compiletime",
