@@ -1,6 +1,7 @@
 pub mod access_token;
 pub mod email;
 pub mod health;
+pub mod introspect;
 pub mod key_rotation;
 pub mod login;
 pub mod logout;

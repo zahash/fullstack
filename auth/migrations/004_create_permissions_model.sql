@@ -39,3 +39,22 @@ CREATE TABLE access_token_permissions(
 );
 CREATE INDEX idx__access_token_permissions__access_token_id ON access_token_permissions (access_token_id);
 CREATE INDEX idx__access_token_permissions__permission_id ON access_token_permissions (permission_id);
+
+CREATE TABLE permissions_audit_log(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    assigner_type TEXT NOT NULL,
+    assigner_id INTEGER NOT NULL,
+    assignee_type TEXT NOT NULL,
+    assignee_id INTEGER NOT NULL,
+    permission_id INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    datetime DATETIME NOT NULL,
+    FOREIGN KEY (permission_id) REFERENCES permissions (id) ON DELETE CASCADE,
+    CHECK (assigner_type IN ('user', 'access_token')),
+    CHECK (assignee_type IN ('user', 'access_token')),
+    CHECK (action IN ('assigned', 'revoked'))
+);
+CREATE INDEX idx__permissions_audit_log__datetime ON permissions_audit_log (datetime);
+CREATE INDEX idx__permissions_audit_log__assigner ON permissions_audit_log (assigner_type, assigner_id, datetime);
+CREATE INDEX idx__permissions_audit_log__assignee ON permissions_audit_log (assignee_type, assignee_id, datetime);
+CREATE INDEX idx__permissions_audit_log__permission ON permissions_audit_log (permission_id, datetime);

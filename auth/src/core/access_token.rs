@@ -47,7 +47,7 @@ pub enum AccessTokenAuthorizationExtractionError {
 
 #[derive(Debug, Clone)]
 pub struct AccessTokenInfo {
-    id: i64,
+    pub id: i64,
     pub name: String,
     pub user_id: i64,
     pub created_at: OffsetDateTime,

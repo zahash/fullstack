@@ -5,5 +5,6 @@ CREATE TABLE sessions (
     created_at DATETIME NOT NULL,
     expires_at DATETIME NOT NULL,
     user_agent TEXT,
-    FOREIGN KEY (user_id) REFERENCES users (id)
+    FOREIGN KEY (user_id) REFERENCES users (id),
+    CHECK (expires_at >= created_at)
 );

@@ -1,4 +1,5 @@
 pub mod assign;
+pub mod revoke;
 
 use axum::Json;
 use axum::extract::State;

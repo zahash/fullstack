@@ -7,13 +7,14 @@ use axum::{
 use contextual::Context;
 use extra::ErrorResponse;
 use serde::Deserialize;
+use time::OffsetDateTime;
 
 use crate::{
     AppState,
     core::{PermissionError, Principal},
 };
 
-pub const PATH: &str = "/permissions/assign";
+pub const PATH: &str = "/permissions";
 
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Deserialize)]
@@ -48,7 +49,7 @@ pub fn method_router() -> MethodRouter<AppState> {
     path = PATH,
     request_body = RequestBody,
     responses(
-        (status = 204, description = "Permission assigned successfully"),
+        (status = 201, description = "Permission assigned successfully"),
         (status = 400, description = "Invalid request"),
         (status = 401, description = "Not authenticated"),
         (status = 403, description = "Insufficient permissions"),
@@ -63,7 +64,7 @@ pub async fn handler(
     Json(request_body): Json<RequestBody>,
 ) -> Result<StatusCode, Error> {
     principal
-        .require_permission(&pool, "post:/permissions/assign")
+        .require_permission(&pool, "post:/permissions")
         .await?;
 
     // The Assigner must have the requested permission themselves first
@@ -72,8 +73,19 @@ pub async fn handler(
         .require_permission(&pool, &request_body.permission)
         .await?;
 
-    let rows_affected = match request_body.assignee {
-        Assignee::User { username } => sqlx::query!(
+    let (assigner_type, assigner_id) = match principal {
+        Principal::Session(info) => ("user", info.user_id),
+        Principal::AccessToken(info) => ("access_token", info.id),
+        Principal::Basic(info) => ("user", info.user_id),
+    };
+
+    let mut tx = pool
+        .begin()
+        .await
+        .context("begin transaction :: assign permission")?;
+
+    let (assignee_type, assignee_id, permission_id) = match request_body.assignee {
+        Assignee::User { username } => match sqlx::query!(
             r#"
             INSERT INTO user_permissions (user_id, permission_id)
 
@@ -83,18 +95,24 @@ pub async fn handler(
             INNER JOIN permissions p ON p.id = up.permission_id
 
             WHERE u.username = ? AND p.permission = ?
+
+            ON CONFLICT(user_id, permission_id) DO NOTHING
+            RETURNING user_id, permission_id
             "#,
             username,
             request_body.permission
         )
-        .execute(&pool)
+        .fetch_optional(&mut *tx)
         .await
         .context("assign permission to user")?
-        .rows_affected(),
+        {
+            None => return Err(Error::DoesNotExist),
+            Some(record) => ("user", record.user_id, record.permission_id),
+        },
         Assignee::AccessToken {
             username,
             token_name,
-        } => sqlx::query!(
+        } => match sqlx::query!(
             r#"
             INSERT INTO access_token_permissions (access_token_id, permission_id)
 
@@ -105,22 +123,58 @@ pub async fn handler(
             INNER JOIN permissions p ON p.id = ap.permission_id
 
             WHERE u.username = ? AND a.name = ? AND p.permission = ?
+
+            ON CONFLICT(access_token_id, permission_id) DO NOTHING
+            RETURNING access_token_id, permission_id
             "#,
             username,
             token_name,
             request_body.permission
         )
-        .execute(&pool)
+        .fetch_optional(&mut *tx)
         .await
         .context("assign permission to access token")?
-        .rows_affected(),
+        {
+            None => return Err(Error::DoesNotExist),
+            Some(record) => ("access_token", record.access_token_id, record.permission_id),
+        },
     };
 
-    if rows_affected == 0 {
-        return Err(Error::UnAssigned);
-    }
+    #[cfg(feature = "tracing")]
+    tracing::info!("permission assigned");
 
-    Ok(StatusCode::OK)
+    let now = OffsetDateTime::now_utc();
+    sqlx::query!(
+        r#"
+        INSERT INTO permissions_audit_log
+        (
+            assigner_type,
+            assigner_id,
+            assignee_type,
+            assignee_id,
+            permission_id,
+            action,
+            datetime
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        "#,
+        assigner_type,
+        assigner_id,
+        assignee_type,
+        assignee_id,
+        permission_id,
+        "assign",
+        now
+    )
+    .execute(&mut *tx)
+    .await
+    .context("write permission audit log")?;
+
+    tx.commit()
+        .await
+        .context("commit transaction :: assign permission")?;
+
+    Ok(StatusCode::CREATED)
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -128,8 +182,8 @@ pub enum Error {
     #[error("{0}")]
     Permission(#[from] PermissionError),
 
-    #[error("permission not assigned because either the assignee or the permission does not exist")]
-    UnAssigned,
+    #[error("either the assignee or the permission does not exist")]
+    DoesNotExist,
 
     #[error("{0}")]
     Sqlx(#[from] contextual::Error<sqlx::Error>),
@@ -139,7 +193,7 @@ impl extra::ErrorKind for Error {
     fn kind(&self) -> &'static str {
         match self {
             Error::Permission(e) => e.kind(),
-            Error::UnAssigned => "unassigned",
+            Error::DoesNotExist => "does_not_exist",
             Error::Sqlx(_) => "sqlx",
         }
     }
@@ -149,7 +203,7 @@ impl axum::response::IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
             Error::Permission(err) => err.into_response(),
-            Error::UnAssigned => {
+            Error::DoesNotExist => {
                 #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);
 

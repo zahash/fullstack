@@ -96,7 +96,7 @@ pub async fn handler(
     let password = validate_password(password).map_err(Error::WeakPassword)?;
     let email = Email::try_from(email).map_err(Error::InvalidEmailFormat)?;
 
-    let mut tx = pool.begin().await.context("begin transaction")?;
+    let mut tx = pool.begin().await.context("begin transaction :: signup")?;
 
     if super::username::exists(&mut *tx, &username)
         .await
@@ -134,7 +134,7 @@ pub async fn handler(
         .await
         .context("assign `signup` permission group")?;
 
-    tx.commit().await.context("commit transaction")?;
+    tx.commit().await.context("commit transaction :: signup")?;
 
     #[cfg(feature = "smtp")]
     {

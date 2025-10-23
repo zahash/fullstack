@@ -4,28 +4,6 @@
 # - api gateway with service registry (similar to dns records)
 
 # - auth management
-# /introspect
-
-# Request
-# { 
-#     “fields”: [“username”, “email”],
-#     “permissions”: [
-#         “/sysinfo”, 
-#         “/access-token/generate”
-#     ]
-# }
-
-# Response
-# {
-#     “fields”: {
-#         “username”: “…”,
-#         “email”: “…”
-#     },
-#     “permissions”: {
-#         “/sysinfo”: false,
-#         “/access-token/generate”: true
-#     }
-# }
 
 
 [workspace]
