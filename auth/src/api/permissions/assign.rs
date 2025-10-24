@@ -140,9 +140,6 @@ pub async fn handler(
         },
     };
 
-    #[cfg(feature = "tracing")]
-    tracing::info!("permission assigned");
-
     let now = OffsetDateTime::now_utc();
     sqlx::query!(
         r#"
@@ -173,6 +170,9 @@ pub async fn handler(
     tx.commit()
         .await
         .context("commit transaction :: assign permission")?;
+
+    #[cfg(feature = "tracing")]
+    tracing::info!("permission assigned");
 
     Ok(StatusCode::CREATED)
 }

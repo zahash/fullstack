@@ -52,7 +52,7 @@ CREATE TABLE permissions_audit_log(
     FOREIGN KEY (permission_id) REFERENCES permissions (id) ON DELETE CASCADE,
     CHECK (assigner_type IN ('user', 'access_token')),
     CHECK (assignee_type IN ('user', 'access_token')),
-    CHECK (action IN ('assigned', 'revoked'))
+    CHECK (action IN ('assign', 'revoke'))
 );
 CREATE INDEX idx__permissions_audit_log__datetime ON permissions_audit_log (datetime);
 CREATE INDEX idx__permissions_audit_log__assigner ON permissions_audit_log (assigner_type, assigner_id, datetime);
