@@ -9,3 +9,4 @@ CREATE TABLE access_tokens (
     UNIQUE (user_id, name),
     CHECK (expires_at >= created_at)
 );
+CREATE INDEX idx__access_tokens__user_id__name ON access_tokens (user_id, name);
