@@ -1,6 +1,6 @@
 pub mod access_token;
 pub mod email;
-pub mod health;
+pub mod heartbeat;
 pub mod introspect;
 pub mod key_rotation;
 pub mod login;
@@ -21,7 +21,7 @@ pub const OPEN_API_DOCS_PATH: &str = "/api-docs/openapi.json";
         access_token::generate::handler,
         access_token::verify::handler,
         email::check_availability::handler,
-        health::handler,
+        heartbeat::handler,
         key_rotation::handler,
         login::handler,
         logout::handler,

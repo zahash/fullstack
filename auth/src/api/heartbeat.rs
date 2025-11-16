@@ -6,7 +6,7 @@ use axum_macros::debug_handler;
 
 use crate::AppState;
 
-pub const PATH: &str = "/health";
+pub const PATH: &str = "/heartbeat";
 
 pub fn method_router() -> MethodRouter<AppState> {
     get(handler)
@@ -17,7 +17,7 @@ pub fn method_router() -> MethodRouter<AppState> {
     get,
     path = PATH,
     operation_id = PATH,
-    responses((status = 200, description = "health check OK")),
+    responses((status = 200, description = "heartbeat OK")),
     tag = "probe"
 ))]
 #[cfg_attr(feature = "tracing", tracing::instrument(ret))]

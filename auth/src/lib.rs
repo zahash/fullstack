@@ -68,7 +68,7 @@ pub struct AppState {
 
 pub async fn router(opts: ServerOpts) -> Result<Router, ServerError> {
     use crate::api::{
-        access_token, email, health, key_rotation, login, logout, permissions, private, signup,
+        access_token, email, heartbeat, key_rotation, login, logout, permissions, private, signup,
         sysinfo, username,
     };
 
@@ -85,7 +85,7 @@ pub async fn router(opts: ServerOpts) -> Result<Router, ServerError> {
             email::check_availability::PATH,
             email::check_availability::method_router(),
         )
-        .route(health::PATH, health::method_router())
+        .route(heartbeat::PATH, heartbeat::method_router())
         .route(key_rotation::PATH, key_rotation::method_router())
         .route(login::PATH, login::method_router())
         .route(logout::PATH, logout::method_router())
