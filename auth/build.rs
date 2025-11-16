@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 
-const DANGEROUS_FEATURES: &'static [(&'static str, &'static str)] = &[
+const DANGEROUS_FEATURES: &[(&str, &str)] = &[
     (
         "await-tasks",
         "Awaiting background tasks in production blocks responses and increases latency \
@@ -26,20 +26,21 @@ fn main() {
     fs::create_dir_all(&target_dir).unwrap();
 
     for (feature, message) in DANGEROUS_FEATURES {
-        if let Some(_) = std::env::var_os(&format!(
+        if std::env::var_os(format!(
             "CARGO_FEATURE_{}",
             feature.replace("-", "_").to_uppercase()
-        )) {
+        ))
+        .is_some()
+        {
             println!(
                 "cargo:warning=crate compiled with `{}` feature enabled. {}",
                 feature, message
             );
 
             let file_path = target_dir.join(feature);
-            fs::write(&file_path, message).expect(&format!(
-                "failed to write dangerous feature `{}` to file",
-                feature
-            ));
+            fs::write(&file_path, message).unwrap_or_else(|_| {
+                panic!("failed to write dangerous feature `{}` to file", feature)
+            });
         }
     }
 }
