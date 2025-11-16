@@ -4,13 +4,12 @@ use axum::{
     Json,
     response::{IntoResponse, Response},
 };
-use contextual::Context;
 use cookie::{Cookie, SameSite, time::Duration};
 use http::{StatusCode, header::COOKIE};
 use time::OffsetDateTime;
 use token::Token;
 
-use crate::core::{Credentials, Permission, PermissionError, Verified};
+use crate::core::{Credentials, Permission, Verified};
 
 const SESSION_ID: &str = "session_id";
 
@@ -133,22 +132,6 @@ impl TryFrom<SessionInfo> for Verified<SessionInfo> {
 }
 
 impl Verified<SessionInfo> {
-    pub async fn require_permission(
-        &self,
-        pool: &sqlx::Pool<sqlx::Sqlite>,
-        permission: &str,
-    ) -> Result<(), PermissionError> {
-        if !self
-            .has_permission(&pool, permission)
-            .await
-            .context("permission check")?
-        {
-            return Err(PermissionError::InsufficientPermissionsError);
-        }
-
-        Ok(())
-    }
-
     pub async fn has_permission(
         &self,
         pool: &sqlx::Pool<sqlx::Sqlite>,

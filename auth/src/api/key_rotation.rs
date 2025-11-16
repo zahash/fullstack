@@ -9,7 +9,8 @@ use serde::Deserialize;
 
 use crate::{
     AppState,
-    core::{PermissionError, Principal},
+    core::{InsufficientPermissionsError, Principal},
+    require_permission,
 };
 
 pub const PATH: &str = "/rotate-key";
@@ -48,9 +49,8 @@ pub async fn handler(
     principal: Principal,
     Form(RequestBody { key }): Form<RequestBody>,
 ) -> Result<StatusCode, Error> {
-    principal
-        .require_permission(&pool, "post:/rotate-key")
-        .await?;
+    require_permission!(&pool, &principal, "post:/rotate-key", "rotate secret key");
+
     secrets.reset(&key)?;
     Ok(StatusCode::OK)
 }
@@ -58,17 +58,20 @@ pub async fn handler(
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("{0}")]
-    Permission(#[from] PermissionError),
+    InsufficientPermissions(#[from] InsufficientPermissionsError),
 
     #[error("{0}")]
     Io(#[from] std::io::Error),
+
+    #[error("{0}")]
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
 }
 
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
-            Error::Permission(err) => err.into_response(),
-            Error::Io(_) => {
+            Error::InsufficientPermissions(err) => err.into_response(),
+            Error::Io(_) | Error::Sqlx(_) => {
                 #[cfg(feature = "tracing")]
                 tracing::error!("{:?}", self);
 

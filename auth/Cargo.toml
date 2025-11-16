@@ -67,3 +67,14 @@ smtp = [
 ]
 smtp--no-tls = []
 tracing = ["dep:tracing", "middleware/latency", "tracing-subscriber/env-filter"]
+
+all = [
+    "client-ip",
+    "openapi",
+    "profiles",
+    "rate-limit",
+    "serve-dir",
+    "smtp",
+    "tracing",
+]
+dangerous = ["await-tasks", "smtp--no-tls"]

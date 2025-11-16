@@ -14,7 +14,8 @@ use time::OffsetDateTime;
 
 use crate::{
     AppState,
-    core::{AccessToken, PermissionError, Principal},
+    core::{AccessToken, InsufficientPermissionsError, Principal},
+    require_permission,
 };
 
 pub const PATH: &str = "/access-token/generate";
@@ -56,9 +57,12 @@ pub async fn handler(
     principal: Principal,
     Form(settings): Form<Config>,
 ) -> Result<(StatusCode, String), Error> {
-    principal
-        .require_permission(&pool, "post:/access-token/generate")
-        .await?;
+    require_permission!(
+        &pool,
+        &principal,
+        "post:/access-token/generate",
+        "generate access token"
+    );
 
     let user_id = principal.user_id();
 
@@ -94,7 +98,7 @@ pub async fn handler(
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("{0}")]
-    Permission(#[from] PermissionError),
+    InsufficientPermissions(#[from] InsufficientPermissionsError),
 
     #[error("{0}")]
     Sqlx(#[from] contextual::Error<sqlx::Error>),
@@ -103,7 +107,7 @@ pub enum Error {
 impl IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
-            Error::Permission(err) => err.into_response(),
+            Error::InsufficientPermissions(err) => err.into_response(),
             Error::Sqlx(_err) => {
                 #[cfg(feature = "tracing")]
                 tracing::error!("{:?}", _err);

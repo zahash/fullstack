@@ -18,43 +18,52 @@ pub struct Permission {
     pub description: Option<String>,
 }
 
-#[derive(thiserror::Error, Debug)]
-pub enum PermissionError {
-    #[error("insufficient permissions")]
-    InsufficientPermissionsError,
+#[macro_export]
+macro_rules! require_permission {
+    ($pool:expr, $principal:expr, $permission:expr) => {{
+        match $principal
+            .has_permission($pool, $permission)
+            .await
+        {
+            Ok(true) => {}
+            Ok(false) => return Err(crate::core::InsufficientPermissionsError.into()),
+            Err(e) => return Err(e.into()),
+        }
+    }};
 
-    #[error("{0}")]
-    Sqlx(#[from] contextual::Error<sqlx::Error>),
+    ($pool:expr, $principal:expr, $permission:expr, $context:expr) => {{
+        use contextual::Context;
+        match $principal
+            .has_permission($pool, $permission)
+            .await
+            .context($context)
+        {
+            Ok(true) => {}
+            Ok(false) => return Err(crate::core::InsufficientPermissionsError.into()),
+            Err(e) => return Err(e.into()),
+        }
+    }};
 }
 
-impl extra::ErrorKind for PermissionError {
+#[derive(thiserror::Error, Debug)]
+#[error("insufficient permissions")]
+pub struct InsufficientPermissionsError;
+
+impl extra::ErrorKind for InsufficientPermissionsError {
     fn kind(&self) -> &'static str {
-        match self {
-            PermissionError::InsufficientPermissionsError => "auth.permissions",
-            PermissionError::Sqlx(_) => "auth.sqlx",
-        }
+        "auth.permissions"
     }
 }
 
-impl IntoResponse for PermissionError {
+impl IntoResponse for InsufficientPermissionsError {
     fn into_response(self) -> Response {
-        match self {
-            PermissionError::InsufficientPermissionsError => {
-                #[cfg(feature = "tracing")]
-                tracing::info!("{:?}", self);
+        #[cfg(feature = "tracing")]
+        tracing::info!("{:?}", self);
 
-                (
-                    StatusCode::FORBIDDEN,
-                    Json(extra::ErrorResponse::from(self)),
-                )
-                    .into_response()
-            }
-            PermissionError::Sqlx(_err) => {
-                #[cfg(feature = "tracing")]
-                tracing::error!("{:?}", _err);
-
-                StatusCode::INTERNAL_SERVER_ERROR.into_response()
-            }
-        }
+        (
+            StatusCode::FORBIDDEN,
+            Json(extra::ErrorResponse::from(self)),
+        )
+            .into_response()
     }
 }

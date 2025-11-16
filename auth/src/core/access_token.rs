@@ -4,12 +4,11 @@ use axum::{
     Json,
     response::{IntoResponse, Response},
 };
-use contextual::Context;
 use http::StatusCode;
 use time::OffsetDateTime;
 use token::Token;
 
-use crate::core::{Credentials, Permission, PermissionError, Verified};
+use crate::core::{Credentials, Permission, Verified};
 
 pub struct AccessToken(Token<32>);
 
@@ -114,22 +113,6 @@ impl TryFrom<AccessTokenInfo> for Verified<AccessTokenInfo> {
 }
 
 impl Verified<AccessTokenInfo> {
-    pub async fn require_permission(
-        &self,
-        pool: &sqlx::Pool<sqlx::Sqlite>,
-        permission: &str,
-    ) -> Result<(), PermissionError> {
-        if !self
-            .has_permission(&pool, permission)
-            .await
-            .context("permission check")?
-        {
-            return Err(PermissionError::InsufficientPermissionsError);
-        }
-
-        Ok(())
-    }
-
     pub async fn has_permission(
         &self,
         pool: &sqlx::Pool<sqlx::Sqlite>,

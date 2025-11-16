@@ -1,9 +1,8 @@
 use bcrypt::verify;
 
-use contextual::Context;
 use email::Email;
 
-use crate::core::{Permission, PermissionError, Verified};
+use crate::core::{Permission, Verified};
 
 pub struct UserInfo {
     pub user_id: i64,
@@ -94,22 +93,6 @@ impl UserInfo {
 }
 
 impl Verified<UserInfo> {
-    pub async fn require_permission(
-        &self,
-        pool: &sqlx::Pool<sqlx::Sqlite>,
-        permission: &str,
-    ) -> Result<(), PermissionError> {
-        if !self
-            .has_permission(&pool, permission)
-            .await
-            .context("permission check")?
-        {
-            return Err(PermissionError::InsufficientPermissionsError);
-        }
-
-        Ok(())
-    }
-
     pub async fn has_permission(
         &self,
         pool: &sqlx::Pool<sqlx::Sqlite>,

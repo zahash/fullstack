@@ -11,8 +11,11 @@ use time::OffsetDateTime;
 
 use crate::{
     AppState,
-    core::{PermissionError, Principal},
+    core::{InsufficientPermissionsError, Principal},
+    require_permission,
 };
+
+// TODO: mark this as admin endpoint. maybe using tags
 
 pub const PATH: &str = "/permissions";
 
@@ -63,15 +66,21 @@ pub async fn handler(
     principal: Principal,
     Json(request_body): Json<RequestBody>,
 ) -> Result<StatusCode, Error> {
-    principal
-        .require_permission(&pool, "post:/permissions")
-        .await?;
+    require_permission!(
+        &pool,
+        &principal,
+        "post:/permissions",
+        "assign permission"
+    );
 
     // The Assigner must have the requested permission themselves first
     // before they assign it to others
-    principal
-        .require_permission(&pool, &request_body.permission)
-        .await?;
+    require_permission!(
+        &pool,
+        &principal,
+        &request_body.permission,
+        "assign permission"
+    );
 
     let (assigner_type, assigner_id) = match principal {
         Principal::Session(info) => ("user", info.user_id),
@@ -180,7 +189,7 @@ pub async fn handler(
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("{0}")]
-    Permission(#[from] PermissionError),
+    InsufficientPermissions(#[from] InsufficientPermissionsError),
 
     #[error("either the assignee or the permission does not exist")]
     DoesNotExist,
@@ -192,7 +201,7 @@ pub enum Error {
 impl extra::ErrorKind for Error {
     fn kind(&self) -> &'static str {
         match self {
-            Error::Permission(e) => e.kind(),
+            Error::InsufficientPermissions(e) => e.kind(),
             Error::DoesNotExist => "does_not_exist",
             Error::Sqlx(_) => "sqlx",
         }
@@ -202,7 +211,7 @@ impl extra::ErrorKind for Error {
 impl axum::response::IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
-            Error::Permission(err) => err.into_response(),
+            Error::InsufficientPermissions(err) => err.into_response(),
             Error::DoesNotExist => {
                 #[cfg(feature = "tracing")]
                 tracing::info!("{:?}", self);

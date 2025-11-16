@@ -1,15 +1,18 @@
 use axum::{
     Json,
     extract::State,
+    response::IntoResponse,
     routing::{MethodRouter, get},
 };
 use axum_macros::debug_handler;
+use http::StatusCode;
 use serde::Serialize;
 use sysinfo::{Disks, System};
 
 use crate::{
     AppState,
-    core::{PermissionError, Principal},
+    core::{InsufficientPermissionsError, Principal},
+    require_permission,
 };
 
 pub const PATH: &str = "/sysinfo";
@@ -139,7 +142,30 @@ pub fn method_router() -> MethodRouter<AppState> {
 pub async fn handler(
     State(AppState { pool, .. }): State<AppState>,
     principal: Principal,
-) -> Result<Json<Info>, PermissionError> {
-    principal.require_permission(&pool, "get:/sysinfo").await?;
+) -> Result<Json<Info>, Error> {
+    require_permission!(&pool, &principal, "get:/sysinfo", "get system information");
     Ok(Json(Info::default()))
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("{0}")]
+    InsufficientPermissions(#[from] InsufficientPermissionsError),
+
+    #[error("{0}")]
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
+}
+
+impl IntoResponse for Error {
+    fn into_response(self) -> axum::response::Response {
+        match self {
+            Error::InsufficientPermissions(err) => err.into_response(),
+            Error::Sqlx(_err) => {
+                #[cfg(feature = "tracing")]
+                tracing::error!("{:?}", _err);
+
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
+        }
+    }
 }

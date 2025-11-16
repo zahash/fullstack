@@ -3,13 +3,17 @@ pub mod revoke;
 
 use axum::Json;
 use axum::extract::State;
+use axum::response::IntoResponse;
 use axum::routing::{MethodRouter, get};
 use axum_macros::debug_handler;
 use contextual::Context;
+use http::StatusCode;
 
+use crate::core::InsufficientPermissionsError;
+use crate::require_permission;
 use crate::{
     AppState,
-    core::{Permission, PermissionError, Principal},
+    core::{Permission, Principal},
 };
 
 pub const PATH: &str = "/permissions";
@@ -34,10 +38,13 @@ pub fn method_router() -> MethodRouter<AppState> {
 pub async fn handler(
     State(AppState { pool, .. }): State<AppState>,
     principal: Principal,
-) -> Result<Json<Vec<Permission>>, PermissionError> {
-    principal
-        .require_permission(&pool, "get:/permissions")
-        .await?;
+) -> Result<Json<Vec<Permission>>, Error> {
+    require_permission!(
+        &pool,
+        &principal,
+        "get:/permissions",
+        "get permissions"
+    );
 
     let permissions = principal
         .permissions(&pool)
@@ -45,4 +52,27 @@ pub async fn handler(
         .context("get permissions")?;
 
     Ok(Json(permissions))
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error("{0}")]
+    InsufficientPermissions(#[from] InsufficientPermissionsError),
+
+    #[error("{0}")]
+    Sqlx(#[from] contextual::Error<sqlx::Error>),
+}
+
+impl IntoResponse for Error {
+    fn into_response(self) -> axum::response::Response {
+        match self {
+            Error::InsufficientPermissions(err) => err.into_response(),
+            Error::Sqlx(_err) => {
+                #[cfg(feature = "tracing")]
+                tracing::error!("{:?}", _err);
+
+                StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            }
+        }
+    }
 }
