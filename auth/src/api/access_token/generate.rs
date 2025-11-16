@@ -15,7 +15,6 @@ use time::OffsetDateTime;
 use crate::{
     AppState,
     core::{AccessToken, InsufficientPermissionsError, Principal},
-    require_permission,
 };
 
 pub const PATH: &str = "/access-token/generate";
@@ -57,12 +56,9 @@ pub async fn handler(
     principal: Principal,
     Form(settings): Form<Config>,
 ) -> Result<(StatusCode, String), Error> {
-    require_permission!(
-        &pool,
-        &principal,
-        "post:/access-token/generate",
-        "generate access token"
-    );
+    principal
+        .require_permission::<Error>(&pool, "post:/access-token/generate")
+        .await?;
 
     let user_id = principal.user_id();
 

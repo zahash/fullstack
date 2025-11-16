@@ -10,7 +10,6 @@ use contextual::Context;
 use http::StatusCode;
 
 use crate::core::InsufficientPermissionsError;
-use crate::require_permission;
 use crate::{
     AppState,
     core::{Permission, Principal},
@@ -39,12 +38,9 @@ pub async fn handler(
     State(AppState { pool, .. }): State<AppState>,
     principal: Principal,
 ) -> Result<Json<Vec<Permission>>, Error> {
-    require_permission!(
-        &pool,
-        &principal,
-        "get:/permissions",
-        "get permissions"
-    );
+    principal
+        .require_permission::<Error>(&pool, "get:/permissions")
+        .await?;
 
     let permissions = principal
         .permissions(&pool)

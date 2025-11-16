@@ -75,7 +75,9 @@ impl Principal {
         permission: &str,
     ) -> Result<(), E>
     where
-        E: From<InsufficientPermissionsError> + From<sqlx::Error>,
+        E: std::error::Error
+            + From<InsufficientPermissionsError>
+            + From<contextual::Error<sqlx::Error>>,
     {
         match self {
             Principal::Session(info) => info.require_permission(pool, permission).await,

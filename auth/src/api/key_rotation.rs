@@ -10,7 +10,6 @@ use serde::Deserialize;
 use crate::{
     AppState,
     core::{InsufficientPermissionsError, Principal},
-    require_permission,
 };
 
 pub const PATH: &str = "/rotate-key";
@@ -49,7 +48,9 @@ pub async fn handler(
     principal: Principal,
     Form(RequestBody { key }): Form<RequestBody>,
 ) -> Result<StatusCode, Error> {
-    require_permission!(&pool, &principal, "post:/rotate-key", "rotate secret key");
+    principal
+        .require_permission::<Error>(&pool, "post:/rotate-key")
+        .await?;
 
     secrets.reset(&key)?;
     Ok(StatusCode::OK)

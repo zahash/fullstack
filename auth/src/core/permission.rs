@@ -2,6 +2,7 @@ use axum::{
     Json,
     response::{IntoResponse, Response},
 };
+use contextual::Context;
 use http::StatusCode;
 use serde::Serialize;
 
@@ -41,38 +42,20 @@ pub trait Authorizable {
         permission: &str,
     ) -> Result<(), E>
     where
-        E: From<InsufficientPermissionsError> + From<sqlx::Error>,
+        E: std::error::Error
+            + From<InsufficientPermissionsError>
+            + From<contextual::Error<sqlx::Error>>,
     {
-        match self.has_permission(pool, permission).await {
+        match self
+            .has_permission(pool, permission)
+            .await
+            .context(format!("require_permission `{permission}`"))
+        {
             Ok(true) => Ok(()),
             Ok(false) => Err(InsufficientPermissionsError.into()),
             Err(e) => Err(e.into()),
         }
     }
-}
-
-#[macro_export]
-macro_rules! require_permission {
-    ($pool:expr, $principal:expr, $permission:expr) => {{
-        match $principal.has_permission($pool, $permission).await {
-            Ok(true) => {}
-            Ok(false) => return Err(crate::core::InsufficientPermissionsError.into()),
-            Err(e) => return Err(e.into()),
-        }
-    }};
-
-    ($pool:expr, $principal:expr, $permission:expr, $context:expr) => {{
-        use contextual::Context;
-        match $principal
-            .has_permission($pool, $permission)
-            .await
-            .context($context)
-        {
-            Ok(true) => {}
-            Ok(false) => return Err(crate::core::InsufficientPermissionsError.into()),
-            Err(e) => return Err(e.into()),
-        }
-    }};
 }
 
 #[derive(thiserror::Error, Debug)]

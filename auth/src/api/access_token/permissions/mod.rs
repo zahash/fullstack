@@ -18,7 +18,6 @@ use crate::{
         AccessTokenInfo, AccessTokenValidationError, Authorizable, InsufficientPermissionsError,
         Permission, Principal,
     },
-    require_permission,
 };
 
 pub const PATH: &str = "/access-token/permissions";
@@ -40,12 +39,9 @@ pub async fn handler(
     Query(QueryParams { token_name }): Query<QueryParams>,
     principal: Principal,
 ) -> Result<Json<Vec<Permission>>, Error> {
-    require_permission!(
-        &pool,
-        &principal,
-        "get:/access-token/permissions",
-        "get access token permissions"
-    );
+    principal
+        .require_permission::<Error>(&pool, "get:/access-token/permissions")
+        .await?;
 
     if let Principal::AccessToken(info) = &principal
         && info.name == token_name

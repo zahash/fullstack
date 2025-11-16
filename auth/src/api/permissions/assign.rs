@@ -12,7 +12,6 @@ use time::OffsetDateTime;
 use crate::{
     AppState,
     core::{InsufficientPermissionsError, Principal},
-    require_permission,
 };
 
 // TODO: mark this as admin endpoint. maybe using tags
@@ -66,21 +65,15 @@ pub async fn handler(
     principal: Principal,
     Json(request_body): Json<RequestBody>,
 ) -> Result<StatusCode, Error> {
-    require_permission!(
-        &pool,
-        &principal,
-        "post:/permissions",
-        "assign permission"
-    );
+    principal
+        .require_permission::<Error>(&pool, "post:/permissions")
+        .await?;
 
     // The Assigner must have the requested permission themselves first
     // before they assign it to others
-    require_permission!(
-        &pool,
-        &principal,
-        &request_body.permission,
-        "assign permission"
-    );
+    principal
+        .require_permission::<Error>(&pool, &request_body.permission)
+        .await?;
 
     let (assigner_type, assigner_id) = match principal {
         Principal::Session(info) => ("user", info.user_id),

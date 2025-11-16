@@ -12,7 +12,6 @@ use sysinfo::{Disks, System};
 use crate::{
     AppState,
     core::{InsufficientPermissionsError, Principal},
-    require_permission,
 };
 
 pub const PATH: &str = "/sysinfo";
@@ -143,7 +142,9 @@ pub async fn handler(
     State(AppState { pool, .. }): State<AppState>,
     principal: Principal,
 ) -> Result<Json<Info>, Error> {
-    require_permission!(&pool, &principal, "get:/sysinfo", "get system information");
+    principal
+        .require_permission::<Error>(&pool, "get:/sysinfo")
+        .await?;
     Ok(Json(Info::default()))
 }
 
