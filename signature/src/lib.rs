@@ -123,7 +123,7 @@ impl<T> Signed<T> {
 
                 Ok(Self { header, token })
             }
-            _ => return Err(DecodeError::InvalidFormat),
+            _ => Err(DecodeError::InvalidFormat),
         }
     }
 }
