@@ -8,7 +8,7 @@ use http::StatusCode;
 use time::OffsetDateTime;
 use token::Token;
 
-use crate::core::{Credentials, Permission, Verified};
+use crate::core::{Credentials, Permission, Verified, permission::Authorizable};
 
 pub struct AccessToken(Token<32>);
 
@@ -112,8 +112,8 @@ impl TryFrom<AccessTokenInfo> for Verified<AccessTokenInfo> {
     }
 }
 
-impl Verified<AccessTokenInfo> {
-    pub async fn has_permission(
+impl Authorizable for Verified<AccessTokenInfo> {
+    async fn has_permission(
         &self,
         pool: &sqlx::Pool<sqlx::Sqlite>,
         permission: &str,
@@ -137,7 +137,7 @@ impl Verified<AccessTokenInfo> {
         Ok(exists != 0)
     }
 
-    pub async fn permissions(
+    async fn permissions(
         &self,
         pool: &sqlx::Pool<sqlx::Sqlite>,
     ) -> Result<Vec<Permission>, sqlx::Error> {

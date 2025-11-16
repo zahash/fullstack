@@ -15,8 +15,8 @@ use serde::Deserialize;
 use crate::{
     AppState,
     core::{
-        AccessTokenInfo, AccessTokenValidationError, InsufficientPermissionsError, Permission,
-        Principal,
+        AccessTokenInfo, AccessTokenValidationError, Authorizable, InsufficientPermissionsError,
+        Permission, Principal,
     },
     require_permission,
 };

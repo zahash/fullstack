@@ -12,7 +12,7 @@ pub use access_token::{
 };
 pub use basic::{Basic, BasicAuthorizationExtractionError};
 pub use credentials::Credentials;
-pub use permission::{InsufficientPermissionsError, Permission};
+pub use permission::{Authorizable, InsufficientPermissionsError, Permission};
 pub use principal::{Principal, PrincipalError};
 pub use session::{
     SessionCookieExtractionError, SessionId, SessionInfo, SessionValidationError,

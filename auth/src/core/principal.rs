@@ -10,9 +10,9 @@ use http::{HeaderMap, StatusCode, request::Parts};
 
 use crate::core::{
     AccessToken, AccessTokenAuthorizationExtractionError, AccessTokenInfo,
-    AccessTokenValidationError, Basic, BasicAuthorizationExtractionError, Credentials, Permission,
-    SessionCookieExtractionError, SessionId, SessionInfo, SessionValidationError, UserInfo,
-    Verified,
+    AccessTokenValidationError, Basic, BasicAuthorizationExtractionError, Credentials,
+    InsufficientPermissionsError, Permission, SessionCookieExtractionError, SessionId, SessionInfo,
+    SessionValidationError, UserInfo, Verified, permission::Authorizable,
 };
 
 pub enum Principal {
@@ -66,6 +66,21 @@ impl Principal {
             Principal::Session(info) => info.user_id,
             Principal::AccessToken(info) => info.user_id,
             Principal::Basic(info) => info.user_id,
+        }
+    }
+
+    pub async fn require_permission<E>(
+        &self,
+        pool: &sqlx::Pool<sqlx::Sqlite>,
+        permission: &str,
+    ) -> Result<(), E>
+    where
+        E: From<InsufficientPermissionsError> + From<sqlx::Error>,
+    {
+        match self {
+            Principal::Session(info) => info.require_permission(pool, permission).await,
+            Principal::AccessToken(info) => info.require_permission(pool, permission).await,
+            Principal::Basic(info) => info.require_permission(pool, permission).await,
         }
     }
 

@@ -2,7 +2,7 @@ use bcrypt::verify;
 
 use email::Email;
 
-use crate::core::{Permission, Verified};
+use crate::core::{Permission, Verified, permission::Authorizable};
 
 pub struct UserInfo {
     pub user_id: i64,
@@ -92,8 +92,8 @@ impl UserInfo {
     }
 }
 
-impl Verified<UserInfo> {
-    pub async fn has_permission(
+impl Authorizable for Verified<UserInfo> {
+    async fn has_permission(
         &self,
         pool: &sqlx::Pool<sqlx::Sqlite>,
         permission: &str,
@@ -117,7 +117,7 @@ impl Verified<UserInfo> {
         Ok(exists != 0)
     }
 
-    pub async fn permissions(
+    async fn permissions(
         &self,
         pool: &sqlx::Pool<sqlx::Sqlite>,
     ) -> Result<Vec<Permission>, sqlx::Error> {

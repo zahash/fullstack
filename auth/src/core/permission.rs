@@ -18,13 +18,43 @@ pub struct Permission {
     pub description: Option<String>,
 }
 
+pub trait Authorizable {
+    async fn permissions(
+        &self,
+        pool: &sqlx::Pool<sqlx::Sqlite>,
+    ) -> Result<Vec<Permission>, sqlx::Error>;
+
+    /// has_permission by default fetches permissions and checks for a match.
+    /// Implementors MAY override with a more efficient implementation (e.g. EXISTS query).
+    async fn has_permission(
+        &self,
+        pool: &sqlx::Pool<sqlx::Sqlite>,
+        permission: &str,
+    ) -> Result<bool, sqlx::Error> {
+        let permissions = self.permissions(pool).await?;
+        Ok(permissions.iter().any(|p| p.permission == permission))
+    }
+
+    async fn require_permission<E>(
+        &self,
+        pool: &sqlx::Pool<sqlx::Sqlite>,
+        permission: &str,
+    ) -> Result<(), E>
+    where
+        E: From<InsufficientPermissionsError> + From<sqlx::Error>,
+    {
+        match self.has_permission(pool, permission).await {
+            Ok(true) => Ok(()),
+            Ok(false) => Err(InsufficientPermissionsError.into()),
+            Err(e) => Err(e.into()),
+        }
+    }
+}
+
 #[macro_export]
 macro_rules! require_permission {
     ($pool:expr, $principal:expr, $permission:expr) => {{
-        match $principal
-            .has_permission($pool, $permission)
-            .await
-        {
+        match $principal.has_permission($pool, $permission).await {
             Ok(true) => {}
             Ok(false) => return Err(crate::core::InsufficientPermissionsError.into()),
             Err(e) => return Err(e.into()),

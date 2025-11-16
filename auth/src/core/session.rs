@@ -9,7 +9,7 @@ use http::{StatusCode, header::COOKIE};
 use time::OffsetDateTime;
 use token::Token;
 
-use crate::core::{Credentials, Permission, Verified};
+use crate::core::{Credentials, Permission, Verified, permission::Authorizable};
 
 const SESSION_ID: &str = "session_id";
 
@@ -131,8 +131,8 @@ impl TryFrom<SessionInfo> for Verified<SessionInfo> {
     }
 }
 
-impl Verified<SessionInfo> {
-    pub async fn has_permission(
+impl Authorizable for Verified<SessionInfo> {
+    async fn has_permission(
         &self,
         pool: &sqlx::Pool<sqlx::Sqlite>,
         permission: &str,
@@ -156,7 +156,7 @@ impl Verified<SessionInfo> {
         Ok(exists != 0)
     }
 
-    pub async fn permissions(
+    async fn permissions(
         &self,
         pool: &sqlx::Pool<sqlx::Sqlite>,
     ) -> Result<Vec<Permission>, sqlx::Error> {
