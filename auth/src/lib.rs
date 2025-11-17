@@ -156,28 +156,26 @@ pub async fn router(opts: ServerOpts) -> Result<Router, ServerError> {
     Ok(router)
 }
 
-pub async fn serve(server: Router, port: u16) -> Result<(), ServerError> {
+/// Returns the local address that the listener is bound to.
+/// This can be useful, for example, when binding to port 0 to figure out which port was actually bound.
+pub async fn serve(server: Router, port: u16) -> Result<SocketAddr, ServerError> {
     #[cfg(feature = "client-ip")]
     let app = server.into_make_service_with_connect_info::<SocketAddr>();
 
     #[cfg(not(feature = "client-ip"))]
     let app = server.into_make_service();
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], port));
-    let listener = TcpListener::bind(addr)
+    let listener = TcpListener::bind(SocketAddr::from(([0, 0, 0, 0], port)))
         .await
-        .context(format!("bind :: {addr}"))?;
+        .context("bind")?;
+
+    let local_addr = listener.local_addr().context("local_addr")?;
 
     #[cfg(feature = "tracing")]
-    tracing::info!(
-        "listening on {}",
-        listener.local_addr().context("local_addr")?
-    );
+    tracing::info!("listening on {}", local_addr);
 
-    axum::serve(listener, app)
-        .await
-        .context("axum::serve")
-        .map_err(|e| e.into())
+    axum::serve(listener, app).await.context("axum::serve")?;
+    Ok(local_addr)
 }
 
 #[derive(thiserror::Error, Debug)]

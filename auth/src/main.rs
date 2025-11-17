@@ -4,12 +4,52 @@ use clap::Parser;
 // TODO: use Zeroize for access tokens, session ids, passwords, etc...
 // TODO: remove the "smtp" feature flag (but keep "smtp--no-tls")
 
+const FEATURES: &[&str] = &[
+    #[cfg(feature = "await-tasks")]
+    "await-tasks",
+    #[cfg(feature = "client-ip")]
+    "client-ip",
+    #[cfg(feature = "openapi")]
+    "openapi",
+    #[cfg(feature = "profiles")]
+    "profiles",
+    #[cfg(feature = "rate-limit")]
+    "rate-limit",
+    #[cfg(feature = "serve-dir")]
+    "serve-dir",
+    #[cfg(feature = "smtp")]
+    "smtp",
+    #[cfg(feature = "smtp--no-tls")]
+    "smtp--no-tls",
+    #[cfg(feature = "tracing")]
+    "tracing",
+];
+
+#[cfg(feature = "tracing")]
+fn warn_dangerous_features() {
+    use std::{fs, path::PathBuf};
+
+    // DANGEROUS_FEATURES_DIR is set by build.rs
+    let dir = PathBuf::from(env!("DANGEROUS_FEATURES_DIR"));
+    if let Ok(entries) = fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            if let Ok(message) = fs::read_to_string(entry.path()) {
+                tracing::warn!(
+                    "crate compiled with `{}` feature enabled. {}",
+                    entry.file_name().to_string_lossy(),
+                    message
+                );
+            }
+        }
+    }
+}
+
 #[derive(Debug, clap::Parser)]
 struct Serve {
     /// The port number on which the server will listen for incoming connections.
     /// Example: `8080`
     #[arg(long, env("PORT"))]
-    #[cfg_attr(debug_assertions, arg(default_value_t = 8080))]
+    #[cfg_attr(debug_assertions, arg(default_value_t = 0))]
     port: u16,
 
     /// The database connection URL used by the server.
@@ -91,7 +131,7 @@ async fn main() {
     if let Some(arg) = args_os.peek()
         && arg == "features"
     {
-        println!("{:?}", features());
+        println!("{:?}", FEATURES);
         return;
     }
 
@@ -116,33 +156,7 @@ async fn main() {
     let opts = auth::ServerOpts::from(args);
 
     let router = auth::router(opts).await.unwrap_or_else(|e| exit(e));
-    auth::serve(router, port)
-        .await
-        .unwrap_or_else(|e| exit(e))
-}
-
-#[inline(always)]
-const fn features() -> &'static [&'static str] {
-    &[
-        #[cfg(feature = "await-tasks")]
-        "await-tasks",
-        #[cfg(feature = "client-ip")]
-        "client-ip",
-        #[cfg(feature = "openapi")]
-        "openapi",
-        #[cfg(feature = "profiles")]
-        "profiles",
-        #[cfg(feature = "rate-limit")]
-        "rate-limit",
-        #[cfg(feature = "serve-dir")]
-        "serve-dir",
-        #[cfg(feature = "smtp")]
-        "smtp",
-        #[cfg(feature = "smtp--no-tls")]
-        "smtp--no-tls",
-        #[cfg(feature = "tracing")]
-        "tracing",
-    ]
+    auth::serve(router, port).await.unwrap_or_else(|e| exit(e));
 }
 
 #[cfg(feature = "profiles")]
@@ -186,25 +200,6 @@ fn load_profile() {
             VarError::NotUnicode(_) => exit(err),
         },
     };
-}
-
-#[cfg(feature = "tracing")]
-fn warn_dangerous_features() {
-    use std::{fs, path::PathBuf};
-
-    // DANGEROUS_FEATURES_DIR is set by build.rs
-    let dir = PathBuf::from(env!("DANGEROUS_FEATURES_DIR"));
-    if let Ok(entries) = fs::read_dir(&dir) {
-        for entry in entries.flatten() {
-            if let Ok(message) = fs::read_to_string(entry.path()) {
-                tracing::warn!(
-                    "crate compiled with `{}` feature enabled. {}",
-                    entry.file_name().to_string_lossy(),
-                    message
-                );
-            }
-        }
-    }
 }
 
 #[inline(always)]
