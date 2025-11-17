@@ -4,7 +4,7 @@ edition = "2024"
 
 [dependencies]
 axum = "0.8"
-axum-extra = { version = "0.10", features = ["cookie"] }
+axum-extra = { version = "0.12", features = ["cookie"] }
 axum-macros = "0.5"
 base64 = "0.22"
 bcrypt = "0.17"
