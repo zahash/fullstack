@@ -17,7 +17,7 @@
     "@types/node": "^22.15.21",
     "sass": "^1.91.0",
     "typescript": "~5.8.3",
-    "vite": "^6.3.5",
+    "vite": "^6.4.1",
     "vite-plugin-solid": "^2.11.6"
   }
 }
